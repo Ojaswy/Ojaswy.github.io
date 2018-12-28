@@ -1,2 +1,0 @@
-# Ojaswy.github.io
-Portfolio!
