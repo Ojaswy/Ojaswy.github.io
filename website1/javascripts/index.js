@@ -4,7 +4,7 @@ new p5(function(p) {
 
   p.setup = function() {
     var canvas = p.createCanvas(p.windowWidth, p.windowHeight);
-    p.stroke(p.color('#ce93d8'), 120);
+    p.stroke(p.color('#76d6f2'), 120);
     p.noFill();
     p.frameRate(30);
   }
