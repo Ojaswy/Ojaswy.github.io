@@ -12,7 +12,7 @@
 	  var space = " ";
           var speed = "50";
           var pos = 0;
-          var msg = "OhJazz | Ojaswy Akella";
+          var msg = "OhJazz | Ojaswy Akella  |";
           function Scroll()
            {
              document.title = msg.substring(pos, msg.length) + space + msg.substring(0,pos);
@@ -21,6 +21,10 @@
              window.setTimeout("Scroll()", speed);
            }
          Scroll();
+	    .italic
+	    {
+              font-style: italic;
+            }
 
     </script>
 	<link rel="icon" 
@@ -47,9 +51,9 @@
           <script src="//cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.16/p5.min.js"></script>
           <div class="index-intro">
   <h1>Ojas<span id="kern-t">w</span>y Akella</h1>
-  <p> musician + printf("a CS majors") </p>		  
-  <p> <i> <b>Travelouges</b> and <b>Ink-Bottles</b> over <b>Touchscreens</b> </i> </p>
-  <div class='index-links meta-text'>
+  <p> instrumentalist + CS majors </p>		  
+  <p class="italic"><b>Travelouges</b> and <b>Ink-Bottles</b> over <b>Touchscreens</b></p>
+   <div class='index-links meta-text'>
     <ul>
       <li>
         <script type="text/javascript">
