@@ -1,4 +1,4 @@
-# Portfolio - Using Github as a host 
+# Portfolio
 Ojaswy Akella | Grad School Portfolio
 
 ## Portfolio #1
