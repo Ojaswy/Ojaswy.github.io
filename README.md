@@ -7,5 +7,5 @@ Ojaswy Akella | Grad School Portfolio
 
 ## Portfolio #2
 
-![]()
+![](https://github.com/Ojaswy/Ojaswy.github.io/blob/master/website2/portfolio2.PNG)
 
