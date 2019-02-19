@@ -19,7 +19,7 @@ header .banner-text hr{width:60%;margin:18px auto 24px auto;border-color:#2F2D2E
 .social-container .social{margin:24px 0;padding:0;font-size:30px;text-shadow:0px 1px 2px rgba(0, 0, 0, .8);}
 .social-container .social li{display:inline-block;margin:0 15px;padding:0;}
 .social-container .social li a{color:#fff;}
-.social-container .social li a.github:hover{color:#d3d3cf;}
+.social-container .social li a.github:hover{color:#636163;}
 .social-container .social li a.twitter:hover{color:#1DA1F2;}
 .social-container .social li a.linkedin:hover{color:#0077B5;}
 .social-container .social li a.instagram:hover{color:#E1306C;}
@@ -118,13 +118,20 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 .bars li{position:relative;margin-bottom:60px;background:#bdc3c7;height:42px;border-radius:3px;overflow:hidden;}
 .bars li em{color:#fff;font:15px/42px "Open Sans",sans-serif;letter-spacing:2px;padding-left:20px;position:relative;text-transform:uppercase;}
 .bar-expand{position:absolute;left:0;top:0;margin:0;padding-right:24px;background:#34495e;display:inline-block;height:42px;line-height:42px;border-radius:3px 0 0 3px;}
-.photoshop{background:#1abc9c;width:69%;-moz-animation:photoshop 2s ease;-webkit-animation:photoshop 2s ease;}
-.javascript{background:#e74c3c;width:70%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
-.wordpress{background:#34495e;width:50%;-moz-animation:wordpress 2s ease;-webkit-animation:wordpress 2s ease;}
-.css{background:#3498db;width:85%;-moz-animation:css 2s ease;-webkit-animation:css 2s ease;}
-.html5{background:#d35400;width:85%;-moz-animation:html5 2s ease;-webkit-animation:html5 2s ease;}
-.jquery{background:#9b59b6;width:60%;-moz-animation:jquery 2s ease;-webkit-animation:jquery 2s ease;}
-.python{background:#9b59b6;width:90%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
+/*.photoshop{background:#f0db4f;width:69%;-moz-animation:photoshop 2s ease;-webkit-animation:photoshop 2s ease;}
+.javascript{background:#18b510;width:78%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
+.java{background:#ff4500;width:82%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
+.html5{background:#9b59b6;width:85%;-moz-animation:html5 2s ease;-webkit-animation:html5 2s ease;}
+.python{background:#d35400;width:90%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
+
+
+
+*/
+
+.javascript{background:#9b59b6;width:82%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
+.java{background:#8A2BE2;width:83%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
+.html5{background:#f2115e;width:85%;-moz-animation:html5 2s ease;-webkit-animation:html5 2s ease;}
+.python{background:#1e90ff	;width:88%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
 
 @-moz-keyframes photoshop{0%{width:0px;}
 100%{width:60%;}
@@ -139,7 +146,7 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 100%{width:90%;}
 }
 @-moz-keyframes html5{0%{width:0px;}
-100%{width:80%;}
+100%{width:85%;}
 }
 @-moz-keyframes jquery{0%{width:0px;}
 100%{width:50%;}
@@ -147,17 +154,14 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 @-webkit-keyframes photoshop{0%{width:0px;}
 100%{width:60%;}
 }
-@-webkit-keyframes css{0%{width:0px;}
-100%{width:90%;}
-}
 @-webkit-keyframes javascript{0%{width:0px;}
-100%{width:75%;}
+100%{width:80%;}
 }
 @-webkit-keyframes java{0%{width:0px;}
 100%{width:80%;}
 }
 @-webkit-keyframes python{0%{width:0px;}
-100%{width:90%;}
+100%{width:85%;}
 }
 @-webkit-keyframes R{0%{width:0px;}
 100%{width:90%;}
