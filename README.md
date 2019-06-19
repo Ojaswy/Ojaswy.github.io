@@ -1,5 +1,5 @@
 # Portfolio
-Ojaswy Akella | Grad School Portfolio
+Ojaswy Akella | Portfolio
 *Hosted by Github*
 
 ## Portfolio #1 
