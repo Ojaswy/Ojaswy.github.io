@@ -12,5 +12,5 @@ Ojaswy Akella | Portfolio
 
 ## Portfolio #3
 
-Currently live!  ![](https://ojaswy.github.io/)
+Currently live!  [](https://ojaswy.github.io/)
 
