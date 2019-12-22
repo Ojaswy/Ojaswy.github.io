@@ -127,11 +127,11 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 
 
 */
-
-.javascript{background:#9b59b6;width:82%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
-.java{background:#8A2BE2;width:83%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
-.html5{background:#f2115e;width:85%;-moz-animation:html5 2s ease;-webkit-animation:html5 2s ease;}
-.python{background:#1e90ff	;width:88%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
+ 
+.scala{background:#E56B1F;width:82%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
+.golang{background:#32064A;width:83%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
+.webdev{background:#E42C6A;width:85%;-moz-animation:html5 2s ease;-webkit-animation:html5 2s ease;}
+.python{background:#FCD02C;width:88%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
 
 @-moz-keyframes photoshop{0%{width:0px;}
 100%{width:60%;}
@@ -145,11 +145,8 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 @-moz-keyframes css{0%{width:0px;}
 100%{width:90%;}
 }
-@-moz-keyframes html5{0%{width:0px;}
+@-moz-keyframes webdev{0%{width:0px;}
 100%{width:85%;}
-}
-@-moz-keyframes jquery{0%{width:0px;}
-100%{width:50%;}
 }
 @-webkit-keyframes photoshop{0%{width:0px;}
 100%{width:60%;}
@@ -172,11 +169,11 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 @-webkit-keyframes C{0%{width:0px;}
 100%{width:85%;}
 }
-@-webkit-keyframes Swift{0%{width:0px;}
-100%{width:70%;}
+@-webkit-keyframes golang{0%{width:0px;}
+100%{width:75%;}
 }
-@-webkit-keyframes Shell{0%{width:0px;}
-100%{width:90%;}
+@-webkit-keyframes scala{0%{width:0px;}
+100%{width:80%;}
 }
 @-webkit-keyframes Android Studio{0%{width:0px;}
 100%{width:85%;}
