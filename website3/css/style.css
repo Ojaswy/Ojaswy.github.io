@@ -128,10 +128,15 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 
 */
  
-.java{background:#E56B1F;width:87%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
-.golang{background:#32064A;width:85%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
-.webdev{background:#E42C6A;width:90%;-moz-animation:html5 2s ease;-webkit-animation:html5 2s ease;}
-.python{background:#FFD700;width:90%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
+.java{background:#B1EDE8;width:87%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
+.golang{background:#FF6978;width:85%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
+.webdev{background:#340068;width:90%;-moz-animation:html5 2s ease;-webkit-animation:html5 2s ease;}
+.python{background:#FFE156;width:90%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
+.cpp{background:#6d435a;width:90%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
+
+@-moz-keyframes cpp{0%{width:0px;}
+100%{width:85%;}
+}
 
 @-moz-keyframes photoshop{0%{width:0px;}
 100%{width:60%;}
@@ -146,7 +151,7 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 100%{width:90%;}
 }
 @-moz-keyframes webdev{0%{width:0px;}
-100%{width:85%;}
+100%{width:90%;}
 }
 @-webkit-keyframes photoshop{0%{width:0px;}
 100%{width:60%;}
@@ -155,10 +160,10 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 100%{width:80%;}
 }
 @-webkit-keyframes java{0%{width:0px;}
-100%{width:80%;}
+100%{width:87%;}
 }
 @-webkit-keyframes python{0%{width:0px;}
-100%{width:85%;}
+100%{width:90%;}
 }
 @-webkit-keyframes R{0%{width:0px;}
 100%{width:90%;}
@@ -170,7 +175,7 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 100%{width:85%;}
 }
 @-webkit-keyframes golang{0%{width:0px;}
-100%{width:75%;}
+100%{width:80%;}
 }
 @-webkit-keyframes scala{0%{width:0px;}
 100%{width:80%;}
