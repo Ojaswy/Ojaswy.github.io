@@ -128,10 +128,10 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 
 */
  
-.scala{background:#E56B1F;width:87%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
+.java{background:#E56B1F;width:87%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
 .golang{background:#32064A;width:85%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
 .webdev{background:#E42C6A;width:90%;-moz-animation:html5 2s ease;-webkit-animation:html5 2s ease;}
-.python{background:#FCD02C;width:90%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
+.python{background:#FFD700;width:90%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
 
 @-moz-keyframes photoshop{0%{width:0px;}
 100%{width:60%;}
