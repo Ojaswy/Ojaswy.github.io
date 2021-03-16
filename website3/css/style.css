@@ -132,7 +132,7 @@ body.show-menu #left-nav{left:0;top:0;z-index:99;}
 .golang{background:#FF6978;width:85%;-moz-animation:illustrator 2s ease;-webkit-animation:illustrator 2s ease;}
 .webdev{background:#340068;width:90%;-moz-animation:html5 2s ease;-webkit-animation:html5 2s ease;}
 .python{background:#FFE156;width:90%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
-.cpp{background:#6d435a;width:90%;-moz-animation:python 2s ease;-webkit-animation:python 2s ease;}
+.cpp{background:#6d435a;width:90%;-moz-animation:cpp 2s ease;-webkit-animation:cpp 2s ease;}
 
 @-moz-keyframes cpp{0%{width:0px;}
 100%{width:85%;}
