@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>∴</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    height:100%;overflow:hidden;overscroll-behavior:none;
+    background:#0b0d0f;
+    cursor:none;
+    -webkit-user-select:none;user-select:none;
+  }
+  canvas#f{position:fixed;inset:0;display:block}
+  /* the single persistent mark. everything else is the medium. */
+  #therefore{
+    position:fixed;right:26px;bottom:22px;z-index:10;
+    font-family:'Cormorant Garamond',serif;font-size:20px;
+    color:#cfc9bd;opacity:.18;cursor:none;
+    transition:opacity 1.2s ease;
+    pointer-events:auto;
+  }
+  #fallback{
+    position:fixed;inset:0;display:none;z-index:100;
+    align-items:center;justify-content:center;text-align:center;
+    background:#0b0d0f;color:#6e675e;
+    font-family:'Cormorant Garamond',serif;font-style:italic;
+    font-size:16px;line-height:2.2;padding:40px;cursor:default;
+  }
+</style>
+</head>
+<body>
+<canvas id="f"></canvas>
+<div id="therefore">∴</div>
+<div id="fallback">this medium requires a modern GPU.<br>it will assemble itself elsewhere.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  /* ================================================================
+     ∴
+     Not a website. A medium.
+     Nothing below is positioned, loaded, or navigated.
+     A Gray–Scott reaction diffuses across the whole screen;
+     every visible structure is genuinely emergent, unrepeatable,
+     and temporary. Attention injects possibility. Words are seeded
+     into the chemistry, crystallize, and are digested.
+     The system carries its own curiosity.
+     ================================================================ */
+
+  var W=window.innerWidth,H=window.innerHeight;
+  var canvas=document.getElementById('f');
+  var renderer;
+  try{
+    renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:false,powerPreference:'high-performance'});
+  }catch(e){
+    document.getElementById('fallback').style.display='flex';
+    return;
+  }
+  renderer.setPixelRatio(1);
+  renderer.setSize(W,H);
+  renderer.autoClear=false;
+
+  function clamp(x,a,b){return x<a?a:(x>b?b:x);}
+  function rand(a,b){return a+Math.random()*(b-a);}
+
+  /* ---------------- simulation targets ---------------- */
+  var simH=512,simW;
+  var rtA,rtB;
+  function makeRT(w,h){
+    return new THREE.WebGLRenderTarget(w,h,{
+      wrapS:THREE.RepeatWrapping,wrapT:THREE.RepeatWrapping,
+      minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,
+      format:THREE.RGBAFormat,type:THREE.HalfFloatType,
+      depthBuffer:false,stencilBuffer:false
+    });
+  }
+  function buildSim(){
+    simW=clamp(Math.round(simH*W/H),256,1100);
+    if(rtA)rtA.dispose();
+    if(rtB)rtB.dispose();
+    rtA=makeRT(simW,simH);
+    rtB=makeRT(simW,simH);
+    simMat.uniforms.texel.value.set(1/simW,1/simH);
+    presMat.uniforms.texel.value.set(1/simW,1/simH);
+    needInit=true;
+  }
+
+  /* ---------------- shared geometry ---------------- */
+  var oCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+  var quad=new THREE.PlaneGeometry(2,2);
+
+  var NOISE=[
+    'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+    'float vnoise(vec2 p){',
+    '  vec2 i=floor(p),f=fract(p);',
+    '  f=f*f*(3.0-2.0*f);',
+    '  float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));',
+    '  return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);',
+    '}',
+    'float fnoise(vec2 p){return vnoise(p)*0.66+vnoise(p*2.13+5.2)*0.34;}'
+  ].join('\n');
+
+  /* ---------------- init pass: a calm sea of substrate ---------------- */
+  var initMat=new THREE.ShaderMaterial({
+    vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+    fragmentShader:'varying vec2 vUv;void main(){gl_FragColor=vec4(1.0,0.0,0.0,1.0);}'
+  });
+  var initScene=new THREE.Scene();
+  initScene.add(new THREE.Mesh(quad,initMat));
+
+  /* ---------------- reaction pass ---------------- */
+  var simMat=new THREE.ShaderMaterial({
+    uniforms:{
+      tex:{value:null},
+      texel:{value:new THREE.Vector2(1/512,1/512)},
+      feed:{value:0.030},
+      kill:{value:0.062},
+      dt2:{value:0.95},
+      time:{value:0},
+      aspect:{value:W/H},
+      scaleMod:{value:1},
+      uBrush:{value:new THREE.Vector3(0.5,0.5,0)},
+      uProbe:{value:new THREE.Vector3(0.3,0.6,0)},
+      uPulse:{value:new THREE.Vector4(0,0,0,0)},
+      uStampTex:{value:null},
+      uStampAmt:{value:0},
+      uStampRect:{value:new THREE.Vector4(0,0,1,1)}
+    },
+    vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+    fragmentShader:[
+      'varying vec2 vUv;',
+      'uniform sampler2D tex;',
+      'uniform vec2 texel;',
+      'uniform float feed,kill,dt2,time,aspect,scaleMod;',
+      'uniform vec3 uBrush,uProbe;',
+      'uniform vec4 uPulse;',
+      'uniform sampler2D uStampTex;',
+      'uniform float uStampAmt;',
+      'uniform vec4 uStampRect;',
+      NOISE,
+      'void main(){',
+      '  vec2 uv=vUv;',
+      '  vec4 c=texture2D(tex,uv);',
+      '  float u=c.r, v=c.g;',
+      '  vec2 e=texel*scaleMod;',
+      '  vec4 n1=texture2D(tex,uv+vec2(e.x,0.0));',
+      '  vec4 n2=texture2D(tex,uv-vec2(e.x,0.0));',
+      '  vec4 n3=texture2D(tex,uv+vec2(0.0,e.y));',
+      '  vec4 n4=texture2D(tex,uv-vec2(0.0,e.y));',
+      '  vec4 n5=texture2D(tex,uv+vec2(e.x,e.y));',
+      '  vec4 n6=texture2D(tex,uv+vec2(e.x,-e.y));',
+      '  vec4 n7=texture2D(tex,uv+vec2(-e.x,e.y));',
+      '  vec4 n8=texture2D(tex,uv+vec2(-e.x,-e.y));',
+      '  float lapU=(n1.r+n2.r+n3.r+n4.r)*0.2+(n5.r+n6.r+n7.r+n8.r)*0.05-u;',
+      '  float lapV=(n1.g+n2.g+n3.g+n4.g)*0.2+(n5.g+n6.g+n7.g+n8.g)*0.05-v;',
+      // the field negotiates: different regions obey slightly different laws
+      '  float f=feed+(fnoise(uv*3.1+time*0.009)-0.5)*0.012;',
+      '  float k=kill+(fnoise(uv*2.7+7.3-time*0.007)-0.5)*0.007;',
+      '  float uvv=u*v*v;',
+      '  float nu=u+(1.0*lapU-uvv+f*(1.0-u))*dt2;',
+      '  float nv=v+(0.5*lapV+uvv-(f+k)*v)*dt2;',
+      // attention: possibility condenses where the observer rests
+      '  vec2 ac=vec2(aspect,1.0);',
+      '  vec2 db=(uv-uBrush.xy)*ac;',
+      '  float gb=exp(-dot(db,db)*2600.0)*uBrush.z;',
+      '  nv+=gb*0.32; nu-=gb*0.16;',
+      // the curiosity of the medium itself
+      '  vec2 dp=(uv-uProbe.xy)*ac;',
+      '  float gp=exp(-dot(dp,dp)*5200.0)*uProbe.z;',
+      '  nv+=gp*0.30; nu-=gp*0.12;',
+      // a question, rippling
+      '  if(uPulse.w>0.001){',
+      '    float dr=length((uv-uPulse.xy)*ac);',
+      '    float ring=exp(-pow((dr-uPulse.z)*110.0,2.0))*uPulse.w;',
+      '    nv+=ring*0.42; nu-=ring*0.2;',
+      '  }',
+      // thought, crystallizing
+      '  if(uStampAmt>0.001){',
+      '    vec2 suv=(uv-uStampRect.xy)/uStampRect.zw;',
+      '    if(suv.x>0.0&&suv.x<1.0&&suv.y>0.0&&suv.y<1.0){',
+      '      float g=texture2D(uStampTex,suv).a;',
+      '      nv+=g*uStampAmt; nu-=g*uStampAmt*0.55;',
+      '    }',
+      '  }',
+      '  gl_FragColor=vec4(clamp(nu,0.0,1.0),clamp(nv,0.0,1.0),0.0,1.0);',
+      '}'
+    ].join('\n')
+  });
+  var simScene=new THREE.Scene();
+  simScene.add(new THREE.Mesh(quad,simMat));
+
+  /* ---------------- presentation pass ---------------- */
+  var presMat=new THREE.ShaderMaterial({
+    uniforms:{
+      tex:{value:null},
+      texel:{value:new THREE.Vector2(1/512,1/512)},
+      time:{value:0},
+      aspect:{value:W/H},
+      uAttn:{value:new THREE.Vector3(0.5,0.5,0)},
+      uStage:{value:new THREE.Vector3(0,0,0)}
+    },
+    vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+    fragmentShader:[
+      'varying vec2 vUv;',
+      'uniform sampler2D tex;',
+      'uniform vec2 texel;',
+      'uniform float time,aspect;',
+      'uniform vec3 uAttn,uStage;',
+      NOISE,
+      'void main(){',
+      '  vec2 uv=vUv;',
+      '  vec4 s=texture2D(tex,uv);',
+      '  float v=s.g;',
+      '  float gx=texture2D(tex,uv+vec2(texel.x,0.)).g-texture2D(tex,uv-vec2(texel.x,0.)).g;',
+      '  float gy=texture2D(tex,uv+vec2(0.,texel.y)).g-texture2D(tex,uv-vec2(0.,texel.y)).g;',
+      '  float grad=length(vec2(gx,gy));',
+      '  vec3 ink  =vec3(0.043,0.050,0.056);',
+      '  vec3 deep =vec3(0.105,0.125,0.118);',
+      '  vec3 ivory=vec3(0.82,0.80,0.74);',
+      '  float body=smoothstep(0.10,0.30,v);',
+      '  vec3 col=ink;',
+      '  col=mix(col,deep,body);',
+      '  float edge=smoothstep(0.012,0.085,grad);',
+      '  col=mix(col,ivory*0.88,edge*0.92);',
+      '  col*=0.82+0.30*s.r;',
+      // relief: geometry that was discovered, not designed
+      '  vec3 nrm=normalize(vec3(-gx,-gy,0.09));',
+      '  float lit=clamp(dot(nrm,normalize(vec3(0.35,0.55,0.75))),0.0,1.0);',
+      '  col+=deep*lit*0.85*body*(0.6+0.8*uStage.z);',
+      // certainty is graded: near-threshold structure shimmers
+      '  float unc=smoothstep(0.045,0.09,v)*(1.0-smoothstep(0.12,0.20,v));',
+      '  col+=unc*(hash(uv*913.7+fract(time*0.7)*13.0)-0.35)*0.16;',
+      // contours: patterns about patterns
+      '  float ct=abs(fract(v*13.0)-0.5);',
+      '  col+=uStage.x*smoothstep(0.44,0.5,ct)*body*0.045;',
+      // late understanding: a thin iridescence along structure
+      '  float ang=atan(gy,gx);',
+      '  col+=uStage.y*edge*0.085*vec3(0.5+0.5*sin(ang*2.0),0.5+0.5*sin(ang*2.0+2.09),0.5+0.5*sin(ang*2.0+4.18));',
+      // the observer, made faintly luminous
+      '  vec2 da=(uv-uAttn.xy)*vec2(aspect,1.0);',
+      '  float ga=exp(-dot(da,da)*1500.0);',
+      '  col+=vec3(0.85,0.83,0.76)*ga*(0.035+uAttn.z*0.10);',
+      // breath, vignette, grain
+      '  col*=0.97+0.03*sin(time*0.05);',
+      '  float dvg=distance(uv,vec2(0.5));',
+      '  col*=1.0-smoothstep(0.5,0.95,dvg)*0.45;',
+      '  col+=(hash(uv*vec2(1907.0,1031.0)+fract(time)*7.0)-0.5)*0.035;',
+      '  gl_FragColor=vec4(col,1.0);',
+      '}'
+    ].join('\n')
+  });
+  var presScene=new THREE.Scene();
+  presScene.add(new THREE.Mesh(quad,presMat));
+
+  var needInit=true;
+  buildSim();
+
+  /* ================================================================
+     LANGUAGE — temporary crystallizations of thought.
+     Words are not displayed. They are seeded into the chemistry.
+     ================================================================ */
+  var stampQueue=[],activeStamp=null;
+  function makeWordTexture(text,big){
+    var cw=1024,ch=224;
+    var c=document.createElement('canvas');c.width=cw;c.height=ch;
+    var x=c.getContext('2d');
+    x.clearRect(0,0,cw,ch);
+    var size=big?130:104;
+    x.font='italic 500 '+size+'px "Cormorant Garamond",serif';
+    var m=x.measureText(text);
+    if(m.width>cw-80){
+      size=Math.floor(size*(cw-80)/m.width);
+      x.font='italic 500 '+size+'px "Cormorant Garamond",serif';
+      m=x.measureText(text);
+    }
+    x.textAlign='center';x.textBaseline='middle';
+    x.lineWidth=4;x.strokeStyle='rgba(255,255,255,0.9)';
+    x.fillStyle='rgba(255,255,255,1)';
+    x.strokeText(text,cw/2,ch/2);
+    x.fillText(text,cw/2,ch/2);
+    var t=new THREE.CanvasTexture(c);
+    t.minFilter=THREE.LinearFilter;
+    return {tex:t,w:cw,h:ch,tw:Math.min(m.width+60,cw)};
+  }
+  function crystallize(text,ux,uy,scale,big){
+    stampQueue.push({text:text,ux:ux,uy:uy,scale:scale||1,big:!!big});
+    if(stampQueue.length>4)stampQueue.shift();
+  }
+  function placeRandom(){
+    return [rand(0.18,0.78),rand(0.22,0.72)];
+  }
+  function processStamps(t){
+    if(activeStamp){
+      var p=t-activeStamp.t0;
+      var env;
+      if(p<1.5)env=p/1.5;
+      else if(p<2.1)env=1;
+      else env=Math.max(0,1-(p-2.1)/0.5);
+      env=env*env*(3-2*env);
+      simMat.uniforms.uStampAmt.value=env*0.075*activeStamp.scale;
+      if(p>2.7){
+        activeStamp.tx.tex.dispose();
+        activeStamp=null;
+        simMat.uniforms.uStampAmt.value=0;
+      }
+      return;
+    }
+    if(stampQueue.length){
+      var s=stampQueue.shift();
+      var tx=makeWordTexture(s.text,s.big);
+      var hUv=0.085*s.scale*(s.big?1.2:1);
+      var wUv=hUv*(tx.w/tx.h)/(W/H);
+      wUv=Math.min(wUv,0.8);
+      var ux=clamp(s.ux-wUv/2,0.04,0.96-wUv);
+      var uy=clamp(s.uy-hUv/2,0.06,0.94-hUv);
+      simMat.uniforms.uStampTex.value=tx.tex;
+      simMat.uniforms.uStampRect.value.set(ux,uy,wUv,hUv);
+      activeStamp={t0:t,tx:tx,scale:s.scale};
+    }
+  }
+
+  var POOL=[
+    'almost a pattern.','this was never a page.','certainty is expensive.',
+    'we negotiate.','still forming.','between order and accident.',
+    'a theorem, living.','your stillness is legible.','nothing here is placed.',
+    'everything is becoming.','the medium is curious.','again, differently.',
+    'relevance precedes existence.','form is a rumor.'
+  ];
+  var poolIdx=0,poolOrder=POOL.map(function(_,i){return i;});
+  poolOrder.sort(function(){return Math.random()-0.5;});
+  function poolNext(){
+    var w=POOL[poolOrder[poolIdx%POOL.length]];
+    poolIdx++;
+    return w;
+  }
+  var REPLIES=['yes.','almost.','keep going.','again?','noted.'];
+
+  var FLAGS={};
+  function once(name,fn){
+    if(FLAGS[name])return;
+    FLAGS[name]=true;
+    fn();
+  }
+
+  /* ================================================================
+     ATTENTION, CURIOSITY, COMPREHENSION
+     ================================================================ */
+  var mouse={x:0.5,y:0.5},attn={x:0.5,y:0.5};
+  var dwell=0,speed=0,lastMX=0,lastMY=0,lastMT=performance.now();
+  var lastInput=performance.now(),lastAttn={x:0.5,y:0.5};
+  var comp=0,stage=0;
+  var STAGE_T=[10,26,48,82];
+  var REGIMES=[
+    {f:0.030,k:0.062},   // solitons — sparse certainties
+    {f:0.046,k:0.063},   // worms — lines of argument
+    {f:0.058,k:0.063},   // coral — patterns about patterns
+    {f:0.026,k:0.053},   // waves — the argument destabilizes
+    {f:0.034,k:0.0615}   // mitosis — it begins again, knowing more
+  ];
+  var STAGE_WORDS=[null,
+    'it is learning your tempo.',
+    'patterns about patterns.',
+    'we are past pages now.',
+    '∴'];
+  var fCur=REGIMES[0].f,kCur=REGIMES[0].k;
+
+  window.addEventListener('mousemove',function(e){
+    var now=performance.now();
+    var dms=Math.max(1,now-lastMT);
+    var px=e.clientX,py=e.clientY;
+    speed=speed*0.8+(Math.hypot(px-lastMX,py-lastMY)/dms*1000)*0.2;
+    lastMX=px;lastMY=py;lastMT=now;
+    mouse.x=px/W;mouse.y=1-py/H;
+    lastInput=now;
+  });
+  window.addEventListener('touchmove',function(e){
+    var t0=e.touches[0];
+    mouse.x=t0.clientX/W;mouse.y=1-t0.clientY/H;
+    speed=0;lastInput=performance.now();
+  },{passive:true});
+  window.addEventListener('touchstart',function(e){
+    var t0=e.touches[0];
+    mouse.x=t0.clientX/W;mouse.y=1-t0.clientY/H;
+    lastInput=performance.now();
+  },{passive:true});
+
+  var pulse={x:0,y:0,t0:-1e9};
+  window.addEventListener('mousedown',function(e){
+    pulse.x=e.clientX/W;pulse.y=1-e.clientY/H;
+    pulse.t0=clockNow();
+    comp+=1.5;lastInput=performance.now();
+    once('click',function(){
+      setTimeout(function(){crystallize('a question, rippling.',pulse.x,clamp(pulse.y+0.12,0.1,0.9),0.85);},900);
+    });
+  });
+
+  window.addEventListener('wheel',function(e){
+    e.preventDefault();
+    tempT=clamp(tempT+e.deltaY*0.0006,0.7,1.9);
+    lastInput=performance.now();
+    once('wheel',function(){
+      var p=placeRandom();
+      crystallize('temperature.',p[0],p[1],0.8);
+    });
+  },{passive:false});
+
+  /* typed letters are accepted as nutrients */
+  var typedBuf='',lastKeyT=0,echoPending=null;
+  window.addEventListener('keydown',function(e){
+    if(e.metaKey||e.ctrlKey||e.altKey)return;
+    var ch=e.key;
+    lastInput=performance.now();
+    if(ch==='Backspace'){typedBuf='';return;}
+    if(ch.length!==1)return;
+    if(!/[a-zA-Z0-9 .,?!'\-]/.test(ch))return;
+    typedBuf+=ch;
+    lastKeyT=clockNow();
+    if(ch!==' '){
+      crystallize(ch,clamp(attn.x+rand(-0.04,0.04),0.1,0.9),clamp(attn.y+rand(-0.04,0.04),0.1,0.9),0.55);
+    }
+    comp+=0.4;
+    once('key',function(){
+      setTimeout(function(){
+        crystallize('ah. an alphabet.',rand(0.25,0.7),rand(0.25,0.7),0.85);
+      },2600);
+    });
+  });
+
+  /* the medium's own curiosity */
+  var probe={x:rand(0.2,0.8),y:rand(0.2,0.8),wx:0.5,wy:0.5,nextWp:0,z:0.2};
+
+  /* timed whispers — orientation without instruction */
+  var introT=[
+    [2.5,'you are already here.'],
+    [10,'rest somewhere.'],
+    [19,'haste dissolves form.']
+  ];
+  var introIdx=0;
+  var nextAuto=40;
+
+  /* ---------------- temperature (the only dial, unexplained) ---------------- */
+  var temp=1,tempT=1;
+
+  /* ---------------- the corner mark ---------------- */
+  var mark=document.getElementById('therefore');
+  mark.addEventListener('mouseenter',function(){
+    once('mark',function(){
+      crystallize('∴ therefore. everything here follows.',rand(0.25,0.6),rand(0.3,0.6),0.85);
+    });
+  });
+
+  /* ---------------- clock ---------------- */
+  var clock=new THREE.Clock();
+  function clockNow(){return clock.elapsedTime;}
+
+  /* ---------------- seeds: the first possibilities ---------------- */
+  var seedPlan=[];
+  function planSeeds(){
+    seedPlan=[];
+    var t0=clockNow();
+    for(var i=0;i<7;i++){
+      seedPlan.push({t:t0+rand(0.1,2.2),x:rand(0.12,0.88),y:rand(0.15,0.85)});
+    }
+  }
+
+  /* ---------------- main loop ---------------- */
+  var iterBase=8;
+  function frame(){
+    requestAnimationFrame(frame);
+    var dt=Math.min(clock.getDelta(),0.05);
+    var t=clock.elapsedTime;
+    var nowMs=performance.now();
+
+    if(needInit){
+      renderer.setRenderTarget(rtA);renderer.render(initScene,oCam);
+      renderer.setRenderTarget(rtB);renderer.render(initScene,oCam);
+      renderer.setRenderTarget(null);
+      needInit=false;
+      planSeeds();
+    }
+    // initial possibilities condense unprompted
+    for(var i=seedPlan.length-1;i>=0;i--){
+      if(t>seedPlan[i].t){
+        pulse.x=seedPlan[i].x;pulse.y=seedPlan[i].y;pulse.t0=t;
+        seedPlan.splice(i,1);
+      }
+    }
+
+    /* attention: a smoothed locus; dwelling builds condensation */
+    attn.x+=(mouse.x-attn.x)*0.12;
+    attn.y+=(mouse.y-attn.y)*0.12;
+    speed*=Math.exp(-dt*1.2);
+    if(speed<55)dwell=clamp(dwell+dt*1.3,0,1);
+    else dwell=clamp(dwell-dt*2.6,0,1);
+    var brushZ=clamp(dwell-0.12,0,1)*0.95;
+    if(brushZ>0.5){
+      lastAttn.x=attn.x;lastAttn.y=attn.y;
+      comp+=dt;
+      once('dwell',function(){
+        crystallize('noticed.',clamp(attn.x+0.1,0.1,0.9),clamp(attn.y+0.08,0.1,0.9),0.8);
+      });
+    }else{
+      comp+=dt*0.12;
+    }
+
+    /* curiosity: the probe wanders; in your absence, it studies you */
+    var idleMs=nowMs-lastInput;
+    if(t>probe.nextWp){
+      probe.nextWp=t+rand(6,12);
+      if(idleMs>10000){probe.wx=lastAttn.x+rand(-0.07,0.07);probe.wy=lastAttn.y+rand(-0.07,0.07);}
+      else{probe.wx=rand(0.12,0.88);probe.wy=rand(0.15,0.85);}
+    }
+    probe.x+=(probe.wx-probe.x)*dt*0.35+Math.sin(t*0.83)*dt*0.012;
+    probe.y+=(probe.wy-probe.y)*dt*0.35+Math.cos(t*0.61)*dt*0.012;
+    probe.z=idleMs>10000?0.38:0.20;
+    if(idleMs>30000){
+      once('idle30',function(){
+        crystallize('it continues without you.',probe.x,clamp(probe.y+0.1,0.1,0.9),0.9);
+      });
+    }
+    if(FLAGS.idle30&&idleMs<400){
+      once('returned',function(){
+        setTimeout(function(){
+          crystallize('you returned. it noticed.',rand(0.25,0.7),rand(0.3,0.7),0.85);
+        },1400);
+      });
+    }
+
+    /* echo: the medium repeats your words back, elsewhere, later */
+    if(typedBuf.replace(/ /g,'').length>=3&&t-lastKeyT>1.8&&!echoPending){
+      var word=typedBuf.trim().toLowerCase();
+      typedBuf='';
+      echoPending={t:t+rand(3.5,6.5),w:word};
+      comp+=3;
+    }
+    if(echoPending&&t>echoPending.t){
+      var p=placeRandom();
+      crystallize(echoPending.w,p[0],p[1],1,true);
+      if(Math.random()<0.4){
+        var rp=REPLIES[Math.floor(Math.random()*REPLIES.length)];
+        (function(rp){setTimeout(function(){
+          var q=placeRandom();
+          crystallize(rp,q[0],q[1],0.7);
+        },2800);})(rp);
+      }
+      echoPending=null;
+    }
+
+    /* whispers + autonomous thought */
+    if(introIdx<introT.length&&t>introT[introIdx][0]){
+      var p2=placeRandom();
+      crystallize(introT[introIdx][1],p2[0],p2[1],0.95);
+      introIdx++;
+    }
+    if(t>nextAuto){
+      nextAuto=t+rand(38,70);
+      crystallize(poolNext(),clamp(probe.x,0.15,0.85),clamp(probe.y,0.2,0.8),0.9);
+    }
+
+    /* comprehension reorganizes the laws — never explained */
+    var targetStage=0;
+    for(var i=0;i<STAGE_T.length;i++)if(comp>STAGE_T[i])targetStage=i+1;
+    if(targetStage!==stage){
+      stage=targetStage;
+      if(STAGE_WORDS[stage]){
+        var p3=placeRandom();
+        crystallize(STAGE_WORDS[stage],p3[0],p3[1],1,stage===4);
+      }
+    }
+    var reg=REGIMES[stage];
+    fCur+=(reg.f-fCur)*dt*0.05;
+    kCur+=(reg.k-kCur)*dt*0.05;
+    // and within any law, a slow secular drift: nothing repeats
+    var f=fCur+Math.sin(t*0.013)*0.0016+Math.sin(t*0.0041+2.0)*0.0012;
+    var k=kCur+Math.sin(t*0.0094+1.0)*0.0012;
+
+    temp+=(tempT-temp)*dt*2;
+    var iters=clamp(Math.round(iterBase*temp),3,14);
+    var scaleMod=1+0.18*Math.sin(t*0.021); // wavelength breathes: forms dissolve upward
+
+    /* stage-gated presentation layers */
+    var st=presMat.uniforms.uStage.value;
+    st.x+=((stage>=2?1:0)-st.x)*dt*0.3;
+    st.y+=((stage>=3?1:0)-st.y)*dt*0.3;
+    st.z+=((stage>=1?1:0)-st.z)*dt*0.3;
+
+    processStamps(t);
+
+    /* uniforms */
+    simMat.uniforms.feed.value=f;
+    simMat.uniforms.kill.value=k;
+    simMat.uniforms.time.value=t;
+    simMat.uniforms.aspect.value=W/H;
+    simMat.uniforms.scaleMod.value=scaleMod;
+    simMat.uniforms.uBrush.value.set(attn.x,attn.y,brushZ);
+    simMat.uniforms.uProbe.value.set(probe.x,probe.y,probe.z);
+    var pAge=t-pulse.t0;
+    if(pAge<2.2){
+      simMat.uniforms.uPulse.value.set(pulse.x,pulse.y,pAge*0.11,Math.exp(-pAge*2.1));
+    }else{
+      simMat.uniforms.uPulse.value.w=0;
+    }
+
+    /* react */
+    for(var i2=0;i2<iters;i2++){
+      simMat.uniforms.tex.value=rtA.texture;
+      renderer.setRenderTarget(rtB);
+      renderer.render(simScene,oCam);
+      var tmp=rtA;rtA=rtB;rtB=tmp;
+      // inject only once per frame
+      simMat.uniforms.uBrush.value.z=0;
+      simMat.uniforms.uProbe.value.z=0;
+      simMat.uniforms.uPulse.value.w=0;
+      simMat.uniforms.uStampAmt.value=0;
+    }
+
+    /* present */
+    presMat.uniforms.tex.value=rtA.texture;
+    presMat.uniforms.time.value=t;
+    presMat.uniforms.aspect.value=W/H;
+    presMat.uniforms.uAttn.value.set(attn.x,attn.y,brushZ);
+    renderer.setRenderTarget(null);
+    renderer.render(presScene,oCam);
+
+    /* the single mark breathes with the system's interest */
+    if((Math.floor(t*10)%3)===0){
+      mark.style.opacity=String(0.1+0.25*(brushZ*0.5+probe.z));
+    }
+  }
+
+  var rsTimer=null;
+  window.addEventListener('resize',function(){
+    W=window.innerWidth;H=window.innerHeight;
+    renderer.setSize(W,H);
+    if(rsTimer)clearTimeout(rsTimer);
+    rsTimer=setTimeout(function(){buildSim();},300);
+  });
+
+  /* begin — though nothing loads, and nothing is anywhere */
+  var started=false;
+  function begin(){if(started)return;started=true;frame();}
+  if(document.fonts&&document.fonts.load){
+    document.fonts.load('italic 500 100px "Cormorant Garamond"').then(begin,begin);
+    setTimeout(begin,1500);
+  }else{
+    begin();
+  }
+})();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(176,138,79,.5);color:#e8a85a;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#e8a85a;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the museum"><span class="k">&#9666;</span><span class="t">the museum</span></a></nav>
+</body>
+</html>

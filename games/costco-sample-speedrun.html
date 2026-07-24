@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Costco Sample Speedrun — demo</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #2a2f3a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #2a2f3a;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  #wrap {
+    position:relative; width:900px; height:600px;
+    max-width:100vw; max-height:100vh;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    border-radius:8px; overflow:hidden;
+    background:#e8e8e8;
+  }
+  canvas { display:block; width:100%; height:100%; }
+  .ui {
+    position:absolute; top:14px; left:18px; pointer-events:none;
+    font-size:12px; letter-spacing:1px; text-transform:uppercase;
+    background: rgba(255,255,255,0.85);
+    padding: 8px 12px; border-radius: 6px;
+  }
+  .ui .row { display:flex; gap:14px; align-items:baseline; }
+  .ui .label { opacity:0.55; }
+  .ui .val { font-weight:700; font-size:18px; color:#4a8acf; }
+  .timer { position:absolute; top:14px; right:18px;
+    font-size:20px; font-weight:700;
+    background: rgba(255,255,255,0.85);
+    padding: 6px 14px; border-radius: 6px;
+  }
+  .timer.warn { color:#d4574a; animation: pulse 0.5s infinite alternate; }
+  @keyframes pulse { from{transform:scale(1);} to{transform:scale(1.06);} }
+  .hint {
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+    background: rgba(255,255,255,0.85);
+    padding: 6px 14px; border-radius: 6px;
+    opacity:0; transition: opacity 1s ease; pointer-events:none;
+  }
+  .hint.show { opacity:0.9; }
+  .overlay {
+    position:absolute; inset:0; display:none;
+    flex-direction:column; align-items:center; justify-content:center;
+    background: rgba(40,45,55, 0.88); color:#f5ede1; text-align:center;
+  }
+  .overlay.show { display:flex; }
+  .overlay h1 { margin:0 0 12px; font-size:34px; letter-spacing:1px; }
+  .overlay p { margin: 6px 0; opacity:0.85; font-size:14px; max-width:420px; }
+  .overlay button {
+    margin-top:24px; padding:12px 28px; font-size:13px;
+    background:#d4574a; color:#fff; border:none; border-radius:6px;
+    letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; font-weight:600;
+  }
+  .overlay button:hover { background:#e0685b; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="900" height="600"></canvas>
+  <div class="ui">
+    <div class="row"><span class="label">samples</span><span class="val" id="samples">0</span></div>
+  </div>
+  <div class="timer" id="timer">1:30</div>
+  <div class="hint" id="hint">wasd or arrows — grab samples before the karens — avoid the manager's red zone</div>
+  <div class="overlay" id="overlay">
+    <h1 id="endTitle">Store closed!</h1>
+    <p id="endStats"></p>
+    <p id="endVerdict"></p>
+    <button onclick="location.reload()">try again</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const TILE = 30;
+  const COLS = Math.floor(W / TILE);
+  const ROWS = Math.floor(H / TILE);
+
+  // ---------- map ----------
+  function makeMap() {
+    const m = [];
+    for (let r = 0; r < ROWS; r++) {
+      const row = [];
+      for (let c = 0; c < COLS; c++) row.push(0);
+      m.push(row);
+    }
+    const shelfRows = [3, 7, 11, 15];
+    for (const sr of shelfRows) {
+      for (let c = 2; c < COLS - 2; c++) {
+        const gap = c % 6 === 0;
+        if (!gap) { m[sr][c] = 1; m[sr+1][c] = 1; }
+      }
+    }
+    return m;
+  }
+  const map = makeMap();
+
+  function isShelf(c, r) {
+    if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return false;
+    return map[r][c] === 1;
+  }
+  function isWalkable(px, py) {
+    const margin = 7;
+    const checks = [
+      [px - margin, py - margin], [px + margin, py - margin],
+      [px - margin, py + margin], [px + margin, py + margin],
+    ];
+    for (const [x, y] of checks) {
+      if (x < 6 || x > W - 6 || y < 6 || y > H - 6) return false;
+      const c = Math.floor(x / TILE);
+      const r = Math.floor(y / TILE);
+      if (isShelf(c, r)) return false;
+    }
+    return true;
+  }
+
+  // ---------- tables ----------
+  const FOODS = ['pizza','hotdog','pretzel','cookie','cheese','grape','drink'];
+  function makeTables() {
+    const tables = [];
+    const positions = [
+      [4.5*TILE, 5.5*TILE], [10.5*TILE, 5.5*TILE], [16.5*TILE, 5.5*TILE], [22.5*TILE, 5.5*TILE], [27.5*TILE, 5.5*TILE],
+      [7.5*TILE, 9.5*TILE], [13.5*TILE, 9.5*TILE], [19.5*TILE, 9.5*TILE], [25.5*TILE, 9.5*TILE],
+      [4.5*TILE, 13.5*TILE], [10.5*TILE, 13.5*TILE], [16.5*TILE, 13.5*TILE], [22.5*TILE, 13.5*TILE], [27.5*TILE, 13.5*TILE],
+    ];
+    for (let i = 0; i < positions.length; i++) {
+      tables.push({
+        x: positions[i][0], y: positions[i][1],
+        food: FOODS[i % FOODS.length],
+        cycleLength: 5 + Math.random() * 4,
+        phase: Math.random() * 5,
+        samplesGiven: 0, maxSamples: 2, gone: false,
+      });
+    }
+    return tables;
+  }
+  const tables = makeTables();
+  const TOTAL = tables.reduce((s,t) => s + t.maxSamples, 0);
+
+  function tableState(t, now) {
+    if (t.gone) return 'gone';
+    const phase = ((now/1000 + t.phase) % t.cycleLength) / t.cycleLength;
+    if (phase < 0.35) return 'ready';
+    if (phase < 0.45) return 'closing';
+    if (phase < 0.88) return 'closed';
+    return 'opening';
+  }
+
+  // ---------- entities ----------
+  const player = { x: W/2, y: H - 35, vx:0, vy:0, speed:2.8, facing:0, bob:0 };
+
+  function makeKaren(idx) {
+    const spawns = [[40, 40], [W-40, 40], [40, H-60], [W-40, H-60]];
+    const s = spawns[idx];
+    const hairs = ['#d49b8c','#c47ba0','#b58c4a','#a87cd4'];
+    const bodies = ['#e8b5a0','#d4a890','#e8c4a8','#c4a098'];
+    return {
+      x: s[0], y: s[1], speed: 1.55 + Math.random() * 0.25,
+      target: null, stallUntil: 0, bob: Math.random()*10,
+      hairColor: hairs[idx], bodyColor: bodies[idx],
+    };
+  }
+  const karens = [makeKaren(0), makeKaren(1), makeKaren(2), makeKaren(3)];
+
+  const manager = {
+    x: W/2, y: 60, pathIndex: 0, speed: 1.2,
+    path: [[80,80], [W-80,80], [W-80,H/2], [80,H/2], [80,H-80], [W-80,H-80], [W/2,H/2]],
+    bob: 0, detectRadius: 75, catchTimer: 0,
+  };
+
+  // ---------- input ----------
+  const keys = new Set();
+  window.addEventListener('keydown', e => {
+    keys.add(e.key.toLowerCase());
+    if (['arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase())) e.preventDefault();
+  });
+  window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+
+  // ---------- state ----------
+  let score = 0;
+  const startTime = Date.now();
+  const ROUND_SECONDS = 90;
+  let gameOver = false;
+  let ejected = false;
+
+  const samplesEl = document.getElementById('samples');
+  const timerEl = document.getElementById('timer');
+  const hintEl = document.getElementById('hint');
+  setTimeout(()=>hintEl.classList.add('show'), 300);
+  setTimeout(()=>hintEl.classList.remove('show'), 6000);
+
+  function tryMove(e, dx, dy) {
+    if (isWalkable(e.x + dx, e.y)) e.x += dx;
+    if (isWalkable(e.x, e.y + dy)) e.y += dy;
+  }
+
+  const particles = [];
+  function sparkle(x, y, color) {
+    for (let i = 0; i < 14; i++) {
+      particles.push({
+        x, y, vx:(Math.random()-0.5)*3, vy:-Math.random()*3-0.5,
+        color, life:42, max:42, size:1.5+Math.random()*1.5,
+      });
+    }
+  }
+  function updateParticles() {
+    for (let i = particles.length-1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  // ---------- update ----------
+  function update() {
+    if (gameOver) return;
+    const now = Date.now();
+    const elapsed = (now - startTime) / 1000;
+    const remaining = Math.max(0, ROUND_SECONDS - elapsed);
+    if (remaining <= 0) { endGame('Store closed!'); return; }
+
+    // input
+    let ix=0, iy=0;
+    if (keys.has('w') || keys.has('arrowup')) iy -= 1;
+    if (keys.has('s') || keys.has('arrowdown')) iy += 1;
+    if (keys.has('a') || keys.has('arrowleft')) ix -= 1;
+    if (keys.has('d') || keys.has('arrowright')) ix += 1;
+    const len = Math.hypot(ix, iy);
+    if (len > 0) {
+      ix /= len; iy /= len;
+      player.vx = ix * player.speed;
+      player.vy = iy * player.speed;
+      player.facing = Math.atan2(iy, ix);
+      player.bob += 0.3;
+    } else {
+      player.vx *= 0.6; player.vy *= 0.6;
+    }
+    tryMove(player, player.vx, player.vy);
+
+    // sample collection
+    for (const t of tables) {
+      if (t.gone) continue;
+      if (tableState(t, now) !== 'ready') continue;
+      if (Math.hypot(t.x - player.x, t.y - player.y) < 24) {
+        t.samplesGiven++;
+        score++;
+        samplesEl.textContent = score;
+        sparkle(t.x, t.y - 10, '#b9d4a8');
+        if (t.samplesGiven >= t.maxSamples) t.gone = true;
+        else t.phase = (t.phase + t.cycleLength * 0.55) % t.cycleLength;
+      }
+    }
+
+    // karens
+    for (const k of karens) {
+      if (now < k.stallUntil) { k.bob += 0.06; continue; }
+      let best=null, bestD=Infinity;
+      for (const t of tables) {
+        if (t.gone) continue;
+        const s = tableState(t, now);
+        if (s !== 'ready' && s !== 'opening') continue;
+        const d = Math.hypot(t.x - k.x, t.y - k.y);
+        if (d < bestD) { bestD = d; best = t; }
+      }
+      k.target = best;
+      if (best) {
+        const dx = best.x - k.x, dy = best.y - k.y, d = Math.hypot(dx, dy);
+        if (d < 24 && tableState(best, now) === 'ready') {
+          best.samplesGiven++;
+          sparkle(best.x, best.y - 10, '#d49b8c');
+          if (best.samplesGiven >= best.maxSamples) best.gone = true;
+          else best.phase = (best.phase + best.cycleLength * 0.55) % best.cycleLength;
+          k.stallUntil = now + 700;
+        } else if (d > 0) {
+          tryMove(k, (dx/d)*k.speed, (dy/d)*k.speed);
+        }
+        k.bob += 0.2;
+      } else {
+        k.x += (Math.random()-0.5)*0.4;
+        k.y += (Math.random()-0.5)*0.4;
+      }
+    }
+
+    // manager
+    const tgt = manager.path[manager.pathIndex];
+    const mdx = tgt[0] - manager.x, mdy = tgt[1] - manager.y, md = Math.hypot(mdx, mdy);
+    if (md < 6) manager.pathIndex = (manager.pathIndex + 1) % manager.path.length;
+    else tryMove(manager, (mdx/md)*manager.speed, (mdy/md)*manager.speed);
+    manager.bob += 0.18;
+
+    // detection
+    const pd = Math.hypot(player.x - manager.x, player.y - manager.y);
+    if (pd < manager.detectRadius) {
+      manager.catchTimer += 1/60;
+      if (manager.catchTimer > 2.5) { ejected = true; endGame('Ejected by the manager!'); return; }
+    } else {
+      manager.catchTimer = Math.max(0, manager.catchTimer - 1/120);
+    }
+
+    // ui timer
+    const m = Math.floor(remaining / 60);
+    const s = Math.floor(remaining % 60).toString().padStart(2,'0');
+    timerEl.textContent = `${m}:${s}`;
+    if (remaining < 20) timerEl.classList.add('warn');
+  }
+
+  // ---------- draw ----------
+  function drawFloor() {
+    ctx.fillStyle = '#ececec';
+    ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = '#dcdcdc'; ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += TILE) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += TILE) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  }
+
+  function drawShelves() {
+    const shelfRows = [3, 7, 11, 15];
+    for (const sr of shelfRows) {
+      let c = 0;
+      while (c < COLS) {
+        if (isShelf(c, sr)) {
+          let runEnd = c;
+          while (runEnd < COLS && isShelf(runEnd, sr)) runEnd++;
+          const runLen = runEnd - c;
+          const x = c * TILE, y = sr * TILE, w = runLen * TILE, h = TILE * 2;
+          // shadow
+          ctx.fillStyle = 'rgba(0,0,0,0.18)';
+          ctx.fillRect(x + 2, y + 4, w, h);
+          // body
+          ctx.fillStyle = '#4a6fa5';
+          ctx.fillRect(x, y, w, h);
+          // top trim
+          ctx.fillStyle = '#3a5a8a';
+          ctx.fillRect(x, y, w, 4);
+          // boxes
+          ctx.fillStyle = 'rgba(255,255,255,0.16)';
+          for (let i = 0; i < runLen; i++) {
+            for (let row = 0; row < 4; row++) {
+              ctx.fillRect(x + i*TILE + 4, y + 9 + row*12, TILE - 8, 6);
+            }
+          }
+          c = runEnd;
+        } else c++;
+      }
+    }
+  }
+
+  function drawTable(t, now) {
+    const state = tableState(t, now);
+    if (state === 'gone') {
+      ctx.fillStyle = 'rgba(120,100,80,0.25)';
+      ctx.beginPath(); ctx.ellipse(t.x, t.y + 4, 16, 6, 0, 0, Math.PI*2); ctx.fill();
+      return;
+    }
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath(); ctx.ellipse(t.x, t.y + 16, 20, 5, 0, 0, Math.PI*2); ctx.fill();
+    // tablecloth
+    ctx.fillStyle = '#d4574a';
+    ctx.fillRect(t.x - 20, t.y - 12, 40, 24);
+    ctx.fillStyle = '#b04535';
+    ctx.fillRect(t.x - 20, t.y - 12, 40, 3);
+    // checker pattern
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    for (let i = 0; i < 4; i++) {
+      ctx.fillRect(t.x - 18 + i*10, t.y - 8, 5, 18);
+    }
+    // tray on top
+    ctx.fillStyle = '#a87a4a';
+    ctx.beginPath(); ctx.ellipse(t.x, t.y - 12, 14, 4, 0, 0, Math.PI*2); ctx.fill();
+
+    if (state === 'ready' || state === 'opening') {
+      const wiggle = state === 'opening' ? 0.7 + Math.sin(now*0.015)*0.15 : 1;
+      ctx.save();
+      ctx.translate(t.x, t.y - 13);
+      ctx.scale(wiggle, wiggle);
+      drawFood(t.food);
+      ctx.restore();
+      if (state === 'ready') {
+        // "open" glow
+        const glow = ctx.createRadialGradient(t.x, t.y - 8, 0, t.x, t.y - 8, 28);
+        glow.addColorStop(0, 'rgba(185, 212, 168, 0.4)');
+        glow.addColorStop(1, 'rgba(185, 212, 168, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(t.x - 30, t.y - 35, 60, 50);
+      }
+    }
+    // sample count dots
+    for (let i = 0; i < t.maxSamples; i++) {
+      ctx.fillStyle = i < (t.maxSamples - t.samplesGiven) ? '#b9d4a8' : 'rgba(255,255,255,0.3)';
+      ctx.beginPath(); ctx.arc(t.x - 6 + i*12, t.y + 9, 2, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawFood(type) {
+    switch (type) {
+      case 'pizza':
+        ctx.fillStyle = '#f5d098';
+        ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(-8,4); ctx.lineTo(8,4); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#d4574a';
+        ctx.beginPath(); ctx.arc(-3,0,1.5,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(2,1,1.5,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,-3,1.5,0,Math.PI*2); ctx.fill();
+        break;
+      case 'hotdog':
+        ctx.fillStyle = '#d4a574';
+        ctx.beginPath(); ctx.ellipse(0,0,9,4,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#a45032';
+        ctx.beginPath(); ctx.ellipse(0,-1,8,2.5,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#f5d04a';
+        ctx.fillRect(-7,-2,14,1);
+        break;
+      case 'pretzel':
+        ctx.fillStyle = '#8b5a32';
+        ctx.beginPath(); ctx.arc(0,0,6.5,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#ececec';
+        ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-3,-2,0.6,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(2,1,0.6,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(3,-2,0.6,0,Math.PI*2); ctx.fill();
+        break;
+      case 'cookie':
+        ctx.fillStyle = '#c08552';
+        ctx.beginPath(); ctx.arc(0,0,7,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#5a3a1a';
+        ctx.beginPath(); ctx.arc(-2,-2,1,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(2,-1,1,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,2,1,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-3,2,1,0,Math.PI*2); ctx.fill();
+        break;
+      case 'cheese':
+        ctx.fillStyle = '#f5d04a';
+        ctx.beginPath(); ctx.moveTo(-8,4); ctx.lineTo(8,4); ctx.lineTo(4,-6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#d4a82a';
+        ctx.beginPath(); ctx.arc(0,1,1.2,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(3,2,1,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-2,3,0.8,0,Math.PI*2); ctx.fill();
+        break;
+      case 'grape':
+        ctx.fillStyle = '#7a4a8a';
+        for (const [dx,dy] of [[0,-3],[-3,0],[3,0],[-1.5,3],[1.5,3]]) {
+          ctx.beginPath(); ctx.arc(dx,dy,2.5,0,Math.PI*2); ctx.fill();
+        }
+        ctx.fillStyle = '#5a8a3a';
+        ctx.fillRect(-0.5,-7,1,3);
+        break;
+      case 'drink':
+        ctx.fillStyle = '#4a8acf';
+        ctx.fillRect(-5,-7,10,12);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(-5,-7,10,2);
+        ctx.fillStyle = '#d4574a';
+        ctx.fillRect(1,-11,1.5,6);
+        break;
+    }
+  }
+
+  function drawPerson(x, y, opts) {
+    const { bodyColor, hairColor, hat, facing=0, bob=0, accessory } = opts;
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.beginPath(); ctx.ellipse(x, y+10, 10, 3, 0, 0, Math.PI*2); ctx.fill();
+    const yo = Math.sin(bob*0.5)*0.8;
+
+    // body
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.roundRect(x-7, y-4+yo, 14, 12, 3);
+    ctx.fill();
+    // head
+    ctx.fillStyle = '#f0d4b0';
+    ctx.beginPath(); ctx.arc(x, y-10+yo, 6, 0, Math.PI*2); ctx.fill();
+    // hair
+    if (hairColor) {
+      ctx.fillStyle = hairColor;
+      ctx.beginPath(); ctx.arc(x, y-12+yo, 6, Math.PI, 0); ctx.fill();
+      // bun
+      ctx.beginPath(); ctx.arc(x, y-17+yo, 3.5, 0, Math.PI*2); ctx.fill();
+    }
+    // hat
+    if (hat) {
+      ctx.fillStyle = hat;
+      ctx.beginPath();
+      ctx.roundRect(x-7, y-14+yo, 14, 3, 1);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(x-5, y-18+yo, 10, 4, 2);
+      ctx.fill();
+    }
+    // eyes
+    ctx.fillStyle = '#000';
+    const eox = Math.cos(facing)*1.6, eoy = Math.sin(facing)*1.6;
+    ctx.beginPath(); ctx.arc(x-2+eox, y-10+yo+eoy, 0.9, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+2+eox, y-10+yo+eoy, 0.9, 0, Math.PI*2); ctx.fill();
+
+    if (accessory === 'cart') {
+      const cx = x - Math.cos(facing)*14, cy = y - Math.sin(facing)*14 + yo;
+      ctx.fillStyle = '#aaa';
+      ctx.beginPath(); ctx.roundRect(cx-7, cy-5, 14, 9, 2); ctx.fill();
+      ctx.fillStyle = '#666';
+      ctx.fillRect(cx-7, cy+3, 14, 1);
+      ctx.beginPath(); ctx.arc(cx-5, cy+5, 1.5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx+5, cy+5, 1.5, 0, Math.PI*2); ctx.fill();
+    }
+    if (accessory === 'clipboard') {
+      ctx.fillStyle = '#a87a4a';
+      ctx.fillRect(x+6, y-2+yo, 5, 7);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x+7, y-1+yo, 3, 5);
+    }
+  }
+
+  function drawDetectionRing() {
+    const ringR = manager.detectRadius;
+    ctx.save();
+    const intensity = 0.18 + manager.catchTimer * 0.25;
+    ctx.fillStyle = `rgba(212, 87, 74, ${intensity * 0.3})`;
+    ctx.beginPath(); ctx.arc(manager.x, manager.y, ringR, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = `rgba(212, 87, 74, ${intensity + 0.2})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.arc(manager.x, manager.y, ringR, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    if (manager.catchTimer > 0) {
+      const p = Math.min(1, manager.catchTimer / 2.5);
+      ctx.strokeStyle = `rgba(212, 87, 74, ${0.4 + p*0.5})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(manager.x, manager.y, ringR - 6, -Math.PI/2, -Math.PI/2 + p*Math.PI*2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      const a = p.life / p.max;
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = a;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function render() {
+    const now = Date.now();
+    drawFloor();
+    drawShelves();
+    drawDetectionRing();
+    for (const t of tables) drawTable(t, now);
+
+    // manager
+    drawPerson(manager.x, manager.y, {
+      bodyColor: '#d4574a', hat: '#2a2f3a',
+      facing: Math.atan2(manager.path[manager.pathIndex][1] - manager.y, manager.path[manager.pathIndex][0] - manager.x),
+      bob: manager.bob, accessory: 'clipboard',
+    });
+    // karens
+    for (const k of karens) {
+      drawPerson(k.x, k.y, {
+        bodyColor: k.bodyColor, hairColor: k.hairColor,
+        facing: k.target ? Math.atan2(k.target.y - k.y, k.target.x - k.x) : 0,
+        bob: k.bob,
+      });
+    }
+    // player
+    drawPerson(player.x, player.y, {
+      bodyColor: '#4a8acf', hat: '#d4574a',
+      facing: player.facing, bob: player.bob, accessory: 'cart',
+    });
+
+    drawParticles();
+  }
+
+  function endGame(title) {
+    gameOver = true;
+    const overlay = document.getElementById('overlay');
+    document.getElementById('endTitle').textContent = title;
+    document.getElementById('endStats').textContent = `You collected ${score} of ${TOTAL} possible samples.`;
+    let verdict;
+    if (ejected) verdict = 'Membership status: under review.';
+    else if (score >= TOTAL * 0.8) verdict = 'A true connoisseur. Costco is in your bones.';
+    else if (score >= TOTAL * 0.5) verdict = 'Respectable. The Karens are talking about you.';
+    else if (score >= TOTAL * 0.25) verdict = 'You came, you sampled, you left lightly fed.';
+    else verdict = 'Did you even come here to sample?';
+    document.getElementById('endVerdict').textContent = verdict;
+    overlay.classList.add('show');
+  }
+
+  function loop() {
+    update();
+    updateParticles();
+    render();
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(127,212,255,.45);color:#7fd4ff;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#7fd4ff;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the arcade"><span class="k">&#9666;</span><span class="t">the arcade</span></a></nav>
+</body>
+</html>

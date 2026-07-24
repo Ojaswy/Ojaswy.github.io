@@ -1,0 +1,2327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="A polished marble run music puzzle game with Journey levels, smooth physics, and studio mode.">
+<title>CHIME - Marble Run Music</title>
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+<style>
+  :root {
+    --bg: #060708;
+    --panel: rgba(14, 18, 22, 0.88);
+    --panel2: rgba(20, 24, 28, 0.82);
+    --line: rgba(232, 239, 236, 0.11);
+    --text: #eef4ef;
+    --muted: rgba(238, 244, 239, 0.54);
+    --soft: rgba(238, 244, 239, 0.30);
+    --teal: #53dacb;
+    --gold: #ffd66b;
+    --coral: #ff7f6e;
+    --green: #75df84;
+    --red: #ff5b6b;
+    --purple: #b088f9;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+
+  html, body {
+    width: 100%; height: 100%; margin: 0; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: Georgia, 'Times New Roman', 'Palatino Linotype', serif;
+  }
+
+  button, input { font: inherit; }
+
+  #game {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    display: block; cursor: crosshair; background: #060708;
+  }
+
+  #ui {
+    position: fixed; inset: 0; pointer-events: none; z-index: 10;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  }
+
+  .glass {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.32);
+    backdrop-filter: blur(18px);
+  }
+
+  #topbar {
+    position: absolute; left: 10px; right: 10px; top: 10px;
+    height: 58px;
+    display: grid; grid-template-columns: auto auto 1fr auto;
+    align-items: center; gap: 10px; padding: 8px 10px;
+    border-radius: 10px; pointer-events: auto;
+  }
+
+  #brand { min-width: 116px; }
+  #brandName { font-size: 17px; font-weight: 800; letter-spacing: 0.18em; font-family: Georgia, 'Times New Roman', serif; }
+  #brandNote { font-family: inherit; }
+  #brandSub { margin-top: 1px; color: var(--muted); font-size: 10px; letter-spacing: 0.08em; }
+
+  #tabs, #actions, #stats { display: flex; align-items: center; gap: 6px; }
+
+  .tab, .iconBtn, .smallBtn, .tool, .choice, .modalBtn, .saveItem {
+    border: 1px solid var(--line); color: var(--text);
+    background: rgba(255,255,255,0.05); cursor: pointer;
+  }
+
+  .tab {
+    min-width: 82px; height: 36px; border-radius: 8px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.1em;
+  }
+
+  .tab.active {
+    border-color: rgba(83,218,203,0.62);
+    background: rgba(83,218,203,0.18);
+    box-shadow: inset 0 0 0 1px rgba(83,218,203,0.14), 0 0 18px rgba(83,218,203,0.1);
+  }
+
+  .tabShort { display: none; }
+
+  .iconBtn {
+    width: 36px; height: 36px; display: grid; place-items: center;
+    border-radius: 8px; font-size: 14px; font-weight: 900;
+  }
+
+  .iconBtn:hover, .tab:hover, .tool:hover, .smallBtn:hover,
+  .modalBtn:hover, .choice:hover, .saveItem:hover {
+    border-color: rgba(238,244,239,0.32);
+    background: rgba(255,255,255,0.09);
+  }
+
+  #stats { justify-content: flex-end; min-width: 0; }
+
+  .chip {
+    height: 36px; min-width: 72px;
+    display: grid; place-content: center;
+    padding: 0 10px; border-radius: 8px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.04);
+    color: var(--muted); font-size: 10px; font-weight: 800;
+    letter-spacing: 0.08em; white-space: nowrap;
+  }
+
+  .chip b { color: var(--text); font-weight: 900; }
+
+  #objective {
+    position: absolute; left: 94px; top: 78px;
+    width: min(560px, calc(100vw - 188px));
+    display: grid; grid-template-columns: 1fr auto;
+    align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 10px;
+    pointer-events: auto;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  #objective.hidden {
+    opacity: 0; pointer-events: none;
+    transform: translateY(-8px);
+  }
+
+  #objectiveTitle {
+    font-size: 12px; font-weight: 900;
+    letter-spacing: 0.1em; color: var(--gold);
+  }
+
+  #objectiveText {
+    margin-top: 3px; color: var(--muted);
+    font-size: 12px; line-height: 1.35;
+  }
+
+  #progressLine {
+    min-width: 140px; text-align: right;
+    font-size: 12px; font-weight: 900; letter-spacing: 0.08em;
+  }
+
+  #palette {
+    position: absolute; left: 10px; top: 78px;
+    display: grid; gap: 7px; width: 72px;
+    padding: 8px; border-radius: 10px;
+    pointer-events: auto;
+  }
+
+  .tool {
+    position: relative; width: 54px; height: 52px;
+    display: grid; place-items: center; border-radius: 8px;
+  }
+
+  .tool.active {
+    border-color: rgba(255,214,107,0.7);
+    background: rgba(255,214,107,0.16);
+  }
+
+  .tool svg {
+    width: 28px; height: 28px; stroke: currentColor;
+    fill: none; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .toolCost {
+    position: absolute; top: 4px; right: 5px;
+    color: var(--soft); font-size: 9px; font-weight: 900;
+  }
+
+  .toolKey {
+    position: absolute; left: 5px; top: 4px;
+    color: var(--soft); font-size: 9px; font-weight: 900;
+  }
+
+  #inspector {
+    position: absolute; right: 10px; top: 78px;
+    width: 236px; display: none; gap: 8px;
+    padding: 10px; border-radius: 10px; pointer-events: auto;
+  }
+
+  #inspector.show { display: grid; }
+
+  .panelTitle {
+    font-size: 11px; color: var(--gold);
+    font-weight: 900; letter-spacing: 0.12em;
+  }
+
+  .controlRow { display: flex; align-items: center; gap: 6px; }
+  .controlRow.wrap { flex-wrap: wrap; }
+
+  .smallBtn {
+    min-width: 34px; height: 32px; border-radius: 8px;
+    padding: 0 10px; font-size: 11px; font-weight: 900;
+  }
+
+  .smallBtn.danger {
+    border-color: rgba(255,91,107,0.4);
+    color: #ffd3d8; background: rgba(255,91,107,0.12);
+  }
+
+  #toast {
+    position: absolute; left: 50%; bottom: 18px;
+    transform: translateX(-50%) translateY(18px);
+    padding: 10px 18px; border-radius: 10px;
+    border: 1px solid rgba(83,218,203,0.46);
+    background: rgba(8,12,14,0.92);
+    box-shadow: 0 12px 34px rgba(0,0,0,0.45);
+    color: var(--text); font-size: 12px; font-weight: 800;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .overlay {
+    position: fixed; inset: 0; display: none;
+    place-items: center; z-index: 40;
+    background: radial-gradient(circle at 50% 35%, rgba(40,58,56,0.7), rgba(4,5,6,0.95) 62%);
+    pointer-events: auto;
+  }
+
+  .overlay.show { display: grid; }
+
+  .modal {
+    width: min(720px, calc(100vw - 28px));
+    max-height: calc(100vh - 28px); overflow: auto;
+    border-radius: 12px; padding: 28px;
+  }
+
+  .modal h1, .modal h2 { margin: 0; letter-spacing: 0.16em; }
+  .modal h1 { font-size: clamp(38px, 8vw, 74px); }
+  .modal h2 { font-size: 18px; }
+
+  .modalLead { margin: 8px 0 0; color: var(--muted); line-height: 1.5; }
+
+  .choiceGrid, #levelGrid, #saveList { display: grid; gap: 10px; }
+
+  .choiceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 22px;
+  }
+
+  .choice, .levelCard, .saveItem {
+    border-radius: 10px; padding: 16px;
+  }
+
+  .choice { min-height: 126px; text-align: left; }
+
+  .choice strong, .levelCard strong, .saveItem strong {
+    display: block; color: var(--text);
+    font-size: 13px; letter-spacing: 0.1em;
+  }
+
+  .choice span, .levelCard span, .saveItem span {
+    display: block; margin-top: 7px; color: var(--muted);
+    font-size: 12px; line-height: 1.35;
+  }
+
+  .choiceBadge {
+    display: inline-block; padding: 3px 9px; border-radius: 4px;
+    font-size: 9px; font-weight: 900; letter-spacing: 0.14em; margin-bottom: 8px;
+  }
+
+  .journey-choice {
+    border-color: rgba(255, 180, 80, 0.25);
+    background: linear-gradient(145deg, rgba(255, 180, 80, 0.07), rgba(255, 100, 70, 0.04));
+  }
+  .journey-choice:hover {
+    border-color: rgba(255, 180, 80, 0.55);
+    background: linear-gradient(145deg, rgba(255, 180, 80, 0.13), rgba(255, 100, 70, 0.07));
+  }
+  .journey-choice .choiceBadge { background: rgba(255, 180, 80, 0.18); color: var(--gold); }
+
+  .studio-choice {
+    border-color: rgba(83, 218, 203, 0.25);
+    background: linear-gradient(145deg, rgba(83, 218, 203, 0.07), rgba(176, 136, 249, 0.04));
+  }
+  .studio-choice:hover {
+    border-color: rgba(83, 218, 203, 0.55);
+    background: linear-gradient(145deg, rgba(83, 218, 203, 0.13), rgba(176, 136, 249, 0.07));
+  }
+  .studio-choice .choiceBadge { background: rgba(83, 218, 203, 0.18); color: var(--teal); }
+
+  .menuProgress {
+    margin-top: 14px; color: var(--muted);
+    font-size: 12px; font-weight: 800; letter-spacing: 0.06em;
+  }
+  .menuProgress b { color: var(--gold); font-weight: 900; }
+
+  .modalActions {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px;
+  }
+
+  .modalBtn {
+    height: 38px; padding: 0 18px; border-radius: 8px;
+    font-size: 11px; font-weight: 900; letter-spacing: 0.1em;
+  }
+
+  .modalBtn.primary {
+    border-color: rgba(83,218,203,0.72);
+    background: rgba(83,218,203,0.18);
+  }
+
+  #levelGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 20px;
+  }
+
+  .levelCard {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.04); cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .levelCard:hover:not(.locked) {
+    border-color: rgba(83,218,203,0.5);
+    background: rgba(83,218,203,0.06);
+  }
+
+  .levelCard.locked { opacity: 0.38; cursor: default; }
+
+  .levelStars {
+    margin-top: 10px; font-size: 16px;
+    color: var(--gold); font-weight: 900;
+    letter-spacing: 0.2em;
+  }
+
+  .levelPar {
+    margin-top: 4px; color: var(--soft);
+    font-size: 10px; font-weight: 800;
+  }
+
+  #savesPanel {
+    position: absolute; right: 10px; top: 78px;
+    width: 280px; display: none; gap: 8px;
+    padding: 10px; border-radius: 10px; pointer-events: auto;
+  }
+
+  #savesPanel.show { display: grid; }
+
+  #saveName {
+    height: 36px; width: 100%;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: rgba(255,255,255,0.07); color: var(--text);
+    outline: none; padding: 0 10px;
+  }
+
+  @media (max-width: 900px) {
+    #topbar { grid-template-columns: auto auto 1fr auto; height: 60px; }
+    #brand { min-width: 92px; }
+    #brandSub, #tabs .tabFull, .wideChip { display: none; }
+    .tabShort { display: inline; }
+    .tab { min-width: 44px; }
+    #stats { gap: 4px; }
+    .chip { min-width: 54px; padding: 0 7px; }
+    #objective { left: 10px; right: 10px; top: 78px; width: auto; grid-template-columns: 1fr; }
+    #progressLine { text-align: left; }
+    #palette {
+      top: auto; left: 10px; right: 10px; bottom: 10px;
+      width: auto; grid-template-columns: repeat(7, 1fr);
+    }
+    .tool { width: 100%; height: 46px; }
+    #inspector, #savesPanel { top: 150px; right: 10px; width: min(236px, calc(100vw - 20px)); }
+    .choiceGrid, #levelGrid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 620px) {
+    #topbar {
+      left: 6px; right: 6px; top: 6px; padding: 6px; gap: 5px;
+      height: 104px; grid-template-columns: auto 1fr auto;
+      grid-template-rows: 36px 36px; align-content: center;
+    }
+    #brand { grid-column: 1; grid-row: 1; min-width: 62px; }
+    #brandName { font-size: 14px; letter-spacing: 0.12em; }
+    #tabs { grid-column: 2; grid-row: 1; gap: 4px; }
+    #actions { grid-column: 3; grid-row: 1; justify-content: flex-end; gap: 3px; }
+    #stats { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
+    .iconBtn { width: 28px; height: 30px; font-size: 12px; }
+    .chip { height: 32px; font-size: 9px; }
+    #objective { top: 118px; padding: 8px 10px; }
+    #objectiveText { font-size: 11px; }
+    #stats .chip:nth-child(n+3) { display: none; }
+    .modal { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="CHIME game canvas"></canvas>
+
+<div id="ui">
+  <div id="topbar" class="glass">
+    <div id="brand">
+      <div id="brandName">CHI<span id="brandNote">♫</span>E</div>
+      <div id="brandSub">marble run ♫ studio</div>
+    </div>
+    <div id="tabs">
+      <button class="tab" id="journeyTab" title="Journey"><span class="tabFull">♩ JOURNEY</span><span class="tabShort">♩</span></button>
+      <button class="tab" id="studioTab" title="Studio"><span class="tabFull">♪ STUDIO</span><span class="tabShort">♪</span></button>
+    </div>
+    <div id="stats">
+      <div class="chip"><span id="progressChip">0/0</span></div>
+      <div class="chip"><span id="timeChip">0.0</span></div>
+      <div class="chip wideChip">♩ <b id="bpmChip">48</b> BPM</div>
+      <div class="chip wideChip">SCORE <b id="scoreChip">0</b></div>
+      <div class="chip wideChip">PARTS <b id="partsChip">0/0</b></div>
+    </div>
+    <div id="actions">
+      <button class="iconBtn" id="playBtn" title="Pause" aria-label="Pause">⏸</button>
+      <button class="iconBtn" id="spawnBtn" title="Drop marble" aria-label="Drop marble">⬇</button>
+      <button class="iconBtn" id="loopBtn" title="Toggle loop" aria-label="Toggle loop">⟳</button>
+      <button class="iconBtn" id="resetBtn" title="Restart" aria-label="Restart">↺</button>
+      <button class="iconBtn" id="muteBtn" title="Mute" aria-label="Mute">🔊</button>
+      <button class="iconBtn" id="saveBtn" title="Saves" aria-label="Saves">💾</button>
+      <button class="iconBtn" id="menuBtn" title="Menu" aria-label="Menu">☰</button>
+    </div>
+  </div>
+
+  <div id="objective" class="glass hidden">
+    <div>
+      <div id="objectiveTitle">JOURNEY</div>
+      <div id="objectiveText">Choose a level to begin.</div>
+    </div>
+    <div id="progressLine">READY</div>
+  </div>
+
+  <div id="palette" class="glass"></div>
+
+  <div id="inspector" class="glass">
+    <div class="panelTitle" id="inspectTitle">PART</div>
+    <div class="controlRow wrap" id="inspectMain"></div>
+    <div class="controlRow wrap" id="inspectTone"></div>
+    <button class="smallBtn danger" id="removeBtn">REMOVE</button>
+  </div>
+
+  <div id="savesPanel" class="glass">
+    <div class="panelTitle">RUNS</div>
+    <input id="saveName" maxlength="28" placeholder="Name this run">
+    <div class="controlRow">
+      <button class="smallBtn" id="saveRunBtn">SAVE</button>
+      <button class="smallBtn" id="shareRunBtn">SHARE</button>
+      <button class="smallBtn" id="clearBuildBtn">CLEAR</button>
+    </div>
+    <div id="saveList"></div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<div id="menuOverlay" class="overlay show">
+  <div class="modal glass">
+    <h1 style="font-family: Georgia, 'Times New Roman', serif;">CHI♫E</h1>
+    <p class="modalLead">Build. Drop. ♫ Listen.</p>
+    <div class="choiceGrid">
+      <button class="choice journey-choice" id="menuJourney">
+        <span class="choiceBadge">6 LEVELS</span>
+        <strong>JOURNEY</strong>
+        <span>Solve puzzle levels by routing marbles into the goal cup. Beat par times, earn stars.</span>
+      </button>
+      <button class="choice studio-choice" id="menuStudio">
+        <span class="choiceBadge">SANDBOX</span>
+        <strong>STUDIO</strong>
+        <span>No goals, no limits. Place parts, drop marbles, and build your own music machine.</span>
+      </button>
+    </div>
+    <div class="menuProgress" id="menuStarsLine"></div>
+    <div class="modalActions">
+      <button class="modalBtn" id="resumeBtn" style="display:none">RESUME</button>
+      <button class="modalBtn" id="menuFullscreenBtn">FULLSCREEN</button>
+    </div>
+  </div>
+</div>
+
+<div id="journeyOverlay" class="overlay">
+  <div class="modal glass">
+    <h2>♩ JOURNEY</h2>
+    <p class="modalLead">Catch marbles in the goal cup and complete each musical challenge. ★ Stars reward speed and efficiency.</p>
+    <div id="levelGrid"></div>
+    <div class="modalActions">
+      <button class="modalBtn" id="journeyBackBtn">BACK</button>
+    </div>
+  </div>
+</div>
+
+<div id="completeOverlay" class="overlay">
+  <div class="modal glass">
+    <h2 id="completeTitle">LEVEL COMPLETE</h2>
+    <p class="modalLead" id="completeText"></p>
+    <div class="levelStars" id="completeStars"></div>
+    <div class="modalActions">
+      <button class="modalBtn primary" id="nextLevelBtn">NEXT</button>
+      <button class="modalBtn" id="retryLevelBtn">RETRY</button>
+      <button class="modalBtn" id="levelMapBtn">LEVELS</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d', { alpha: false });
+
+const CG = window.CrazyGames && window.CrazyGames.SDK;
+const cg = {
+  ready: false,
+  async init() {
+    try {
+      if (CG) {
+        try { if (CG.game && CG.game.loadingStart) CG.game.loadingStart(); } catch(e) {}
+        if (CG.init) await CG.init();
+        try { if (CG.game && CG.game.loadingStop) CG.game.loadingStop(); } catch(e) {}
+        if (CG.game && CG.game.settings && CG.game.settings.muteAudio) muted = true;
+        if (CG.game && CG.game.addSettingsChangeListener) {
+          CG.game.addSettingsChangeListener(function(s) {
+            if (s.muteAudio !== undefined) {
+              muted = s.muteAudio;
+              document.getElementById('muteBtn').textContent = muted ? '🔇' : '🔊';
+              if (master) master.gain.value = muted ? 0 : 0.72;
+            }
+          });
+        }
+        this.ready = true;
+      }
+    } catch(e) {}
+  },
+  start() { try { if (CG && CG.game && CG.game.gameplayStart) CG.game.gameplayStart(); } catch(e) {} },
+  stop() { try { if (CG && CG.game && CG.game.gameplayStop) CG.game.gameplayStop(); } catch(e) {} },
+  happy() { try { if (CG && CG.game) { (CG.game.happytime || CG.game.happyTime || function(){})(); } } catch(e) {} },
+  progress(pct) { try { if (CG && CG.game && CG.game.reportGameCompletedPercentage) CG.game.reportGameCompletedPercentage(pct); } catch(e) {} },
+  saveItem(key, val) {
+    try { localStorage.setItem(key, val); } catch(e) {}
+    try { if (CG && CG.data && CG.data.setItem) CG.data.setItem(key, val); } catch(e) {}
+  },
+  loadItem(key) {
+    try { if (CG && CG.data && CG.data.getItem) { var v = CG.data.getItem(key); if (v !== null && v !== undefined) return v; } } catch(e) {}
+    try { return localStorage.getItem(key); } catch(e) { return null; }
+  },
+  showAd(type, onDone) {
+    if (!CG || !CG.ad || !CG.ad.requestAd) { if (onDone) onDone(); return; }
+    var called = false;
+    var done = function() {
+      if (called) return; called = true;
+      if (master) master.gain.value = muted ? 0 : 0.72;
+      if (audio) audio.resume().catch(function(){});
+      if (onDone) onDone();
+    };
+    try {
+      CG.ad.requestAd(type || 'midgame', {
+        adStarted: function() { if (audio) audio.suspend().catch(function(){}); if (master) master.gain.value = 0; },
+        adFinished: done,
+        adError: done
+      });
+      setTimeout(done, 4000);
+    } catch(e) { done(); }
+  }
+};
+
+/* ===== constants ===== */
+
+let W = 0, H = 0, DPR = 1;
+let playTop = 112, playBottomPad = 26;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const dist = (a, b, c, d) => Math.hypot(a - c, b - d);
+const nowMs = () => performance.now();
+
+const NOTE_NAMES = ['C','D','E','G','A','C','D','E','G','A','C','D','E','G','A'];
+const SCALE = [48,50,52,55,57, 60,62,64,67,69, 72,74,76,79,81];
+const freq = midi => 440 * Math.pow(2, (midi - 69) / 12);
+
+const GRAVITY = 1180;
+const FIXED_DT = 1 / 120;
+const MAX_MARBLES = 28;
+const WALL_PAD = 8;
+const JOURNEY_KEY = 'chime_rebuilt_journey_v1';
+const SAVE_KEY = 'chime_rebuilt_saves_v1';
+
+const TYPE_HUE = { peg: 175, bell: 42, bumper: 350, ramp: -1, lift: 270, emitter: 140 };
+
+const PartDefs = {
+  peg:     { cost: 1, radius: 10, rest: 0.64, name: 'Peg',     voice: 'pluck', hitMin: 70  },
+  bell:    { cost: 2, radius: 18, rest: 0.48, name: 'Bell',    voice: 'bell',  hitMin: 48  },
+  bumper:  { cost: 2, radius: 15, rest: 1.05, name: 'Bumper',  voice: 'bass',  hitMin: 60  },
+  ramp:    { cost: 2, len: 126,   thick: 7,  rest: 0.34, name: 'Ramp', voice: 'soft', hitMin: 135 },
+  lift:    { cost: 4, radius: 17, name: 'Lift',    voice: 'lift',  hitMin: 0   },
+  emitter: { cost: 3, radius: 15, name: 'Emitter', voice: 'drop',  hitMin: 0   },
+  erase:   { cost: 0, name: 'Erase' }
+};
+
+const Tools = [
+  ['peg',     '1', '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="6" fill="currentColor" stroke="none"></circle></svg>'],
+  ['bell',    '2', '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="10"></circle><circle cx="16" cy="16" r="2.4" fill="currentColor" stroke="none"></circle></svg>'],
+  ['bumper',  '3', '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="9" stroke-width="4"></circle></svg>'],
+  ['ramp',    '4', '<svg viewBox="0 0 32 32"><path d="M6 23 L26 9" stroke-width="4"></path></svg>'],
+  ['lift',    '5', '<svg viewBox="0 0 32 32"><path d="M7 21 C9 27 20 27 22 21"></path><circle cx="23" cy="9" r="5"></circle><path d="M15 21 L21 13" stroke-dasharray="2 3"></path></svg>'],
+  ['emitter', '6', '<svg viewBox="0 0 32 32"><path d="M9 8 H23 L20 18 H12 Z"></path><path d="M16 20 V26"></path></svg>'],
+  ['erase',   'E', '<svg viewBox="0 0 32 32"><path d="M9 9 L23 23 M23 9 L9 23" stroke-width="4"></path></svg>']
+];
+
+const Levels = [
+  {
+    id: 1, name: 'First Note',
+    objective: 'Place pegs to bounce marbles into the glowing goal. Use the 2 fixed pegs as guides — catch 3 to pass.',
+    budget: 5, goalCount: 3, spawnX: 0.48,
+    goal: { x: 0.52, y: 0.82 },
+    par: 38, perfect: 24,
+    fixed: [
+      { type: 'peg', x: 0.44, y: 0.36 },
+      { type: 'ramp', x: 0.55, y: 0.58, angle: -0.22 }
+    ]
+  },
+  {
+    id: 2, name: 'Bell Gate',
+    objective: 'Ring the gold bell twice, then catch 3 marbles in the cup.',
+    budget: 9, goalCount: 3, spawnX: 0.24,
+    goal: { x: 0.76, y: 0.80 },
+    par: 42, perfect: 28,
+    fixed: [
+      { type: 'bell', x: 0.50, y: 0.43, target: 'gold-bell', required: 2 }
+    ]
+  },
+  {
+    id: 3, name: 'Bounce Line',
+    objective: 'Use the bumpers to redirect marbles. Catch 4 in the cup.',
+    budget: 10, goalCount: 4, spawnX: 0.33,
+    goal: { x: 0.68, y: 0.82 },
+    par: 48, perfect: 30,
+    fixed: [
+      { type: 'bumper', x: 0.48, y: 0.46 },
+      { type: 'bumper', x: 0.61, y: 0.62 }
+    ]
+  },
+  {
+    id: 4, name: 'Second Source',
+    objective: 'Place an emitter for extra marble streams. Catch 5 total.',
+    budget: 12, goalCount: 5, spawnX: 0.18,
+    goal: { x: 0.78, y: 0.80 },
+    par: 50, perfect: 32,
+    requireParts: { emitter: 1 },
+    fixed: [
+      { type: 'ramp', x: 0.44, y: 0.38, angle: 0.25 },
+      { type: 'ramp', x: 0.61, y: 0.54, angle: -0.28 }
+    ]
+  },
+  {
+    id: 5, name: 'Lift Return',
+    objective: 'Build a lift to recycle marbles upward. Catch 5 in the cup.',
+    budget: 14, goalCount: 5, spawnX: 0.23,
+    goal: { x: 0.72, y: 0.82 },
+    par: 58, perfect: 38,
+    requireParts: { lift: 1 },
+    fixed: [
+      { type: 'bell', x: 0.42, y: 0.44 },
+      { type: 'bumper', x: 0.58, y: 0.64 }
+    ]
+  },
+  {
+    id: 6, name: 'Final Chord',
+    objective: 'Ring both target bells twice each and catch 6 marbles. The grand finale.',
+    budget: 18, goalCount: 6, spawnX: 0.19,
+    goal: { x: 0.80, y: 0.82 },
+    par: 68, perfect: 46,
+    fixed: [
+      { type: 'bell', x: 0.45, y: 0.38, target: 'upper-bell', required: 2 },
+      { type: 'bell', x: 0.62, y: 0.58, target: 'lower-bell', required: 2 },
+      { type: 'ramp', x: 0.32, y: 0.52, angle: 0.32 },
+      { type: 'bumper', x: 0.52, y: 0.73 }
+    ]
+  }
+];
+
+/* ===== state ===== */
+
+const state = {
+  mode: 'menu',
+  levelIndex: -1,
+  running: false,
+  paused: false,
+  budget: 9999,
+  parts: [],
+  marbles: [],
+  particles: [],
+  labels: [],
+  lifts: [],
+  goal: null,
+  goalVisible: true,
+  captured: 0,
+  score: 0,
+  combo: 0,
+  maxCombo: 0,
+  comboTimer: 0,
+  comboPulse: 0,
+  elapsed: 0,
+  completed: false,
+  studioCaptures: 0,
+  requirements: {},
+  targetHits: {},
+  requireParts: {},
+  flash: 0
+};
+
+let audio = null;
+let master = null;
+let delayNode = null;
+let delayFeedback = null;
+let muted = false;
+let activeTool = 'peg';
+let nextPartId = 1;
+let nextMarbleId = 1;
+let selected = null;
+let hovered = null;
+let pendingLift = null;
+let spawnClock = 0;
+let pointer = null;
+let lastFrame = nowMs();
+let accumulator = 0;
+let toastTimer = null;
+let shareLoaded = false;
+
+let shakeX = 0, shakeY = 0;
+let bpm = 48;
+let loopEnabled = false;
+
+const dust = [];
+for (let i = 0; i < 28; i++) {
+  dust.push({
+    x: Math.random(), y: Math.random(),
+    s: 0.6 + Math.random() * 1.8,
+    dx: (Math.random() - 0.5) * 0.008,
+    dy: -0.002 - Math.random() * 0.006,
+    a: 0.12 + Math.random() * 0.2
+  });
+}
+
+const spawner = {
+  x: 260, y: 140,
+  interval: 1.25, timer: 0.2,
+  drag: false, fixed: false
+};
+
+const els = {
+  palette: document.getElementById('palette'),
+  inspector: document.getElementById('inspector'),
+  inspectTitle: document.getElementById('inspectTitle'),
+  inspectMain: document.getElementById('inspectMain'),
+  inspectTone: document.getElementById('inspectTone'),
+  objectiveTitle: document.getElementById('objectiveTitle'),
+  objectiveText: document.getElementById('objectiveText'),
+  progressLine: document.getElementById('progressLine'),
+  progressChip: document.getElementById('progressChip'),
+  timeChip: document.getElementById('timeChip'),
+  scoreChip: document.getElementById('scoreChip'),
+  partsChip: document.getElementById('partsChip'),
+  bpmChip: document.getElementById('bpmChip'),
+  toast: document.getElementById('toast'),
+  menuOverlay: document.getElementById('menuOverlay'),
+  journeyOverlay: document.getElementById('journeyOverlay'),
+  completeOverlay: document.getElementById('completeOverlay'),
+  savesPanel: document.getElementById('savesPanel'),
+  saveList: document.getElementById('saveList'),
+  objective: document.getElementById('objective')
+};
+
+/* ===== screen shake ===== */
+
+function addShake(intensity) {
+  shakeX += (Math.random() - 0.5) * intensity;
+  shakeY += (Math.random() - 0.5) * intensity;
+}
+
+/* ===== resize ===== */
+
+function resize() {
+  const oldW = W, oldH = H, oldTop = playTop, oldBottom = playBottomPad;
+  const oldPH = oldH ? Math.max(240, oldH - oldTop - oldBottom) : 0;
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  playTop = W < 620 ? 208 : W < 900 ? 164 : 124;
+  playBottomPad = W < 900 ? 82 : 28;
+  const ph = playHeight();
+  if (oldW && oldH && oldPH) {
+    const sx = W / oldW, sy = ph / oldPH;
+    const scX = x => clamp(x * sx, 28, W - 28);
+    const scY = y => clamp(playTop + (y - oldTop) * sy, playTop + 20, H - playBottomPad - 12);
+    spawner.x = scX(spawner.x);
+    if (state.goal) { state.goal.x = scX(state.goal.x); state.goal.y = scY(state.goal.y); }
+    for (const p of state.parts) {
+      p.x = scX(p.x); p.y = scY(p.y);
+      if (p.type === 'lift') { p.outX = scX(p.outX); p.outY = scY(p.outY); }
+    }
+    for (const m of state.marbles) { m.x = scX(m.x); m.y = scY(m.y); m.trail.length = 0; }
+  }
+  spawner.y = playTop + 28;
+  spawner.x = clamp(spawner.x || W * 0.3, 42, W - 42);
+  if (state.goal) {
+    state.goal.x = clamp(state.goal.x, 70, W - 70);
+    state.goal.y = clamp(state.goal.y, playTop + 130, H - playBottomPad - 20);
+  }
+  for (const p of state.parts) clampPart(p);
+}
+
+function playHeight() { return Math.max(240, H - playTop - playBottomPad); }
+function worldX(v) { return (typeof v === 'number' && v >= 0 && v <= 1) ? v * W : W * 0.5 + (v || 0); }
+function worldY(v) { return (typeof v === 'number' && v >= 0 && v <= 1) ? playTop + v * playHeight() : playTop + (v || 0); }
+
+function noteIndexAt(y, shift) {
+  const t = clamp(1 - (y - playTop) / Math.max(1, playHeight()), 0, 1);
+  return clamp(Math.round(t * (SCALE.length - 1)) + (shift || 0), 0, SCALE.length - 1);
+}
+
+function noteForPart(part) {
+  const idx = noteIndexAt(part.y, part.noteShift || 0);
+  return { idx, name: NOTE_NAMES[idx], midi: SCALE[idx], hue: 160 + idx * 17 };
+}
+
+function partHue(p) {
+  const th = TYPE_HUE[p.type];
+  if (th >= 0) return th;
+  return noteForPart(p).hue;
+}
+
+/* ===== audio ===== */
+
+function initAudio() {
+  if (audio) { if (audio.state === 'suspended') audio.resume().catch(() => {}); return; }
+  try {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    master = audio.createGain();
+    master.gain.value = muted ? 0 : 0.72;
+    delayNode = audio.createDelay(0.5);
+    delayNode.delayTime.value = 0.18;
+    delayFeedback = audio.createGain();
+    delayFeedback.gain.value = 0.22;
+    const delayFilter = audio.createBiquadFilter();
+    delayFilter.type = 'lowpass';
+    delayFilter.frequency.value = 2200;
+    delayNode.connect(delayFilter);
+    delayFilter.connect(delayFeedback);
+    delayFeedback.connect(delayNode);
+    const delayWet = audio.createGain();
+    delayWet.gain.value = 0.28;
+    delayNode.connect(delayWet);
+    delayWet.connect(master);
+    master.connect(audio.destination);
+  } catch (e) { audio = null; }
+}
+
+function playTone(kind, note, gain, x) {
+  if (!audio || muted || !master) return;
+  const t = audio.currentTime;
+  const g = audio.createGain();
+  const pan = audio.createStereoPanner ? audio.createStereoPanner() : null;
+  const connect = node => {
+    if (pan) { node.connect(g); g.connect(pan); pan.connect(master); pan.connect(delayNode); }
+    else { node.connect(g); g.connect(master); g.connect(delayNode); }
+  };
+  if (pan) pan.pan.value = clamp((x / W) * 2 - 1, -0.85, 0.85);
+
+  if (kind === 'bell') {
+    const osc1 = audio.createOscillator();
+    const osc2 = audio.createOscillator();
+    osc1.type = 'sine'; osc1.frequency.value = note;
+    osc2.type = 'sine'; osc2.frequency.value = note * 2.01;
+    const g2 = audio.createGain();
+    g2.gain.value = gain * 0.3;
+    osc2.connect(g2); g2.connect(g);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    connect(osc1);
+    osc1.start(t); osc1.stop(t + 1);
+    osc2.start(t); osc2.stop(t + 1);
+  } else if (kind === 'pluck') {
+    const osc = audio.createOscillator();
+    osc.type = 'sawtooth'; osc.frequency.value = note;
+    const lp = audio.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.setValueAtTime(note * 6, t);
+    lp.frequency.exponentialRampToValueAtTime(note * 1.2, t + 0.12);
+    osc.connect(lp);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+    connect(lp);
+    osc.start(t); osc.stop(t + 0.34);
+  } else if (kind === 'bass') {
+    const osc1 = audio.createOscillator();
+    const osc2 = audio.createOscillator();
+    osc1.type = 'triangle'; osc1.frequency.value = note;
+    osc2.type = 'sine'; osc2.frequency.value = note * 0.5;
+    const g2 = audio.createGain(); g2.gain.value = gain * 0.5;
+    osc2.connect(g2); g2.connect(g);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+    connect(osc1);
+    osc1.start(t); osc1.stop(t + 0.32);
+    osc2.start(t); osc2.stop(t + 0.32);
+  } else {
+    const osc = audio.createOscillator();
+    const type = kind === 'soft' ? 'sine' : kind === 'lift' ? 'triangle' : 'sine';
+    const dur = kind === 'lift' ? 0.18 : kind === 'drop' ? 0.15 : 0.38;
+    osc.type = type; osc.frequency.setValueAtTime(note, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    connect(osc);
+    osc.start(t); osc.stop(t + dur + 0.05);
+  }
+}
+
+/* ===== toast ===== */
+
+function showToast(text) {
+  els.toast.textContent = text;
+  els.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => els.toast.classList.remove('show'), 1800);
+}
+
+/* ===== progress ===== */
+
+function progressStore() { try { var raw = cg.loadItem(JOURNEY_KEY); return raw ? JSON.parse(raw) : {}; } catch(e) { return {}; } }
+function saveProgress(data) { cg.saveItem(JOURNEY_KEY, JSON.stringify(data)); }
+
+function isLevelUnlocked(index) {
+  if (index === 0) return true;
+  const data = progressStore();
+  return !!(data[Levels[index - 1].id] && data[Levels[index - 1].id].complete);
+}
+
+function starsFor(level, elapsed) {
+  let s = 1;
+  if (elapsed <= level.par) s++;
+  if (elapsed <= level.perfect) s++;
+  return clamp(s, 1, 3);
+}
+
+function starString(n) {
+  return Array.from({ length: 3 }, (_, i) => i < n ? '★' : '☆').join(' ');
+}
+
+/* ===== parts ===== */
+
+function makePart(type, x, y, props) {
+  const def = PartDefs[type];
+  const p = Object.assign({
+    id: nextPartId++, type, x, y,
+    angle: type === 'ramp' ? 0.28 : 0,
+    fixed: false, flash: 0, noteShift: 0,
+    lastHit: -99, target: null, required: 0,
+    rate: 1, timer: type === 'emitter' ? 0.35 : 0,
+    outX: x + 90, outY: y - 120
+  }, def, props || {});
+  clampPart(p);
+  return p;
+}
+
+function makeGhostPart(type, x, y) {
+  const def = PartDefs[type];
+  return Object.assign({
+    id: -1, type, x, y,
+    angle: type === 'ramp' ? 0.28 : 0,
+    fixed: false, flash: 0, noteShift: 0,
+    lastHit: -99, target: null, required: 0,
+    rate: 1, timer: 0, outX: x + 90, outY: y - 120
+  }, def || {});
+}
+
+function clampPart(p) {
+  const minY = playTop + 28, maxY = H - playBottomPad - 16;
+  p.x = clamp(p.x, WALL_PAD + 18, W - WALL_PAD - 18);
+  p.y = clamp(p.y, minY, maxY);
+  if (p.type === 'lift') {
+    p.outX = clamp(p.outX, WALL_PAD + 18, W - WALL_PAD - 18);
+    p.outY = clamp(p.outY, minY, maxY);
+  }
+}
+
+function placedCost() { return state.parts.reduce((s, p) => s + (p.fixed ? 0 : p.cost || 0), 0); }
+function placedCount() { return state.parts.filter(p => !p.fixed).length; }
+function countPlaced(type) { return state.parts.filter(p => !p.fixed && p.type === type).length; }
+
+/* ===== reset ===== */
+
+function resetPhysics() {
+  state.marbles.length = 0; state.particles.length = 0;
+  state.labels.length = 0; state.lifts.length = 0;
+  spawnClock = 0; spawner.timer = 0.18;
+  for (const p of state.parts) {
+    p.flash = 0; p.lastHit = -99;
+    if (p.type === 'emitter') p.timer = 0.35;
+  }
+}
+
+function resetProgress() {
+  state.captured = 0; state.score = 0;
+  state.combo = 0; state.maxCombo = 0;
+  state.comboTimer = 0; state.comboPulse = 0;
+  state.elapsed = 0; state.completed = false;
+  state.studioCaptures = 0; state.flash = 0;
+  state.targetHits = {};
+  for (const key of Object.keys(state.requirements)) state.targetHits[key] = 0;
+  resetPhysics();
+}
+
+/* ===== mode setup ===== */
+
+function configureGoal(spec) {
+  return { x: worldX(spec.x), y: worldY(spec.y), w: 110, h: 54, pulse: 0 };
+}
+
+function makeFixedParts(level) {
+  return (level.fixed || []).map(spec => makePart(spec.type, worldX(spec.x), worldY(spec.y), {
+    angle: spec.angle || 0, fixed: true,
+    target: spec.target || null, required: spec.required || 0
+  }));
+}
+
+function showOverlay(which) {
+  for (const el of [els.menuOverlay, els.journeyOverlay, els.completeOverlay]) el.classList.remove('show');
+  if (which) which.classList.add('show');
+}
+
+function setTab(mode) {
+  document.getElementById('journeyTab').classList.toggle('active', mode === 'journey');
+  document.getElementById('studioTab').classList.toggle('active', mode === 'studio');
+}
+
+function setBpm(newBpm) {
+  bpm = clamp(Math.round(newBpm), 20, 240);
+  spawner.interval = 60 / bpm;
+  if (els.bpmChip) els.bpmChip.textContent = bpm;
+}
+
+function startSession(mode) {
+  initAudio();
+  state.mode = mode;
+  state.running = true;
+  state.paused = false;
+  setBpm(mode === 'studio' ? 33 : 48);
+  document.getElementById('playBtn').textContent = '⏸';
+  document.getElementById('brandSub').textContent = mode === 'studio' ? '♪ sandbox mode' : '♩ marble run puzzle';
+  setTab(mode);
+  showOverlay(null);
+  els.objective.classList.toggle('hidden', mode === 'studio');
+  document.getElementById('loopBtn').style.borderColor = loopEnabled ? 'rgba(83,218,203,0.62)' : '';
+  document.getElementById('loopBtn').style.background = loopEnabled ? 'rgba(83,218,203,0.18)' : '';
+  cg.start();
+}
+
+function startStudio(loadedData) {
+  state.levelIndex = -1;
+  state.budget = 9999;
+  state.requirements = {};
+  state.requireParts = {};
+  state.goal = null;
+  state.goalVisible = false;
+  spawner.fixed = false;
+  spawner.x = W * 0.24;
+  state.parts = [
+    makePart('ramp', W * 0.40, worldY(0.28), { angle: 0.30 }),
+    makePart('ramp', W * 0.58, worldY(0.46), { angle: -0.30 }),
+    makePart('peg', W * 0.50, worldY(0.62)),
+    makePart('bell', W * 0.66, worldY(0.63))
+  ];
+  if (loadedData) restoreFromData(loadedData, false);
+  state.goal = null;
+  selected = null; pendingLift = null;
+  resetProgress();
+  startSession('studio');
+}
+
+function startJourneyLevel(index) {
+  const level = Levels[index];
+  state.levelIndex = index;
+  state.budget = level.budget;
+  state.goal = configureGoal(level.goal);
+  state.goalVisible = true;
+  state.parts = makeFixedParts(level);
+  state.requirements = {};
+  state.targetHits = {};
+  for (const p of state.parts) {
+    if (p.target && p.required) {
+      state.requirements[p.target] = p.required;
+      state.targetHits[p.target] = 0;
+    }
+  }
+  state.requireParts = Object.assign({}, level.requireParts || {});
+  spawner.fixed = false;
+  spawner.x = worldX(level.spawnX);
+  selected = null; pendingLift = null;
+  resetProgress();
+  setObjective('LEVEL ' + level.id + ' — ' + level.name.toUpperCase(), level.objective,
+    '★' + level.par + 's  ★★' + level.perfect + 's');
+  startSession('journey');
+}
+
+function restartCurrent() {
+  if (state.mode === 'journey' && state.levelIndex >= 0) startJourneyLevel(state.levelIndex);
+  else { const saved = serializeState(); startStudio(saved); }
+}
+
+function setObjective(title, text, progress) {
+  els.objectiveTitle.textContent = title;
+  els.objectiveText.textContent = text;
+  els.progressLine.textContent = progress;
+}
+
+function requirementText() {
+  if (state.mode !== 'journey') return '';
+  const level = Levels[state.levelIndex];
+  const bits = [state.captured + '/' + level.goalCount + ' caught'];
+  for (const key of Object.keys(state.requirements))
+    bits.push(key.split('-')[0] + ' ' + state.targetHits[key] + '/' + state.requirements[key]);
+  for (const key of Object.keys(state.requireParts))
+    bits.push(key + ' ' + countPlaced(key) + '/' + state.requireParts[key]);
+  return bits.join('  ');
+}
+
+function requirementsMet() {
+  if (state.mode !== 'journey') return false;
+  const level = Levels[state.levelIndex];
+  if (state.captured < level.goalCount) return false;
+  for (const key of Object.keys(state.requirements))
+    if ((state.targetHits[key] || 0) < state.requirements[key]) return false;
+  for (const key of Object.keys(state.requireParts))
+    if (countPlaced(key) < state.requireParts[key]) return false;
+  return true;
+}
+
+function completeLevel() {
+  if (state.completed || state.mode !== 'journey') return;
+  state.completed = true;
+  state.running = false; state.paused = true;
+  cg.stop(); cg.happy();
+  const level = Levels[state.levelIndex];
+  const stars = starsFor(level, state.elapsed);
+  const data = progressStore();
+  const prev = data[level.id] || { stars: 0, bestTime: 9999, complete: false };
+  const wasBest = prev.bestTime || 9999;
+  prev.complete = true;
+  prev.stars = Math.max(prev.stars || 0, stars);
+  prev.bestTime = Math.min(prev.bestTime || 9999, state.elapsed);
+  data[level.id] = prev;
+  saveProgress(data);
+  cg.progress(Math.floor((state.levelIndex + 1) / Levels.length * 100));
+
+  document.getElementById('completeTitle').textContent = level.name.toUpperCase();
+  const parText = state.elapsed <= level.perfect ? 'Under par!' : state.elapsed <= level.par ? 'On par' : 'Over par';
+  const isNewBest = state.elapsed < wasBest && wasBest < 9999;
+  document.getElementById('completeText').textContent =
+    'Time ' + state.elapsed.toFixed(1) + 's (' + parText + ')' + (isNewBest ? ' — NEW BEST!' : '') +
+    '  ·  ' + placedCost() + '/' + level.budget + ' parts  ·  combo x' + state.maxCombo;
+  document.getElementById('completeStars').textContent = starString(stars);
+  document.getElementById('nextLevelBtn').style.display = state.levelIndex < Levels.length - 1 ? '' : 'none';
+  renderJourneyGrid();
+  showOverlay(els.completeOverlay);
+}
+
+/* ===== spawning ===== */
+
+function spawnMarble(x, y, opts) {
+  if (state.marbles.length + state.lifts.length >= MAX_MARBLES) return null;
+  const marble = Object.assign({
+    id: nextMarbleId++, x, y, vx: 0, vy: 15, r: 7,
+    hue: 170 + (nextMarbleId % 7) * 24,
+    trail: [], cd: {}, age: 0
+  }, opts || {});
+  state.marbles.push(marble);
+  return marble;
+}
+
+function manualSpawn() {
+  if (!state.running) return;
+  initAudio();
+  spawnMarble(spawner.x, spawner.y + 16, { vy: 40 });
+  spawner.timer = spawner.interval;
+}
+
+function tickSpawners(dt) {
+  spawner.timer -= dt;
+  if (spawner.timer <= 0) manualSpawn();
+  for (const p of state.parts) {
+    if (p.type !== 'emitter') continue;
+    const intervals = [2.5, 1.45, 0.8];
+    p.timer -= dt;
+    if (p.timer <= 0) {
+      p.timer = intervals[p.rate || 1];
+      p.flash = 1;
+      spawnMarble(p.x, p.y + 18, { vy: 45, hue: 120 + (p.id * 37) % 120 });
+      playTone('drop', freq(60), 0.04, p.x);
+    }
+  }
+}
+
+/* ===== scoring ===== */
+
+function scoreEvent(points, x, y, text) {
+  state.score += points;
+  state.combo++;
+  if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+  state.comboTimer = 1.8;
+  state.comboPulse = 1;
+  state.labels.push({ x, y, text: text || ('+' + points), life: 1.1, hue: 48, size: 15 });
+  if (state.combo === 5 || state.combo === 10 || state.combo === 20) addShake(4);
+}
+
+function registerHit(part, impact, x, y) {
+  if (spawnClock - part.lastHit < 0.12) return;
+  part.lastHit = spawnClock;
+  part.flash = 1;
+  const note = noteForPart(part);
+  const gain = clamp(impact / 900, 0.08, 0.55);
+  playTone(part.voice, freq(note.midi), gain, x);
+  scoreEvent(part.target ? 35 : 12, x, y - 16, note.name);
+  const bCount = part.target ? 22 : 12;
+  burst(x, y, partHue(part), bCount);
+  addShake(part.type === 'bumper' ? 5 : 2.5);
+  if (part.target && state.targetHits[part.target] !== undefined) {
+    state.targetHits[part.target] = Math.min(state.requirements[part.target], state.targetHits[part.target] + 1);
+    if (state.targetHits[part.target] >= state.requirements[part.target])
+      state.labels.push({ x: part.x, y: part.y - 30, text: '✓ DONE', life: 1.4, hue: 120, size: 16 });
+  }
+}
+
+function burst(x, y, hue, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 50 + Math.random() * 180;
+    state.particles.push({
+      x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 0.5 + Math.random() * 0.45, hue,
+      size: 1.8 + Math.random() * 3.2
+    });
+  }
+}
+
+function captureMarble(m) {
+  if (!state.goal || !state.goalVisible) return false;
+  const g = state.goal;
+  const inside = m.x > g.x - g.w * 0.44 && m.x < g.x + g.w * 0.44 &&
+                 m.y > g.y - g.h * 0.6 && m.y < g.y + g.h * 0.95;
+  if (!inside) return false;
+  g.pulse = 1;
+  state.captured++;
+  state.studioCaptures++;
+  state.flash = 0.12;
+  scoreEvent(100, g.x, g.y - 32, '+100');
+  playTone('bell', freq(72), 0.22, g.x);
+  burst(g.x, g.y, 120, 24);
+  addShake(7);
+  if (requirementsMet()) completeLevel();
+  return true;
+}
+
+/* ===== physics ===== */
+
+function step(dt) {
+  spawnClock += dt;
+  state.elapsed += state.mode === 'journey' ? dt : 0;
+  state.comboTimer -= dt;
+  if (state.comboTimer <= 0) { state.combo = 0; state.comboTimer = 0; }
+  state.comboPulse = Math.max(0, state.comboPulse - dt * 4);
+  state.flash = Math.max(0, state.flash - dt * 2);
+  tickSpawners(dt);
+
+  for (let i = state.lifts.length - 1; i >= 0; i--) {
+    const lift = state.lifts[i];
+    lift.t -= dt;
+    if (lift.t <= 0) {
+      spawnMarble(lift.x, lift.y, { vx: lift.vx, vy: lift.vy, hue: lift.hue });
+      state.lifts.splice(i, 1);
+    }
+  }
+
+  for (let i = state.marbles.length - 1; i >= 0; i--) {
+    const m = state.marbles[i];
+    m.age += dt;
+    m.vy += GRAVITY * dt;
+    const speed = Math.hypot(m.vx, m.vy);
+    if (speed > 1350) { m.vx *= 1350 / speed; m.vy *= 1350 / speed; }
+    m.x += m.vx * dt; m.y += m.vy * dt;
+    if (m.x < WALL_PAD + m.r) { m.x = WALL_PAD + m.r; m.vx = Math.abs(m.vx) * 0.55; }
+    if (m.x > W - WALL_PAD - m.r) { m.x = W - WALL_PAD - m.r; m.vx = -Math.abs(m.vx) * 0.55; }
+    if (m.y < playTop - 20) { m.y = playTop - 20; m.vy = Math.abs(m.vy) * 0.3; }
+
+    for (const p of state.parts) {
+      if (p.type === 'emitter') continue;
+      if (p.type === 'ramp') collideSegment(m, p);
+      else if (p.type === 'lift') {
+        if (collideLift(m, p)) { state.marbles.splice(i, 1); m._gone = true; break; }
+      } else collideCircle(m, p);
+    }
+    if (m._gone) continue;
+    if (captureMarble(m)) { state.marbles.splice(i, 1); continue; }
+    if (m.y > H + 70 || m.age > 18) {
+      if (loopEnabled && m.y > H + 70) {
+        m.x = spawner.x + (Math.random() - 0.5) * 10;
+        m.y = spawner.y + 16;
+        m.vy = 40; m.vx *= 0.3;
+        m.trail.length = 0; m.age = 0;
+        m.cd = {};
+      } else {
+        state.marbles.splice(i, 1);
+      }
+      continue;
+    }
+  }
+
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i];
+    p.life -= dt;
+    if (p.life <= 0) { state.particles.splice(i, 1); continue; }
+    p.vy += 320 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+  }
+
+  for (let i = state.labels.length - 1; i >= 0; i--) {
+    const l = state.labels[i];
+    l.life -= dt; l.y -= 30 * dt;
+    if (l.life <= 0) state.labels.splice(i, 1);
+  }
+}
+
+function cooldown(m, p) {
+  const last = m.cd[p.id] || -99;
+  if (spawnClock - last < 0.07) return true;
+  m.cd[p.id] = spawnClock; return false;
+}
+
+function collideCircle(m, p) {
+  const minD = m.r + p.radius;
+  const dx = m.x - p.x, dy = m.y - p.y;
+  const d2 = dx * dx + dy * dy;
+  if (d2 > minD * minD || d2 < 0.00001) return;
+  const d = Math.sqrt(d2);
+  const nx = dx / d, ny = dy / d;
+  m.x = p.x + nx * minD; m.y = p.y + ny * minD;
+  const vn = m.vx * nx + m.vy * ny;
+  if (vn < 0) {
+    const rest = p.rest || 0.5;
+    m.vx -= (1 + rest) * vn * nx; m.vy -= (1 + rest) * vn * ny;
+    if (p.type === 'bumper') { m.vx += nx * 210; m.vy += ny * 210; }
+    const impact = -vn;
+    if (impact > (p.hitMin || 60) && !cooldown(m, p)) registerHit(p, impact, m.x, m.y);
+  }
+}
+
+function collideSegment(m, p) {
+  const hx = Math.cos(p.angle) * p.len * 0.5, hy = Math.sin(p.angle) * p.len * 0.5;
+  const ax = p.x - hx, ay = p.y - hy, bx = p.x + hx, by = p.y + hy;
+  const abx = bx - ax, aby = by - ay;
+  const denom = abx * abx + aby * aby || 1;
+  const t = clamp(((m.x - ax) * abx + (m.y - ay) * aby) / denom, 0, 1);
+  const px = ax + abx * t, py = ay + aby * t;
+  let dx = m.x - px, dy = m.y - py, d = Math.hypot(dx, dy);
+  const minD = m.r + p.thick;
+  if (d > minD) return;
+  if (d < 0.0001) { dx = -Math.sin(p.angle); dy = Math.cos(p.angle); d = 1; }
+  const nx = dx / d, ny = dy / d;
+  m.x = px + nx * minD; m.y = py + ny * minD;
+  const vn = m.vx * nx + m.vy * ny;
+  if (vn < 0) {
+    m.vx -= (1 + p.rest) * vn * nx; m.vy -= (1 + p.rest) * vn * ny;
+    m.vx *= 0.992;
+    const impact = -vn;
+    if (impact > p.hitMin && !cooldown(m, p)) registerHit(p, impact, px, py);
+  }
+}
+
+function collideLift(m, p) {
+  if (dist(m.x, m.y, p.x, p.y) > p.radius + m.r + 4) return false;
+  if (m.age < 0.15) return false;
+  p.flash = 1;
+  playTone('lift', freq(67), 0.12, p.x);
+  addShake(3);
+  state.lifts.push({
+    part: p, t: 0.24,
+    x: p.outX, y: p.outY, vx: 0, vy: 30,
+    sx: p.x, sy: p.y, hue: m.hue
+  });
+  return true;
+}
+
+/* ===== rendering ===== */
+
+function render(dt) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  shakeX *= 0.84; shakeY *= 0.84;
+  if (Math.abs(shakeX) < 0.3) shakeX = 0;
+  if (Math.abs(shakeY) < 0.3) shakeY = 0;
+  ctx.translate(shakeX, shakeY);
+  drawBackground(dt);
+  drawPitchLines();
+  drawLoopIndicators();
+  drawGoal();
+  drawSpawner();
+  for (const p of state.parts) drawPart(p, dt);
+  drawPendingLift();
+  drawGhost();
+  drawLiftRides();
+  drawMarbles();
+  drawParticles();
+  drawLabels();
+  drawFlash();
+  drawPaused();
+}
+
+function drawBackground() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#04050a');
+  grad.addColorStop(0.5, state.mode === 'journey' ? '#12100e' : '#0a1214');
+  grad.addColorStop(1, state.mode === 'journey' ? '#1a130e' : '#0e1518');
+  ctx.fillStyle = grad;
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+
+  const gA = ctx.createRadialGradient(W * 0.15, H * 0.2, 10, W * 0.15, H * 0.2, Math.max(W, H) * 0.7);
+  if (state.mode === 'journey') {
+    gA.addColorStop(0, 'rgba(255, 180, 80, 0.1)');
+    gA.addColorStop(1, 'rgba(255, 180, 80, 0)');
+  } else {
+    gA.addColorStop(0, 'rgba(83, 218, 203, 0.12)');
+    gA.addColorStop(1, 'rgba(83, 218, 203, 0)');
+  }
+  ctx.fillStyle = gA;
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+
+  const gB = ctx.createRadialGradient(W * 0.85, H * 0.8, 10, W * 0.85, H * 0.8, Math.max(W, H) * 0.5);
+  gB.addColorStop(0, state.mode === 'journey' ? 'rgba(255, 100, 70, 0.09)' : 'rgba(176, 136, 249, 0.09)');
+  gB.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gB;
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+
+  for (const d of dust) {
+    d.x += d.dx; d.y += d.dy;
+    if (d.y < -0.05) { d.y = 1.05; d.x = Math.random(); }
+    if (d.x < -0.05 || d.x > 1.05) d.x = Math.random();
+    ctx.fillStyle = 'rgba(238, 244, 239, ' + d.a + ')';
+    ctx.beginPath();
+    ctx.arc(d.x * W, d.y * H, d.s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.strokeStyle = 'rgba(238, 244, 239, 0.028)';
+  ctx.lineWidth = 1;
+  const spacing = 44;
+  const offset = (spawnClock * 12) % spacing;
+  for (let y = playTop - offset; y < H; y += spacing) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // vignette
+  const vig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.72);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.35)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+}
+
+function drawPitchLines() {
+  ctx.save();
+  const keyW = 28;
+  for (let i = 0; i < SCALE.length; i++) {
+    const y = playTop + (1 - i / (SCALE.length - 1)) * playHeight();
+    const nextY = i < SCALE.length - 1 ? playTop + (1 - (i + 1) / (SCALE.length - 1)) * playHeight() : y - 30;
+    const rowH = Math.abs(y - nextY);
+
+    ctx.strokeStyle = i % 5 === 0 ? 'rgba(255, 214, 107, 0.09)' : 'rgba(238, 244, 239, 0.03)';
+    ctx.beginPath(); ctx.moveTo(keyW + 4, y); ctx.lineTo(W, y); ctx.stroke();
+
+    const isOctaveStart = i % 5 === 0;
+    ctx.fillStyle = isOctaveStart ? 'rgba(255, 214, 107, 0.06)' : 'rgba(238, 244, 239, 0.02)';
+    ctx.fillRect(0, nextY, keyW, rowH);
+    ctx.strokeStyle = 'rgba(238, 244, 239, 0.06)';
+    ctx.strokeRect(0, nextY, keyW, rowH);
+
+    ctx.fillStyle = isOctaveStart ? 'rgba(255, 214, 107, 0.55)' : 'rgba(238, 244, 239, 0.3)';
+    ctx.font = isOctaveStart ? '900 10px Georgia, serif' : '600 9px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(NOTE_NAMES[i], keyW / 2, y - rowH / 2 + 3.5);
+  }
+
+  ctx.fillStyle = 'rgba(238, 244, 239, 0.25)';
+  ctx.font = '900 9px Georgia, serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('C', W - 10, playTop + playHeight() - 4);
+  ctx.fillText('A', W - 10, playTop + 10);
+  ctx.restore();
+}
+
+function drawGoal() {
+  if (!state.goal || state.mode === 'menu' || !state.goalVisible) return;
+  const g = state.goal;
+  g.pulse = Math.max(0, g.pulse - 0.035);
+  ctx.save();
+  ctx.translate(g.x, g.y);
+  const glow = 0.6 + g.pulse * 0.4 + Math.sin(spawnClock * 3) * 0.08;
+  ctx.shadowColor = 'rgba(117, 223, 132, ' + glow + ')';
+  ctx.shadowBlur = 14 + g.pulse * 28;
+  ctx.strokeStyle = 'rgba(117, 223, 132, 0.92)';
+  ctx.lineWidth = 4 + g.pulse * 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-g.w * 0.46, -g.h * 0.28);
+  ctx.lineTo(-g.w * 0.34, g.h * 0.4);
+  ctx.quadraticCurveTo(0, g.h * 0.62, g.w * 0.34, g.h * 0.4);
+  ctx.lineTo(g.w * 0.46, -g.h * 0.28);
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(117, 223, 132, 0.08 )';
+  ctx.beginPath();
+  ctx.ellipse(0, -g.h * 0.28, g.w * 0.48, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // pulsing ring
+  const ringR = g.w * 0.56 + Math.sin(spawnClock * 2.5) * 4;
+  ctx.strokeStyle = 'rgba(117, 223, 132, ' + (0.12 + g.pulse * 0.25) + ')';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 8]);
+  ctx.beginPath();
+  ctx.arc(0, g.h * 0.1, ringR, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = 'rgba(238, 244, 239, 0.78)';
+  ctx.font = '900 13px Georgia, serif';
+  ctx.textAlign = 'center';
+  const label = state.mode === 'journey' ? state.captured + '/' + Levels[state.levelIndex].goalCount : String(state.studioCaptures);
+  ctx.fillText(label, 0, g.h * 0.95);
+  ctx.restore();
+}
+
+function drawSpawner() {
+  if (state.mode === 'menu') return;
+  const progress = 1 - clamp(spawner.timer / spawner.interval, 0, 1);
+  ctx.save();
+  ctx.translate(spawner.x, spawner.y);
+  ctx.shadowColor = 'rgba(83, 218, 203, 0.75)';
+  ctx.shadowBlur = 16;
+  ctx.fillStyle = 'rgba(83, 218, 203, 0.9)';
+  ctx.beginPath();
+  ctx.moveTo(-17, -13); ctx.lineTo(17, -13); ctx.lineTo(7, 6); ctx.lineTo(-7, 6);
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(83, 218, 203, 0.22)';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, -4, 26, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255, 214, 107, 0.92)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, -4, 26, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(238, 244, 239, 0.4)';
+  ctx.font = '800 9px Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(bpm + ' BPM', 0, -24);
+  if (loopEnabled) {
+    ctx.fillStyle = 'rgba(83, 218, 203, 0.5)';
+    ctx.fillText('⟳ LOOP', 0, 24);
+  }
+  ctx.restore();
+}
+
+function drawLoopIndicators() {
+  if (!loopEnabled || state.mode === 'menu') return;
+  ctx.save();
+  ctx.setLineDash([8, 6]);
+  ctx.strokeStyle = 'rgba(83, 218, 203, 0.25)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(20, H - playBottomPad);
+  ctx.lineTo(W - 20, H - playBottomPad);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(20, spawner.y + 24);
+  ctx.lineTo(W - 20, spawner.y + 24);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  var arrowX = W - 36;
+  ctx.strokeStyle = 'rgba(83, 218, 203, 0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(arrowX, H - playBottomPad - 4);
+  ctx.lineTo(arrowX + 8, H - playBottomPad + 10);
+  ctx.lineTo(arrowX + 8, H - 10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(arrowX + 14, (spawner.y + 24 + H - playBottomPad) / 2, (H - playBottomPad - spawner.y - 24) / 2 - 6, 0, Math.PI, true);
+  ctx.stroke();
+
+  ctx.font = '900 10px Georgia, serif';
+  ctx.fillStyle = 'rgba(83, 218, 203, 0.45)';
+  ctx.textAlign = 'center';
+  ctx.fillText('♻ LOOP', W / 2, H - playBottomPad + 14);
+  ctx.restore();
+}
+
+function drawPart(p, dt) {
+  p.flash = Math.max(0, p.flash - dt * 4.5);
+  const hue = partHue(p);
+  const alpha = p.fixed ? 0.62 : 1;
+  const isSel = selected === p || hovered === p;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.shadowColor = 'hsla(' + hue + ', 92%, 62%, ' + (0.4 + p.flash * 0.6) + ')';
+  ctx.shadowBlur = 12 + p.flash * 28;
+
+  if (p.type === 'ramp') {
+    const hx = Math.cos(p.angle) * p.len * 0.5, hy = Math.sin(p.angle) * p.len * 0.5;
+    ctx.strokeStyle = 'hsla(' + hue + ', 80%, ' + (60 + p.flash * 25) + '%, 0.95)';
+    ctx.lineWidth = p.thick * 1.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(p.x - hx, p.y - hy); ctx.lineTo(p.x + hx, p.y + hy);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(238, 244, 239, 0.85)';
+    ctx.beginPath();
+    ctx.arc(p.x - hx, p.y - hy, 3.5, 0, Math.PI * 2);
+    ctx.arc(p.x + hx, p.y + hy, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (p.type === 'emitter') {
+    const intervals = [2.5, 1.45, 0.8];
+    const prog = 1 - clamp(p.timer / intervals[p.rate || 1], 0, 1);
+    ctx.fillStyle = 'hsla(140, 75%, 55%, 0.88)';
+    ctx.beginPath();
+    ctx.moveTo(p.x - 15, p.y - 12); ctx.lineTo(p.x + 15, p.y - 12);
+    ctx.lineTo(p.x + 7, p.y + 7); ctx.lineTo(p.x - 7, p.y + 7);
+    ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255, 214, 107, 0.88)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y - 2, 22, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2);
+    ctx.stroke();
+  } else if (p.type === 'lift') {
+    drawLiftPart(p, hue);
+  } else {
+    const r = p.radius + p.flash * 5;
+    if (p.type === 'peg') {
+      ctx.fillStyle = 'hsla(' + hue + ', 80%, 60%, 0.95)';
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+      if (p.flash > 0.1) {
+        ctx.fillStyle = 'rgba(255,255,255,' + p.flash * 0.4 + ')';
+        ctx.beginPath(); ctx.arc(p.x - r * 0.25, p.y - r * 0.25, r * 0.35, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (p.type === 'bell') {
+      ctx.strokeStyle = 'hsla(' + hue + ', 90%, ' + (65 + p.flash * 20) + '%, 0.95)';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'hsla(' + hue + ', 90%, 55%, 0.12)';
+      ctx.fill();
+      ctx.fillStyle = p.target ? 'rgba(255, 214, 107, 0.95)' : 'rgba(238, 244, 239, 0.88)';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3.5 + p.flash * 3, 0, Math.PI * 2); ctx.fill();
+      if (p.flash > 0.3) {
+        ctx.fillStyle = 'rgba(255,255,255,' + (p.flash - 0.3) * 0.5 + ')';
+        ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.9, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (p.type === 'bumper') {
+      ctx.strokeStyle = 'hsla(' + hue + ', 88%, 64%, 0.96)';
+      ctx.lineWidth = 4 + p.flash * 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+      const innerR = r * (0.5 + Math.sin(spawnClock * 5) * 0.06);
+      ctx.strokeStyle = 'rgba(238, 244, 239, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(p.x, p.y, innerR, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  if (p.target) {
+    const req = state.requirements[p.target] || p.required || 0;
+    const hit = state.targetHits[p.target] || 0;
+    ctx.save();
+    ctx.strokeStyle = hit >= req ? 'rgba(117, 223, 132, 0.85)' : 'rgba(255, 214, 107, 0.75)';
+    ctx.setLineDash([4, 5]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, (p.radius || 18) + 14 + Math.sin(spawnClock * 4) * 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = hit >= req ? 'rgba(117, 223, 132, 0.85)' : 'rgba(255, 214, 107, 0.8)';
+    ctx.font = '900 12px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(hit + '/' + req, p.x, p.y - (p.radius || 18) - 20);
+    ctx.restore();
+  }
+
+  if (isSel) drawSelection(p);
+}
+
+function drawLiftPart(p, hue) {
+  ctx.save();
+  ctx.strokeStyle = 'hsla(' + hue + ', 80%, 68%, 0.88)';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.outX, p.outY, 12, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([3, 6]);
+  ctx.strokeStyle = 'hsla(' + hue + ', 70%, 70%, 0.22)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.outX, p.outY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawSelection(p) {
+  ctx.save();
+  ctx.strokeStyle = selected === p ? 'rgba(255, 214, 107, 0.9)' : 'rgba(238, 244, 239, 0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 5]);
+  const x = p._handle === 'out' ? p.outX : p.x;
+  const y = p._handle === 'out' ? p.outY : p.y;
+  const r = p.type === 'ramp' ? p.len * 0.52 : (p.radius || 15) + 14;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawPendingLift() {
+  if (!pendingLift) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(176, 136, 249, 0.65)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 7]);
+  ctx.beginPath();
+  ctx.moveTo(pendingLift.x, pendingLift.y);
+  ctx.lineTo(pointer ? pointer.x : pendingLift.x, pointer ? pointer.y : pendingLift.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(pendingLift.x, pendingLift.y, 17, 0, Math.PI); ctx.stroke();
+  ctx.restore();
+}
+
+function drawGhost() {
+  if (!pointer || pointer.dragging || pendingLift || activeTool === 'erase' || state.mode === 'menu') return;
+  if (pointer.y < playTop || pointer.y > H - playBottomPad) return;
+  if (partHit(pointer.x, pointer.y).part) return;
+  const def = PartDefs[activeTool];
+  if (!def) return;
+  ctx.save(); ctx.globalAlpha = 0.32;
+  const p = makeGhostPart(activeTool, pointer.x, pointer.y);
+  drawPart(p, 0);
+  ctx.restore();
+}
+
+function drawLiftRides() {
+  ctx.save();
+  for (const ride of state.lifts) {
+    const p = ride.part;
+    const t = clamp(1 - ride.t / 0.24, 0, 1);
+    const x = lerp(p.x, p.outX, t), y = lerp(p.y, p.outY, t);
+    ctx.fillStyle = 'hsla(' + ride.hue + ', 90%, 72%, 0.92)';
+    ctx.shadowColor = 'hsla(' + ride.hue + ', 90%, 70%, 0.85)';
+    ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawMarbles() {
+  ctx.save();
+  for (const m of state.marbles) {
+    m.trail.push({ x: m.x, y: m.y });
+    if (m.trail.length > 18) m.trail.shift();
+    for (let i = 1; i < m.trail.length; i++) {
+      const a = i / m.trail.length;
+      ctx.strokeStyle = 'hsla(' + m.hue + ', 90%, 70%, ' + (a * 0.35) + ')';
+      ctx.lineWidth = m.r * a * 0.9;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(m.trail[i - 1].x, m.trail[i - 1].y);
+      ctx.lineTo(m.trail[i].x, m.trail[i].y);
+      ctx.stroke();
+    }
+
+    // outer glow
+    const og = ctx.createRadialGradient(m.x, m.y, m.r, m.x, m.y, m.r * 3);
+    og.addColorStop(0, 'hsla(' + m.hue + ', 90%, 70%, 0.18)');
+    og.addColorStop(1, 'hsla(' + m.hue + ', 90%, 70%, 0)');
+    ctx.fillStyle = og;
+    ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 3, 0, Math.PI * 2); ctx.fill();
+
+    const g = ctx.createRadialGradient(m.x - 2, m.y - 3, 1, m.x, m.y, m.r);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.5, 'hsl(' + m.hue + ', 92%, 78%)');
+    g.addColorStop(1, 'hsl(' + m.hue + ', 88%, 45%)');
+    ctx.shadowColor = 'hsla(' + m.hue + ', 95%, 72%, 0.85)';
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawParticles() {
+  ctx.save();
+  for (const p of state.particles) {
+    const a = clamp(p.life * 2, 0, 1);
+    const sz = (p.size || 2) * (0.4 + a * 0.6);
+    ctx.shadowColor = 'hsla(' + p.hue + ', 90%, 65%, ' + (a * 0.5) + ')';
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = 'hsla(' + p.hue + ', 90%, 70%, ' + a + ')';
+    ctx.beginPath(); ctx.arc(p.x, p.y, sz, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawLabels() {
+  ctx.save();
+  ctx.textAlign = 'center';
+  for (const l of state.labels) {
+    ctx.font = '900 ' + (l.size || 15) + 'px Georgia, serif';
+    ctx.fillStyle = 'hsla(' + l.hue + ', 90%, 74%, ' + clamp(l.life, 0, 1) + ')';
+    ctx.fillText(l.text, l.x, l.y);
+  }
+
+  if (state.combo > 0 && state.comboTimer > 0) {
+    const c = state.combo;
+    const sz = 38 + state.comboPulse * 12;
+    let color;
+    if (c >= 10) color = 'rgba(255, 91, 107, 0.9)';
+    else if (c >= 7) color = 'rgba(255, 153, 68, 0.88)';
+    else if (c >= 4) color = 'rgba(255, 214, 107, 0.85)';
+    else color = 'rgba(238, 244, 239, 0.78)';
+    const sym = c >= 10 ? '𝄞' : c >= 7 ? '♬' : c >= 4 ? '♫' : '♪';
+    ctx.font = '900 ' + Math.round(sz) + 'px Georgia, serif';
+    ctx.fillStyle = color;
+    ctx.fillText(sym + ' x' + c, W * 0.5, H - playBottomPad - 38);
+  }
+  ctx.restore();
+}
+
+function drawFlash() {
+  if (state.flash > 0) {
+    ctx.fillStyle = 'rgba(255, 255, 255, ' + (state.flash * 0.7) + ')';
+    ctx.fillRect(-20, -20, W + 40, H + 40);
+  }
+}
+
+function drawPaused() {
+  if (!state.paused || state.mode === 'menu' || els.menuOverlay.classList.contains('show') || els.completeOverlay.classList.contains('show')) return;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+  ctx.fillStyle = 'rgba(238, 244, 239, 0.88)';
+  ctx.font = '900 32px Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('♩ PAUSED', W * 0.5, H * 0.5);
+  ctx.font = '600 13px Georgia, serif';
+  ctx.fillStyle = 'rgba(238, 244, 239, 0.5)';
+  ctx.fillText(('ontouchstart' in window || W < 620) ? 'tap to resume' : 'press SPACE to resume', W * 0.5, H * 0.5 + 28);
+  ctx.restore();
+}
+
+/* ===== HUD ===== */
+
+function updateHud() {
+  const isJ = state.mode === 'journey';
+  const level = isJ ? Levels[state.levelIndex] : null;
+  els.progressChip.textContent = isJ ? state.captured + '/' + level.goalCount : state.marbles.length + ' marbles';
+  els.timeChip.textContent = isJ ? state.elapsed.toFixed(1) + 's' : state.score + ' pts';
+  els.scoreChip.textContent = String(state.score);
+  els.partsChip.textContent = isJ ? placedCost() + '/' + state.budget : placedCount() + ' parts';
+  if (els.bpmChip) els.bpmChip.textContent = bpm;
+  els.progressLine.textContent = requirementText();
+  if (isJ && level) {
+    els.objectiveTitle.textContent = '♩ LEVEL ' + level.id + ' — ' + level.name.toUpperCase();
+    els.objectiveText.textContent = level.objective;
+  }
+}
+
+/* ===== main loop ===== */
+
+function frame(ts) {
+  requestAnimationFrame(frame);
+  const raw = Math.min(0.05, (ts - lastFrame) / 1000 || 0);
+  lastFrame = ts;
+  if (state.running && !state.paused) {
+    accumulator += raw;
+    let guard = 0;
+    while (accumulator >= FIXED_DT && guard < 8) {
+      step(FIXED_DT); accumulator -= FIXED_DT; guard++;
+    }
+  }
+  render(raw);
+  updateHud();
+}
+
+/* ===== input ===== */
+
+function partHit(x, y) {
+  for (let i = state.parts.length - 1; i >= 0; i--) {
+    const p = state.parts[i];
+    if (p.type === 'ramp') {
+      const hx = Math.cos(p.angle) * p.len * 0.5, hy = Math.sin(p.angle) * p.len * 0.5;
+      const ax = p.x - hx, ay = p.y - hy, bx = p.x + hx, by = p.y + hy;
+      const abx = bx - ax, aby = by - ay;
+      const t = clamp(((x - ax) * abx + (y - ay) * aby) / (abx * abx + aby * aby || 1), 0, 1);
+      if (dist(x, y, ax + abx * t, ay + aby * t) < 16) return { part: p, handle: 'body' };
+    } else if (p.type === 'lift') {
+      if (dist(x, y, p.outX, p.outY) < 20) return { part: p, handle: 'out' };
+      if (dist(x, y, p.x, p.y) < 24) return { part: p, handle: 'in' };
+    } else {
+      const r = (p.radius || 16) + (p.type === 'emitter' ? 9 : 8);
+      if (dist(x, y, p.x, p.y) < r) return { part: p, handle: 'body' };
+    }
+  }
+  return { part: null, handle: null };
+}
+
+function setTool(tool) {
+  activeTool = tool;
+  if (tool !== 'lift') pendingLift = null;
+  for (const el of els.palette.querySelectorAll('.tool'))
+    el.classList.toggle('active', el.dataset.tool === tool);
+}
+
+function buildPalette() {
+  els.palette.innerHTML = '';
+  for (const [tool, key, icon] of Tools) {
+    const def = PartDefs[tool];
+    const btn = document.createElement('button');
+    btn.className = 'tool'; btn.dataset.tool = tool; btn.title = def.name;
+    btn.innerHTML = '<span class="toolKey">' + key + '</span>' +
+      (def.cost ? '<span class="toolCost">' + def.cost + '</span>' : '') + icon;
+    btn.addEventListener('click', () => setTool(tool));
+    els.palette.appendChild(btn);
+  }
+  setTool(activeTool);
+}
+
+function showInspector(part) {
+  selected = part;
+  if (!part) { els.inspector.classList.remove('show'); return; }
+  els.inspector.classList.add('show');
+  els.inspectTitle.textContent = (part.fixed ? 'FIXED ' : '') + part.name.toUpperCase();
+  els.inspectMain.innerHTML = ''; els.inspectTone.innerHTML = '';
+  const addBtn = (parent, label, fn, title) => {
+    const b = document.createElement('button');
+    b.className = 'smallBtn'; b.textContent = label; b.title = title || label;
+    b.addEventListener('click', fn); parent.appendChild(b);
+  };
+  if (part.type === 'ramp') {
+    addBtn(els.inspectMain, '↶ 15°', () => { part.angle -= Math.PI / 12; });
+    addBtn(els.inspectMain, '↷ 15°', () => { part.angle += Math.PI / 12; });
+  }
+  if (part.type === 'emitter') {
+    addBtn(els.inspectMain, part.rate === 0 ? '🐢 SLOW' : part.rate === 1 ? '🔄 MID' : '⚡ FAST', () => {
+      part.rate = (part.rate + 1) % 3; showInspector(part);
+    }, 'Cycle drop rate');
+  }
+  if (part.type !== 'lift' && part.type !== 'emitter') {
+    addBtn(els.inspectTone, '♪ −', () => { part.noteShift = clamp((part.noteShift || 0) - 1, -6, 6); });
+    addBtn(els.inspectTone, '♪ +', () => { part.noteShift = clamp((part.noteShift || 0) + 1, -6, 6); });
+  }
+  document.getElementById('removeBtn').style.display = part.fixed ? 'none' : '';
+}
+
+function removePart(part) {
+  if (!part || part.fixed) return;
+  const idx = state.parts.indexOf(part);
+  if (idx >= 0) state.parts.splice(idx, 1);
+  if (selected === part) showInspector(null);
+}
+
+function canPlace(type) {
+  const def = PartDefs[type];
+  if (!def || type === 'erase') return false;
+  if (state.mode === 'studio') return true;
+  if (placedCost() + def.cost > state.budget) {
+    showToast('Part budget full (' + state.budget + ')');
+    return false;
+  }
+  return true;
+}
+
+function placeAt(x, y) {
+  if (state.mode === 'menu' || y < playTop || y > H - playBottomPad) return;
+  if (activeTool === 'erase') return;
+  if (!canPlace(activeTool)) return;
+  if (activeTool === 'lift') {
+    if (!pendingLift) {
+      pendingLift = { x, y }; showToast('Click to place lift exit');
+    } else {
+      const p = makePart('lift', pendingLift.x, pendingLift.y, { outX: x, outY: y });
+      state.parts.push(p); pendingLift = null; showInspector(p);
+    }
+    return;
+  }
+  const p = makePart(activeTool, x, y, { angle: activeTool === 'ramp' ? 0.28 : 0 });
+  state.parts.push(p); showInspector(p);
+}
+
+function pointerDown(e) {
+  if (e.button !== undefined && e.button !== 0) return;
+  initAudio();
+  const x = e.clientX, y = e.clientY;
+  pointer = { id: e.pointerId, x, y, startX: x, startY: y,
+    dragging: false, dragKind: null, part: null, handle: null, offX: 0, offY: 0 };
+  canvas.setPointerCapture(e.pointerId);
+  const hit = partHit(x, y);
+  hovered = hit.part;
+  if (dist(x, y, spawner.x, spawner.y) < 31 && state.mode !== 'menu' && !spawner.fixed) {
+    pointer.dragKind = 'spawner';
+    pointer.offX = x - spawner.x; pointer.offY = y - spawner.y;
+    return;
+  }
+  if (hit.part) {
+    if (activeTool === 'erase') { removePart(hit.part); pointer = null; return; }
+    pointer.dragKind = 'part'; pointer.part = hit.part;
+    pointer.handle = hit.handle; hit.part._handle = hit.handle;
+    if (hit.handle === 'out') { pointer.offX = x - hit.part.outX; pointer.offY = y - hit.part.outY; }
+    else { pointer.offX = x - hit.part.x; pointer.offY = y - hit.part.y; }
+  }
+}
+
+function pointerMove(e) {
+  const x = e.clientX, y = e.clientY;
+  if (!pointer) {
+    const hit = partHit(x, y);
+    hovered = hit.part; if (hovered) hovered._handle = hit.handle;
+    pointer = { x, y, hoverOnly: true }; return;
+  }
+  pointer.x = x; pointer.y = y;
+  if (pointer.hoverOnly) {
+    const hit = partHit(x, y);
+    hovered = hit.part; if (hovered) hovered._handle = hit.handle; return;
+  }
+  if (dist(x, y, pointer.startX, pointer.startY) > 4) pointer.dragging = true;
+  if (!pointer.dragging) return;
+  if (pointer.dragKind === 'spawner') {
+    spawner.x = clamp(x - pointer.offX, 38, W - 38);
+  } else if (pointer.dragKind === 'part' && pointer.part && !pointer.part.fixed) {
+    const p = pointer.part;
+    if (pointer.handle === 'out' && p.type === 'lift') {
+      p.outX = clamp(x - pointer.offX, 28, W - 28);
+      p.outY = clamp(y - pointer.offY, playTop + 26, H - playBottomPad - 16);
+    } else {
+      p.x = clamp(x - pointer.offX, 28, W - 28);
+      p.y = clamp(y - pointer.offY, playTop + 26, H - playBottomPad - 16);
+      if (p.type === 'lift' && pointer.handle !== 'out') {
+        p.outX = clamp(p.outX, 28, W - 28);
+        p.outY = clamp(p.outY, playTop + 26, H - playBottomPad - 16);
+      }
+    }
+  }
+}
+
+function pointerUp(e) {
+  if (!pointer || pointer.hoverOnly) { pointer = null; return; }
+  const x = e.clientX, y = e.clientY;
+  const hit = partHit(x, y);
+  if (!pointer.dragging) {
+    if (hit.part) showInspector(hit.part);
+    else { showInspector(null); placeAt(x, y); }
+  }
+  pointer = null;
+}
+
+function onWheel(e) {
+  const hit = partHit(e.clientX, e.clientY);
+  const p = hit.part || selected;
+  if (!p || p.type !== 'ramp' || p.fixed) return;
+  e.preventDefault();
+  p.angle += (e.deltaY > 0 ? 1 : -1) * 0.08;
+}
+
+/* ===== save / load ===== */
+
+function clearBuild() {
+  state.parts = state.parts.filter(p => p.fixed);
+  pendingLift = null; showInspector(null);
+  resetProgress();
+}
+
+function serializeState() {
+  return {
+    v: 2, mode: 'studio', budget: state.budget,
+    spawnerX: spawner.x / W,
+    goal: state.goal ? { x: state.goal.x / W, y: (state.goal.y - playTop) / playHeight() } : null,
+    parts: state.parts.filter(p => !p.fixed).map(p => ({
+      type: p.type, x: p.x / W, y: (p.y - playTop) / playHeight(),
+      angle: p.angle || 0, noteShift: p.noteShift || 0, rate: p.rate || 1,
+      outX: p.outX ? p.outX / W : null,
+      outY: p.outY ? (p.outY - playTop) / playHeight() : null
+    }))
+  };
+}
+
+function restoreFromData(data, resetFirst) {
+  if (!data || data.v !== 2) return false;
+  if (resetFirst) startStudio();
+  spawner.x = clamp((data.spawnerX || 0.25) * W, 42, W - 42);
+  state.parts = (data.parts || []).map(spec => makePart(spec.type, worldX(spec.x), worldY(spec.y), {
+    angle: spec.angle || 0, noteShift: spec.noteShift || 0, rate: spec.rate || 1,
+    outX: spec.outX === null ? undefined : worldX(spec.outX),
+    outY: spec.outY === null ? undefined : worldY(spec.outY)
+  })).filter(Boolean);
+  resetProgress();
+  return true;
+}
+
+function getSaves() { try { var raw = cg.loadItem(SAVE_KEY); return raw ? JSON.parse(raw) : []; } catch(e) { return []; } }
+function putSaves(list) { cg.saveItem(SAVE_KEY, JSON.stringify(list)); }
+
+function renderSaves() {
+  const saves = getSaves();
+  els.saveList.innerHTML = '';
+  if (!saves.length) {
+    const empty = document.createElement('div'); empty.className = 'saveItem';
+    empty.innerHTML = '<strong>EMPTY</strong><span>No saved runs yet.</span>';
+    els.saveList.appendChild(empty); return;
+  }
+  saves.forEach((save, index) => {
+    const item = document.createElement('button'); item.className = 'saveItem';
+    item.innerHTML = '<strong>' + escapeHtml(save.name || 'RUN') + '</strong><span>' + (save.data.parts || []).length + ' parts</span>';
+    item.addEventListener('click', () => {
+      restoreFromData(save.data, true); startSession('studio');
+      els.savesPanel.classList.remove('show');
+    });
+    item.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const next = getSaves(); next.splice(index, 1); putSaves(next); renderSaves();
+    });
+    els.saveList.appendChild(item);
+  });
+}
+
+function saveRun() {
+  const input = document.getElementById('saveName');
+  const name = input.value.trim() || 'Run ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const saves = getSaves();
+  saves.unshift({ name, data: serializeState(), ts: Date.now() });
+  putSaves(saves.slice(0, 16));
+  input.value = ''; renderSaves(); showToast('Run saved');
+}
+
+function shareRun() {
+  const json = JSON.stringify(serializeState());
+  const encoded = btoa(unescape(encodeURIComponent(json)));
+  const url = location.origin + location.pathname + '?chime=' + encoded;
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(url).then(() => showToast('Share link copied'), () => showToast('Share code ready'));
+  else showToast('Share code ready');
+}
+
+function loadShareFromUrl() {
+  const code = new URLSearchParams(location.search).get('chime');
+  if (!code) return false;
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(code))));
+    shareLoaded = true; startStudio(data); return true;
+  } catch(e) { return false; }
+}
+
+function escapeHtml(v) {
+  return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ===== journey grid ===== */
+
+function renderJourneyGrid() {
+  const grid = document.getElementById('levelGrid');
+  const data = progressStore();
+  grid.innerHTML = '';
+  Levels.forEach((level, index) => {
+    const unlocked = isLevelUnlocked(index);
+    const progress = data[level.id] || {};
+    const card = document.createElement('button');
+    card.className = 'levelCard' + (unlocked ? '' : ' locked');
+    card.innerHTML = '<strong>' + level.id + '. ' + level.name.toUpperCase() + '</strong>' +
+      '<span>' + level.objective + '</span>' +
+      '<div class="levelStars">' + starString(progress.stars || 0) + '</div>' +
+      '<div class="levelPar">PAR ' + level.par + 's' +
+      (progress.bestTime && progress.bestTime < 9999 ? '  ·  BEST ' + progress.bestTime.toFixed(1) + 's' : '') + '</div>';
+    if (unlocked) card.addEventListener('click', () => startJourneyLevel(index));
+    grid.appendChild(card);
+  });
+}
+
+/* ===== controls ===== */
+
+function togglePause(force) {
+  if (!state.running) return;
+  state.paused = force !== undefined ? force : !state.paused;
+  document.getElementById('playBtn').textContent = state.paused ? '▶' : '⏸';
+  if (state.paused) cg.stop(); else cg.start();
+  if (audio) { if (state.paused) audio.suspend().catch(() => {}); else audio.resume().catch(() => {}); }
+}
+
+function toggleMute() {
+  muted = !muted;
+  document.getElementById('muteBtn').textContent = muted ? '🔇' : '🔊';
+  if (master) master.gain.value = muted ? 0 : 0.72;
+}
+
+function openMenu() {
+  if (state.running) { togglePause(true); cg.stop(); }
+  document.getElementById('resumeBtn').style.display = state.mode === 'menu' ? 'none' : '';
+  var data = progressStore(), total = 0;
+  for (var i = 0; i < Levels.length; i++) { var d = data[Levels[i].id]; if (d) total += d.stars || 0; }
+  var starsEl = document.getElementById('menuStarsLine');
+  if (starsEl) starsEl.innerHTML = total > 0 ? '<b>★ ' + total + '</b> / ' + (Levels.length * 3) + ' stars earned' : '';
+  if (cg.ready) document.getElementById('menuFullscreenBtn').style.display = 'none';
+  showOverlay(els.menuOverlay);
+}
+
+function fullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+
+/* ===== bind ===== */
+
+function bindUi() {
+  document.getElementById('journeyTab').addEventListener('click', () => { renderJourneyGrid(); showOverlay(els.journeyOverlay); });
+  document.getElementById('studioTab').addEventListener('click', () => startStudio());
+  document.getElementById('menuJourney').addEventListener('click', () => { renderJourneyGrid(); showOverlay(els.journeyOverlay); });
+  document.getElementById('menuStudio').addEventListener('click', () => startStudio());
+  document.getElementById('journeyBackBtn').addEventListener('click', () => showOverlay(els.menuOverlay));
+  document.getElementById('resumeBtn').addEventListener('click', () => { showOverlay(null); if (state.running) togglePause(false); });
+  document.getElementById('menuFullscreenBtn').addEventListener('click', fullscreen);
+  document.getElementById('menuBtn').addEventListener('click', openMenu);
+  document.getElementById('playBtn').addEventListener('click', () => togglePause());
+  document.getElementById('spawnBtn').addEventListener('click', manualSpawn);
+  document.getElementById('resetBtn').addEventListener('click', restartCurrent);
+  document.getElementById('muteBtn').addEventListener('click', toggleMute);
+  document.getElementById('loopBtn').addEventListener('click', () => {
+    loopEnabled = !loopEnabled;
+    document.getElementById('loopBtn').style.borderColor = loopEnabled ? 'rgba(83,218,203,0.62)' : '';
+    document.getElementById('loopBtn').style.background = loopEnabled ? 'rgba(83,218,203,0.18)' : '';
+    showToast(loopEnabled ? '♻ Loop ON — marbles recycle' : 'Loop OFF');
+  });
+  var bpmParent = els.bpmChip ? els.bpmChip.parentElement : null;
+  if (bpmParent) {
+    bpmParent.style.cursor = 'pointer';
+    bpmParent.addEventListener('click', () => { setBpm(bpm + 6); showToast('♩ ' + bpm + ' BPM'); });
+    bpmParent.addEventListener('contextmenu', (e) => { e.preventDefault(); setBpm(bpm - 6); showToast('♩ ' + bpm + ' BPM'); });
+    bpmParent.addEventListener('wheel', (e) => { e.preventDefault(); setBpm(bpm + (e.deltaY < 0 ? 3 : -3)); }, { passive: false });
+  }
+  document.getElementById('saveBtn').addEventListener('click', () => { els.savesPanel.classList.toggle('show'); renderSaves(); });
+  document.getElementById('saveRunBtn').addEventListener('click', saveRun);
+  document.getElementById('shareRunBtn').addEventListener('click', shareRun);
+  document.getElementById('clearBuildBtn').addEventListener('click', clearBuild);
+  document.getElementById('removeBtn').addEventListener('click', () => removePart(selected));
+  document.getElementById('nextLevelBtn').addEventListener('click', () => {
+    if (state.levelIndex < Levels.length - 1) {
+      var next = state.levelIndex + 1;
+      cg.showAd('midgame', function() { startJourneyLevel(next); });
+    }
+  });
+  document.getElementById('retryLevelBtn').addEventListener('click', () => {
+    var idx = state.levelIndex;
+    cg.showAd('midgame', function() { startJourneyLevel(idx); });
+  });
+  document.getElementById('levelMapBtn').addEventListener('click', () => { renderJourneyGrid(); showOverlay(els.journeyOverlay); });
+
+  canvas.addEventListener('pointerdown', pointerDown);
+  canvas.addEventListener('pointermove', pointerMove);
+  canvas.addEventListener('pointerup', pointerUp);
+  canvas.addEventListener('pointercancel', () => { pointer = null; });
+  canvas.addEventListener('contextmenu', e => { e.preventDefault(); const hit = partHit(e.clientX, e.clientY); if (hit.part) removePart(hit.part); });
+  canvas.addEventListener('wheel', onWheel, { passive: false });
+
+  window.addEventListener('keydown', e => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    const key = e.key.toLowerCase();
+    if (key === ' ') { e.preventDefault(); togglePause(); }
+    else if (key === 'r') restartCurrent();
+    else if (key === 'm') toggleMute();
+    else if (key === 's') manualSpawn();
+    else if (key === 'l') { loopEnabled = !loopEnabled; document.getElementById('loopBtn').style.borderColor = loopEnabled ? 'rgba(83,218,203,0.62)' : ''; document.getElementById('loopBtn').style.background = loopEnabled ? 'rgba(83,218,203,0.18)' : ''; showToast(loopEnabled ? '♻ Loop ON' : 'Loop OFF'); }
+    else if (key === '+' || key === '=') { setBpm(bpm + 6); showToast('♩ ' + bpm + ' BPM'); }
+    else if (key === '-' || key === '_') { setBpm(bpm - 6); showToast('♩ ' + bpm + ' BPM'); }
+    else if (key === 'delete' || key === 'backspace') removePart(selected);
+    else { const tool = Tools.find(t => t[1].toLowerCase() === key); if (tool) setTool(tool[0]); }
+  });
+
+  window.addEventListener('resize', resize);
+  document.addEventListener('visibilitychange', () => { if (document.hidden && state.running) togglePause(true); });
+}
+
+/* ===== boot ===== */
+
+async function boot() {
+  resize(); buildPalette(); bindUi();
+  await cg.init();
+  if (cg.ready) document.getElementById('menuFullscreenBtn').style.display = 'none';
+  renderJourneyGrid();
+  if (!loadShareFromUrl()) { setTab('journey'); }
+  requestAnimationFrame(frame);
+}
+
+boot();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(127,212,255,.45);color:#7fd4ff;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#7fd4ff;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the arcade"><span class="k">&#9666;</span><span class="t">the arcade</span></a></nav>
+</body>
+</html>

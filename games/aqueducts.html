@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Aqueducts — demo</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #2a1f1a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #5a3a2a;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  #wrap {
+    position:relative; width:900px; height:640px;
+    max-width:100vw; max-height:100vh;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    border-radius:8px; overflow:hidden;
+    background:#d4b878;
+  }
+  canvas { display:block; width:100%; height:100%; cursor: crosshair; }
+  .ui {
+    position:absolute; top:14px; left:18px; pointer-events:none;
+    display:flex; gap:14px; align-items:center;
+    background: rgba(255,250,240,0.9);
+    padding: 8px 14px; border-radius:6px;
+    font-size:12px; letter-spacing:1px; text-transform:uppercase;
+  }
+  .ui .label { opacity:0.55; }
+  .ui .val { font-weight:700; font-size:18px; color:#a45032; }
+  .ui .val.ok { color:#5a8a3a; }
+  .hint {
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    background: rgba(255,250,240,0.9);
+    padding: 6px 14px; border-radius:6px;
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+    opacity:0; transition: opacity 1s ease; pointer-events:none;
+  }
+  .hint.show { opacity:0.9; }
+  .reset {
+    position:absolute; top:14px; right:18px;
+    background: rgba(255,250,240,0.9); color:#a45032;
+    border:none; padding: 8px 14px; border-radius:6px;
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+    cursor:pointer; font-weight:600;
+  }
+  .reset:hover { background: rgba(255,255,255,1); }
+  .victory {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    background: rgba(255,250,240,0.95);
+    padding: 24px 40px; border-radius:10px;
+    text-align:center; pointer-events:none;
+    opacity:0; transition: opacity 0.8s ease;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  .victory.show { opacity:1; }
+  .victory h2 { margin: 0 0 6px; color: #5a8a3a; letter-spacing:1px; }
+  .victory p { margin: 0; font-size:13px; opacity:0.7; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="900" height="640"></canvas>
+  <div class="ui">
+    <span class="label">stone</span><span class="val" id="stone">25</span>
+    <span class="label">villages</span><span class="val ok" id="vill">0/4</span>
+  </div>
+  <button class="reset" onclick="location.reload()">reset</button>
+  <div class="hint" id="hint">click + drag to lay aqueducts · water flows downhill · right-click a cell to remove</div>
+  <div class="victory" id="victory">
+    <h2>All villages flourish!</h2>
+    <p>The water sings through the arches.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // ---------- grid ----------
+  const CELL = 36;
+  const COLS = 22;
+  const ROWS = 14;
+  const GRID_W = COLS * CELL;
+  const GRID_H = ROWS * CELL;
+  const OFF_X = (W - GRID_W) / 2;
+  const OFF_Y = 80;
+
+  // ---------- terrain ----------
+  // peaks for heightmap
+  const PEAKS = [
+    { x: 4, y: 3, h: 4.2 },
+    { x: 17, y: 3, h: 4.2 },
+    { x: 11, y: 2, h: 3.6 },
+  ];
+
+  function generateHeightmap() {
+    const hm = [];
+    for (let y = 0; y < ROWS; y++) {
+      const row = [];
+      for (let x = 0; x < COLS; x++) {
+        let h = 0;
+        for (const p of PEAKS) {
+          const d = Math.sqrt((x - p.x) ** 2 + (y - p.y) ** 2);
+          h = Math.max(h, p.h - d * 0.55);
+        }
+        // tilt lower toward bottom
+        h -= (y / ROWS) * 0.6;
+        row.push(Math.max(0, Math.min(4, Math.round(h))));
+      }
+      hm.push(row);
+    }
+    return hm;
+  }
+  const heightmap = generateHeightmap();
+
+  // ---------- springs & villages ----------
+  const springs = [
+    { x: 4, y: 3 },
+    { x: 17, y: 3 },
+  ];
+  const villages = [
+    { x: 2, y: 11, name: 'Olivetta', satisfied: false, bloom: 0 },
+    { x: 9, y: 12, name: 'Casaroma', satisfied: false, bloom: 0 },
+    { x: 14, y: 12, name: 'Pietragialla', satisfied: false, bloom: 0 },
+    { x: 20, y: 10, name: 'Solefiore', satisfied: false, bloom: 0 },
+  ];
+
+  // ---------- aqueducts ----------
+  const aqueducts = new Set(); // "x1,y1|x2,y2"
+  let budget = 25;
+  const MAX_BUDGET = 25;
+
+  function segKey(x1, y1, x2, y2) {
+    if (x1 > x2 || (x1 === x2 && y1 > y2)) return `${x2},${y2}|${x1},${y1}`;
+    return `${x1},${y1}|${x2},${y2}`;
+  }
+
+  function parseSeg(key) {
+    const [a, b] = key.split('|');
+    const [x1, y1] = a.split(',').map(Number);
+    const [x2, y2] = b.split(',').map(Number);
+    return { x1, y1, x2, y2 };
+  }
+
+  function neighbors(x, y) {
+    const out = [];
+    if (x > 0) out.push([x - 1, y]);
+    if (x < COLS - 1) out.push([x + 1, y]);
+    if (y > 0) out.push([x, y - 1]);
+    if (y < ROWS - 1) out.push([x, y + 1]);
+    return out;
+  }
+
+  // ---------- water flow ----------
+  let wateredCells = new Set();
+  let activeSegments = new Set();
+
+  function computeWater() {
+    const watered = new Set();
+    const active = new Set();
+    for (const s of springs) {
+      const queue = [[s.x, s.y]];
+      const visited = new Set();
+      while (queue.length) {
+        const [x, y] = queue.shift();
+        const key = `${x},${y}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
+        watered.add(key);
+        for (const [nx, ny] of neighbors(x, y)) {
+          const sk = segKey(x, y, nx, ny);
+          if (!aqueducts.has(sk)) continue;
+          if (heightmap[ny][nx] > heightmap[y][x]) continue;
+          active.add(sk);
+          queue.push([nx, ny]);
+        }
+      }
+    }
+    wateredCells = watered;
+    activeSegments = active;
+    let satisfied = 0;
+    for (const v of villages) {
+      const wasSat = v.satisfied;
+      v.satisfied = wateredCells.has(`${v.x},${v.y}`);
+      if (v.satisfied && !wasSat) {
+        spawnBloom(v.x, v.y);
+      }
+      if (v.satisfied) satisfied++;
+    }
+    updateUI(satisfied);
+    if (satisfied === villages.length) showVictory();
+  }
+
+  // ---------- particles ----------
+  const particles = [];
+  function spawnBloom(cx, cy) {
+    const px = OFF_X + cx * CELL + CELL / 2;
+    const py = OFF_Y + cy * CELL + CELL / 2;
+    for (let i = 0; i < 30; i++) {
+      const a = (i / 30) * Math.PI * 2;
+      particles.push({
+        x: px, y: py,
+        vx: Math.cos(a) * (1 + Math.random() * 1.5),
+        vy: Math.sin(a) * (1 + Math.random() * 1.5) - 0.5,
+        color: ['#7ed4a8','#5a8a3a','#b9d4a8','#f5e4a3'][Math.floor(Math.random()*4)],
+        life: 55, max: 55, size: 1.5 + Math.random() * 1.5,
+      });
+    }
+  }
+  function spawnSplash(cx, cy) {
+    const px = OFF_X + cx * CELL + CELL / 2;
+    const py = OFF_Y + cy * CELL + CELL / 2;
+    for (let i = 0; i < 8; i++) {
+      particles.push({
+        x: px, y: py,
+        vx: (Math.random()-0.5)*2, vy: -Math.random()*2 - 0.3,
+        color: '#a4d4f0', life: 25, max: 25, size: 1.2,
+      });
+    }
+  }
+  function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  // ---------- input ----------
+  let mouseCell = null;
+  let dragging = false;
+  let lastCell = null;
+
+  function getCellFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (W / rect.width) - OFF_X;
+    const y = (e.clientY - rect.top) * (H / rect.height) - OFF_Y;
+    if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return null;
+    return { x: Math.floor(x / CELL), y: Math.floor(y / CELL) };
+  }
+
+  canvas.addEventListener('mousemove', (e) => {
+    mouseCell = getCellFromEvent(e);
+    if (!dragging || !mouseCell || !lastCell) return;
+    const dx = mouseCell.x - lastCell.x;
+    const dy = mouseCell.y - lastCell.y;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    if ((adx === 1 && ady === 0) || (adx === 0 && ady === 1)) {
+      const k = segKey(lastCell.x, lastCell.y, mouseCell.x, mouseCell.y);
+      if (!aqueducts.has(k) && budget > 0) {
+        aqueducts.add(k);
+        budget--;
+        computeWater();
+        spawnSplash(mouseCell.x, mouseCell.y);
+      }
+      lastCell = mouseCell;
+    } else if (adx > 1 || ady > 1) {
+      // moved too fast — interpolate
+      lastCell = mouseCell;
+    }
+  });
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button === 2) return;
+    mouseCell = getCellFromEvent(e);
+    if (!mouseCell) return;
+    dragging = true;
+    lastCell = mouseCell;
+  });
+
+  window.addEventListener('mouseup', () => {
+    dragging = false;
+    lastCell = null;
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    dragging = false;
+    lastCell = null;
+    mouseCell = null;
+  });
+
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const cell = getCellFromEvent(e);
+    if (!cell) return;
+    let removed = 0;
+    for (const [nx, ny] of neighbors(cell.x, cell.y)) {
+      const k = segKey(cell.x, cell.y, nx, ny);
+      if (aqueducts.has(k)) {
+        aqueducts.delete(k);
+        budget++;
+        removed++;
+      }
+    }
+    if (removed > 0) computeWater();
+  });
+
+  // ---------- UI ----------
+  const stoneEl = document.getElementById('stone');
+  const villEl = document.getElementById('vill');
+  const hintEl = document.getElementById('hint');
+  const victoryEl = document.getElementById('victory');
+  setTimeout(()=>hintEl.classList.add('show'), 300);
+  setTimeout(()=>hintEl.classList.remove('show'), 7000);
+  let victoryShown = false;
+  function showVictory() {
+    if (victoryShown) return;
+    victoryShown = true;
+    victoryEl.classList.add('show');
+    setTimeout(() => victoryEl.classList.remove('show'), 3500);
+  }
+  function updateUI(satisfied) {
+    stoneEl.textContent = budget;
+    villEl.textContent = `${satisfied}/${villages.length}`;
+    if (budget === 0) stoneEl.style.color = '#a45032';
+    else stoneEl.style.color = '';
+  }
+
+  // ---------- drawing ----------
+  let t = 0;
+
+  function drawSky() {
+    // sky behind everything
+    const sky = ctx.createLinearGradient(0, 0, 0, OFF_Y);
+    sky.addColorStop(0, '#a4d4f0');
+    sky.addColorStop(1, '#c8e0e8');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, OFF_Y);
+
+    // distant hills
+    ctx.fillStyle = '#9ab07a';
+    for (let i = 0; i < 5; i++) {
+      const cx = i * 200 - 50;
+      ctx.beginPath();
+      ctx.moveTo(cx, OFF_Y);
+      ctx.quadraticCurveTo(cx + 100, OFF_Y - 30, cx + 200, OFF_Y);
+      ctx.closePath(); ctx.fill();
+    }
+    // closer hills
+    ctx.fillStyle = '#7a9050';
+    for (let i = 0; i < 4; i++) {
+      const cx = i * 240 - 80;
+      ctx.beginPath();
+      ctx.moveTo(cx, OFF_Y);
+      ctx.quadraticCurveTo(cx + 120, OFF_Y - 18, cx + 240, OFF_Y);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // bottom margin
+    ctx.fillStyle = '#a8845a';
+    ctx.fillRect(0, OFF_Y + GRID_H, W, H - OFF_Y - GRID_H);
+  }
+
+  function elevationColor(e) {
+    // 0 = lush valley green, 4 = high sandy peaks
+    const colors = ['#9ab07a', '#b0b070', '#c8b878', '#d4b878', '#e0c890'];
+    return colors[e];
+  }
+  function elevationShade(e) {
+    const colors = ['#8aa06a', '#a0a060', '#b8a868', '#c4a868', '#d0b880'];
+    return colors[e];
+  }
+
+  function drawTerrain() {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const e = heightmap[y][x];
+        const px = OFF_X + x * CELL;
+        const py = OFF_Y + y * CELL;
+        ctx.fillStyle = elevationColor(e);
+        ctx.fillRect(px, py, CELL, CELL);
+        // subtle east edge shadow if neighbor is lower
+        if (x + 1 < COLS && heightmap[y][x + 1] < e) {
+          ctx.fillStyle = 'rgba(80,60,40,0.18)';
+          ctx.fillRect(px + CELL - 3, py, 3, CELL);
+        }
+        if (y + 1 < ROWS && heightmap[y + 1][x] < e) {
+          ctx.fillStyle = 'rgba(80,60,40,0.18)';
+          ctx.fillRect(px, py + CELL - 3, CELL, 3);
+        }
+      }
+    }
+    // texture: olive trees on mid-elevation, grass on low
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const e = heightmap[y][x];
+        const px = OFF_X + x * CELL + CELL/2;
+        const py = OFF_Y + y * CELL + CELL/2;
+        // skip cells with springs/villages
+        let skip = false;
+        for (const s of springs) if (s.x === x && s.y === y) skip = true;
+        for (const v of villages) if (v.x === x && v.y === y) skip = true;
+        if (skip) continue;
+
+        // Deterministic decorations based on cell coords
+        const seed = (x * 31 + y * 17) % 100;
+        if (e <= 1 && seed < 12) {
+          // grass tuft
+          ctx.fillStyle = '#5a7030';
+          for (let i = 0; i < 3; i++) {
+            const gx = px + ((seed + i * 13) % 20) - 10;
+            const gy = py + ((seed + i * 7) % 14) - 7;
+            ctx.fillRect(gx, gy - 3, 1, 3);
+            ctx.fillRect(gx + 1, gy - 4, 1, 4);
+            ctx.fillRect(gx + 2, gy - 3, 1, 3);
+          }
+        } else if (e >= 2 && e <= 3 && seed < 14) {
+          // olive tree
+          const tx = px + (seed % 12) - 6;
+          const ty = py + (seed % 9) - 4;
+          ctx.fillStyle = '#5a4030';
+          ctx.fillRect(tx - 0.5, ty + 1, 1, 4);
+          ctx.fillStyle = '#7a9050';
+          ctx.beginPath(); ctx.arc(tx, ty - 1, 3, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#9aa86a';
+          ctx.beginPath(); ctx.arc(tx - 1, ty - 2, 2, 0, Math.PI*2); ctx.fill();
+        } else if (e >= 3 && seed >= 80 && seed < 88) {
+          // small rock
+          ctx.fillStyle = '#a89878';
+          ctx.beginPath();
+          ctx.arc(px + (seed%8)-4, py + (seed%6)-3, 2.5, 0, Math.PI*2); ctx.fill();
+        }
+      }
+    }
+    // grid lines (very faint)
+    ctx.strokeStyle = 'rgba(120,90,50,0.06)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= COLS; x++) {
+      ctx.beginPath(); ctx.moveTo(OFF_X + x*CELL, OFF_Y); ctx.lineTo(OFF_X + x*CELL, OFF_Y + GRID_H); ctx.stroke();
+    }
+    for (let y = 0; y <= ROWS; y++) {
+      ctx.beginPath(); ctx.moveTo(OFF_X, OFF_Y + y*CELL); ctx.lineTo(OFF_X + GRID_W, OFF_Y + y*CELL); ctx.stroke();
+    }
+  }
+
+  function drawElevationLabels() {
+    // tiny dots in corner to indicate elevation
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const e = heightmap[y][x];
+        if (e === 0) continue;
+        const px = OFF_X + x * CELL + 3;
+        const py = OFF_Y + y * CELL + 3;
+        for (let i = 0; i < e; i++) {
+          ctx.fillStyle = 'rgba(80,60,40,0.35)';
+          ctx.fillRect(px + i * 3, py, 2, 2);
+        }
+      }
+    }
+  }
+
+  function drawAqueduct(seg) {
+    const { x1, y1, x2, y2 } = parseSeg(seg);
+    const cx1 = OFF_X + x1 * CELL + CELL / 2;
+    const cy1 = OFF_Y + y1 * CELL + CELL / 2;
+    const cx2 = OFF_X + x2 * CELL + CELL / 2;
+    const cy2 = OFF_Y + y2 * CELL + CELL / 2;
+    const active = activeSegments.has(seg);
+    const horizontal = y1 === y2;
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    if (horizontal) ctx.fillRect(cx1, cy1 + 5, cx2 - cx1, 3);
+    else ctx.fillRect(cx1 + 5, cy1, 3, cy2 - cy1);
+
+    // arches / supports
+    ctx.fillStyle = '#d4c4a8';
+    if (horizontal) {
+      const len = cx2 - cx1;
+      const archCount = Math.floor(len / 12);
+      for (let i = 0; i < archCount; i++) {
+        const ax = cx1 + (i + 0.5) * (len / archCount);
+        ctx.beginPath();
+        ctx.arc(ax, cy1 + 4, 4, Math.PI, 0);
+        ctx.fill();
+        ctx.fillRect(ax - 4.5, cy1 + 4, 1.5, 4);
+        ctx.fillRect(ax + 3, cy1 + 4, 1.5, 4);
+      }
+    } else {
+      const len = cy2 - cy1;
+      const archCount = Math.floor(len / 12);
+      for (let i = 0; i < archCount; i++) {
+        const ay = cy1 + (i + 0.5) * (len / archCount);
+        ctx.beginPath();
+        ctx.arc(cx1 + 4, ay, 4, Math.PI / 2, -Math.PI / 2, true);
+        ctx.fill();
+        ctx.fillRect(cx1 + 4, ay - 4.5, 4, 1.5);
+        ctx.fillRect(cx1 + 4, ay + 3, 4, 1.5);
+      }
+    }
+
+    // main channel
+    ctx.fillStyle = '#f5ede1';
+    if (horizontal) ctx.fillRect(cx1, cy1 - 7, cx2 - cx1, 9);
+    else ctx.fillRect(cx1 - 7, cy1, 9, cy2 - cy1);
+
+    // channel inner shadow
+    ctx.fillStyle = 'rgba(120,90,50,0.18)';
+    if (horizontal) ctx.fillRect(cx1, cy1 - 7, cx2 - cx1, 2);
+    else ctx.fillRect(cx1 - 7, cy1, 2, cy2 - cy1);
+
+    // water
+    if (active) {
+      const waterColor = '#5a9acf';
+      ctx.fillStyle = waterColor;
+      if (horizontal) ctx.fillRect(cx1, cy1 - 5, cx2 - cx1, 5);
+      else ctx.fillRect(cx1 - 5, cy1, 5, cy2 - cy1);
+      // moving highlights
+      const elev1 = heightmap[y1][x1];
+      const elev2 = heightmap[y2][x2];
+      const dir = elev1 > elev2 ? 1 : (elev2 > elev1 ? -1 : 1);
+      for (let i = 0; i < 3; i++) {
+        const phase = ((t * 0.012 * dir) + i * 0.34) % 1;
+        const pp = phase < 0 ? phase + 1 : phase;
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        if (horizontal) {
+          ctx.beginPath();
+          ctx.arc(cx1 + pp * (cx2 - cx1), cy1 - 2.5, 1.2, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.arc(cx1 - 2.5, cy1 + pp * (cy2 - cy1), 1.2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    } else {
+      // dry — stains
+      ctx.fillStyle = 'rgba(120,90,50,0.25)';
+      if (horizontal) ctx.fillRect(cx1, cy1 - 4, cx2 - cx1, 3);
+      else ctx.fillRect(cx1 - 4, cy1, 3, cy2 - cy1);
+    }
+  }
+
+  function drawSpring(s) {
+    const cx = OFF_X + s.x * CELL + CELL / 2;
+    const cy = OFF_Y + s.y * CELL + CELL / 2;
+
+    // stone base
+    ctx.fillStyle = '#a89878';
+    ctx.beginPath(); ctx.ellipse(cx, cy + 6, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8a7a58';
+    ctx.beginPath(); ctx.ellipse(cx, cy + 4, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // water in basin
+    ctx.fillStyle = '#5a9acf';
+    ctx.beginPath(); ctx.ellipse(cx, cy + 2, 10, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#a4c4e8';
+    ctx.beginPath(); ctx.ellipse(cx - 2, cy + 1, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
+
+    // bubbles
+    const phase = Math.sin(t * 0.06) * 0.5 + 0.5;
+    ctx.fillStyle = `rgba(255,255,255,${0.5 + phase * 0.3})`;
+    ctx.beginPath(); ctx.arc(cx - 3, cy - 4 - phase * 4, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 2, cy - 6 - (1 - phase) * 4, 1, 0, Math.PI * 2); ctx.fill();
+
+    // ripple
+    ctx.strokeStyle = `rgba(90,154,207,${0.4 - phase * 0.4})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy + 2, 10 + phase * 8, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  function drawVillage(v) {
+    const cx = OFF_X + v.x * CELL + CELL / 2;
+    const cy = OFF_Y + v.y * CELL + CELL / 2;
+    if (v.satisfied) v.bloom = Math.min(1, v.bloom + 0.04);
+    else v.bloom = Math.max(0, v.bloom - 0.02);
+
+    // ground patch
+    const groundColor = v.bloom > 0.3
+      ? `rgb(${Math.round(150 + (1-v.bloom)*30)}, ${Math.round(170 + v.bloom*20)}, ${Math.round(90 + v.bloom*20)})`
+      : '#8a7a58';
+    ctx.fillStyle = groundColor;
+    ctx.beginPath(); ctx.ellipse(cx, cy + 6, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+    // 3 little houses
+    const houses = [
+      { dx: -7, dy: -2, w: 7, h: 8 },
+      { dx: 2, dy: -4, w: 6, h: 7 },
+      { dx: 0, dy: 4, w: 5, h: 5 },
+    ];
+    for (const h of houses) {
+      const hx = cx + h.dx;
+      const hy = cy + h.dy;
+      // shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(hx + 1, hy + 1, h.w, h.h);
+      // wall
+      const wallC = v.bloom > 0.3 ? '#f5e4c4' : '#c4b09a';
+      ctx.fillStyle = wallC;
+      ctx.fillRect(hx, hy, h.w, h.h);
+      // roof
+      const roofC = v.bloom > 0.3 ? '#c45642' : '#8a6452';
+      ctx.fillStyle = roofC;
+      ctx.beginPath();
+      ctx.moveTo(hx - 1, hy);
+      ctx.lineTo(hx + h.w / 2, hy - 3);
+      ctx.lineTo(hx + h.w + 1, hy);
+      ctx.closePath(); ctx.fill();
+      // window
+      ctx.fillStyle = v.bloom > 0.5 ? '#f5d04a' : '#5a4a3a';
+      ctx.fillRect(hx + h.w / 2 - 1, hy + 2, 2, 2);
+    }
+
+    // bloom indicator (small leaves around when watered)
+    if (v.bloom > 0.2) {
+      const n = Math.floor(v.bloom * 8);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + t * 0.02;
+        const r = 16 + Math.sin(t * 0.05 + i) * 1.5;
+        ctx.fillStyle = '#7ed4a8';
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * r, cy + 4 + Math.sin(a) * r * 0.4, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // status pip
+    if (!v.satisfied) {
+      ctx.fillStyle = 'rgba(164,80,50,0.7)';
+      ctx.beginPath(); ctx.arc(cx + 12, cy - 8, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('!', cx + 12, cy - 8);
+    }
+  }
+
+  function drawHoverCell() {
+    if (!mouseCell) return;
+    const px = OFF_X + mouseCell.x * CELL;
+    const py = OFF_Y + mouseCell.y * CELL;
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 2]);
+    ctx.strokeRect(px + 1, py + 1, CELL - 2, CELL - 2);
+    ctx.setLineDash([]);
+
+    // show elevation text
+    const e = heightmap[mouseCell.y][mouseCell.x];
+    ctx.fillStyle = 'rgba(80,60,40,0.9)';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`h:${e}`, px + CELL / 2, py + CELL - 4);
+  }
+
+  function drawDragPreview() {
+    if (!dragging || !lastCell || !mouseCell) return;
+    if (lastCell.x === mouseCell.x && lastCell.y === mouseCell.y) return;
+    const cx1 = OFF_X + lastCell.x * CELL + CELL / 2;
+    const cy1 = OFF_Y + lastCell.y * CELL + CELL / 2;
+    const cx2 = OFF_X + mouseCell.x * CELL + CELL / 2;
+    const cy2 = OFF_Y + mouseCell.y * CELL + CELL / 2;
+    ctx.strokeStyle = budget > 0 ? 'rgba(245,237,225,0.7)' : 'rgba(164,80,50,0.7)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(cx1, cy1); ctx.lineTo(cx2, cy2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      const a = p.life / p.max;
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = a;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawSun() {
+    // soft sun in top-right
+    const sx = W - 80, sy = 30;
+    const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, 60);
+    glow.addColorStop(0, 'rgba(255,240,180,0.7)');
+    glow.addColorStop(1, 'rgba(255,240,180,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(sx - 60, sy - 60, 120, 120);
+    ctx.fillStyle = '#f5d870';
+    ctx.beginPath(); ctx.arc(sx, sy, 14, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawTitle() {
+    ctx.fillStyle = 'rgba(90,58,42,0.4)';
+    ctx.font = '11px serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('— AQUEDUCTS —', OFF_X, OFF_Y - 8);
+  }
+
+  function render() {
+    t++;
+    // sky + hills outside grid
+    ctx.fillStyle = '#d4b878';
+    ctx.fillRect(0, 0, W, H);
+    drawSky();
+    drawSun();
+    drawTitle();
+    drawTerrain();
+    drawElevationLabels();
+    // aqueducts (dry first then active to overlay)
+    for (const seg of aqueducts) if (!activeSegments.has(seg)) drawAqueduct(seg);
+    for (const seg of aqueducts) if (activeSegments.has(seg)) drawAqueduct(seg);
+    // springs and villages
+    for (const s of springs) drawSpring(s);
+    for (const v of villages) drawVillage(v);
+    drawHoverCell();
+    drawDragPreview();
+    drawParticles();
+  }
+
+  function loop() {
+    updateParticles();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  computeWater();
+  loop();
+})();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(127,212,255,.45);color:#7fd4ff;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#7fd4ff;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the arcade"><span class="k">&#9666;</span><span class="t">the arcade</span></a></nav>
+</body>
+</html>

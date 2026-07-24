@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mini Lighthouses — demo</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #0d1b2a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #f5ede1;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  #wrap {
+    position: relative;
+    width: 900px;
+    height: 600px;
+    max-width: 100vw;
+    max-height: 100vh;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: none;
+  }
+  .ui {
+    position: absolute;
+    top: 16px;
+    left: 18px;
+    pointer-events: none;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .ui .row { display: flex; gap: 18px; align-items: center; margin-bottom: 4px; }
+  .ui .label { opacity: 0.55; }
+  .ui .val { font-weight: 600; font-size: 16px; }
+  .saved { color: #b9d4a8; }
+  .lost  { color: #d49b8c; }
+  .hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+    pointer-events: none;
+    text-align: center;
+    color: #f5ede1;
+  }
+  .hint.show { opacity: 0.5; }
+  .credit {
+    position: absolute;
+    bottom: 10px;
+    right: 14px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game" width="900" height="600"></canvas>
+    <div class="ui">
+      <div class="row"><span class="label">saved</span><span class="val saved" id="saved">0</span></div>
+      <div class="row"><span class="label">lost</span><span class="val lost" id="lost">0</span></div>
+    </div>
+    <div class="hint" id="hint">move your mouse to sweep the light — guide ships home</div>
+    <div class="credit">mini lighthouses · demo</div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // ---------- world ----------
+  const SHORE_Y = H - 90;
+  const lighthouse = {
+    x: W / 2,
+    y: SHORE_Y - 6,
+    lightY: SHORE_Y - 64, // where the lamp sits
+    beamAngle: -Math.PI / 2,
+    targetAngle: -Math.PI / 2,
+    beamRange: 360,
+    beamWidth: 0.55,        // radians, total cone width
+    pulse: 0,
+  };
+
+  const ports = [
+    { x: 130, y: SHORE_Y + 12, flagPhase: 0 },
+    { x: W - 130, y: SHORE_Y + 12, flagPhase: 1.7 },
+  ];
+
+  const rocks = generateRocks();
+  const ships = [];
+  const particles = [];
+
+  let saved = 0;
+  let lost = 0;
+  let spawnTimer = 90;
+  let time = 0;
+
+  // ---------- input ----------
+  let mouseX = W / 2;
+  let mouseY = 200;
+
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = (e.clientX - rect.left) * (W / rect.width);
+    mouseY = (e.clientY - rect.top) * (H / rect.height);
+  });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches[0];
+    mouseX = (t.clientX - rect.left) * (W / rect.width);
+    mouseY = (t.clientY - rect.top) * (H / rect.height);
+  }, { passive: false });
+
+  // Hint reveal
+  const hint = document.getElementById('hint');
+  setTimeout(() => hint.classList.add('show'), 400);
+  setTimeout(() => hint.classList.remove('show'), 5500);
+
+  // ---------- helpers ----------
+  function generateRocks() {
+    const out = [];
+    const target = 11;
+    let attempts = 0;
+    while (out.length < target && attempts < 400) {
+      attempts++;
+      const x = 70 + Math.random() * (W - 140);
+      const y = 70 + Math.random() * (SHORE_Y - 130);
+      // Avoid ports & lighthouse path
+      if (Math.hypot(x - 130, y - SHORE_Y) < 130) continue;
+      if (Math.hypot(x - (W - 130), y - SHORE_Y) < 130) continue;
+      if (Math.hypot(x - W / 2, y - SHORE_Y) < 90) continue;
+      let ok = true;
+      for (const r of out) if (Math.hypot(x - r.x, y - r.y) < 75) { ok = false; break; }
+      if (!ok) continue;
+      out.push({
+        x, y,
+        size: 9 + Math.random() * 7,
+        verts: makeRockShape(),
+        rot: Math.random() * Math.PI,
+      });
+    }
+    return out;
+  }
+
+  function makeRockShape() {
+    const n = 6 + Math.floor(Math.random() * 3);
+    const verts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const r = 0.7 + Math.random() * 0.5;
+      verts.push({ a, r });
+    }
+    return verts;
+  }
+
+  function isInBeam(x, y) {
+    const dx = x - lighthouse.x;
+    const dy = y - lighthouse.lightY;
+    const dist = Math.hypot(dx, dy);
+    if (dist > lighthouse.beamRange) return false;
+    if (dist < 8) return true;
+    const angle = Math.atan2(dy, dx);
+    let diff = angle - lighthouse.beamAngle;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    // narrow falloff at edge: still count if within slightly wider zone but with weight
+    return Math.abs(diff) < lighthouse.beamWidth / 2;
+  }
+
+  function beamIntensity(x, y) {
+    // 0..1 intensity used for visuals (not gameplay)
+    const dx = x - lighthouse.x;
+    const dy = y - lighthouse.lightY;
+    const dist = Math.hypot(dx, dy);
+    if (dist > lighthouse.beamRange) return 0;
+    const angle = Math.atan2(dy, dx);
+    let diff = angle - lighthouse.beamAngle;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    const halfW = lighthouse.beamWidth / 2;
+    if (Math.abs(diff) > halfW) return 0;
+    const angularFalloff = 1 - Math.pow(Math.abs(diff) / halfW, 1.5);
+    const distFalloff = 1 - (dist / lighthouse.beamRange);
+    return angularFalloff * distFalloff;
+  }
+
+  // ---------- ships ----------
+  class Ship {
+    constructor() {
+      const side = Math.floor(Math.random() * 3);
+      if (side === 0) { this.x = Math.random() * W; this.y = -25; }
+      else if (side === 1) { this.x = -25; this.y = Math.random() * (SHORE_Y - 120); }
+      else { this.x = W + 25; this.y = Math.random() * (SHORE_Y - 120); }
+      this.dest = ports[Math.floor(Math.random() * ports.length)];
+
+      const dx = this.dest.x - this.x;
+      const dy = this.dest.y - this.y;
+      const base = Math.atan2(dy, dx);
+      // Off course at spawn — needs lighthouse to find way
+      this.angle = base + (Math.random() - 0.5) * 1.3;
+      this.speed = 0.42 + Math.random() * 0.12;
+      this.state = 'sailing';
+      this.bob = Math.random() * Math.PI * 2;
+      this.wake = [];
+      this.hue = 0.85 + Math.random() * 0.15;
+      this.sailLean = 0;
+    }
+
+    update() {
+      if (this.state !== 'sailing') {
+        if (this.state === 'crashed') {
+          this.sinkT = (this.sinkT || 0) + 1;
+          if (this.sinkT > 90) this.state = 'gone';
+        } else if (this.state === 'docked') {
+          this.dockT = (this.dockT || 0) + 1;
+          if (this.dockT > 60) this.state = 'gone';
+        }
+        return;
+      }
+
+      this.bob += 0.06;
+      const lit = isInBeam(this.x, this.y);
+
+      if (lit) {
+        // Steer toward destination port
+        const dx = this.dest.x - this.x;
+        const dy = this.dest.y - this.y;
+        const targetAngle = Math.atan2(dy, dx);
+        let diff = targetAngle - this.angle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        const turn = diff * 0.045;
+        this.angle += turn;
+        this.sailLean = -turn * 4;
+
+        // Avoid revealed rocks
+        for (const rock of rocks) {
+          if (!isInBeam(rock.x, rock.y)) continue;
+          const rdx = rock.x - this.x;
+          const rdy = rock.y - this.y;
+          const rdist = Math.hypot(rdx, rdy);
+          const danger = 70 + rock.size * 2;
+          if (rdist < danger) {
+            const rockAngle = Math.atan2(rdy, rdx);
+            let avoidDiff = this.angle - rockAngle;
+            while (avoidDiff > Math.PI) avoidDiff -= Math.PI * 2;
+            while (avoidDiff < -Math.PI) avoidDiff += Math.PI * 2;
+            const sign = avoidDiff === 0 ? 1 : Math.sign(avoidDiff);
+            const strength = 0.09 * (1 - rdist / danger);
+            this.angle += sign * strength;
+          }
+        }
+      } else {
+        // Drift slightly off course in the dark
+        this.angle += (Math.random() - 0.5) * 0.015;
+        this.sailLean *= 0.9;
+      }
+
+      this.x += Math.cos(this.angle) * this.speed;
+      this.y += Math.sin(this.angle) * this.speed;
+
+      // Wake trail
+      if (Math.random() < 0.4) {
+        this.wake.push({ x: this.x, y: this.y, life: 60 });
+      }
+      for (let i = this.wake.length - 1; i >= 0; i--) {
+        this.wake[i].life--;
+        if (this.wake[i].life <= 0) this.wake.splice(i, 1);
+      }
+
+      // Rock collision
+      for (const rock of rocks) {
+        if (Math.hypot(rock.x - this.x, rock.y - this.y) < rock.size + 6) {
+          this.state = 'crashed';
+          lost++;
+          updateUI();
+          spawnSplash(this.x, this.y, 'crash');
+          return;
+        }
+      }
+
+      // Port arrival
+      const dpx = this.dest.x - this.x;
+      const dpy = this.dest.y - this.y;
+      if (Math.hypot(dpx, dpy) < 28) {
+        this.state = 'docked';
+        saved++;
+        updateUI();
+        spawnSplash(this.dest.x, this.dest.y - 4, 'dock');
+        return;
+      }
+
+      // Off-screen
+      if (this.x < -60 || this.x > W + 60 || this.y < -60) {
+        this.state = 'gone';
+      }
+      // Hit shore but not at port
+      if (this.y > SHORE_Y - 4) {
+        this.state = 'crashed';
+        lost++;
+        updateUI();
+        spawnSplash(this.x, this.y, 'crash');
+      }
+    }
+
+    draw() {
+      if (this.state === 'gone') return;
+
+      // wake
+      for (const w of this.wake) {
+        const a = (w.life / 60) * 0.25;
+        ctx.fillStyle = `rgba(220, 230, 240, ${a})`;
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, 3 * (1 - w.life / 60) + 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (this.state === 'crashed') {
+        const t = this.sinkT / 90;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.globalAlpha = 1 - t;
+        ctx.fillStyle = '#6b5740';
+        ctx.beginPath();
+        ctx.arc(0, 0, 6 * (1 - t * 0.7), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
+      if (this.state === 'docked') return;
+
+      // Sailing ship
+      ctx.save();
+      ctx.translate(this.x, this.y + Math.sin(this.bob) * 0.6);
+      ctx.rotate(this.angle);
+
+      const lit = beamIntensity(this.x, this.y);
+
+      // Hull
+      ctx.fillStyle = `rgb(${Math.round(110 + lit * 50)}, ${Math.round(82 + lit * 40)}, ${Math.round(55 + lit * 30)})`;
+      ctx.beginPath();
+      ctx.moveTo(-9, -5);
+      ctx.lineTo(10, 0);
+      ctx.lineTo(-9, 5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Deck stripe
+      ctx.fillStyle = `rgba(${Math.round(60 + lit * 40)}, ${Math.round(45 + lit * 30)}, ${Math.round(30 + lit * 20)}, 1)`;
+      ctx.fillRect(-7, -1, 14, 2);
+
+      // Mast
+      ctx.fillStyle = '#3b2f24';
+      ctx.fillRect(-0.5, -10, 1, 12);
+
+      // Sail (slightly leaned during turns)
+      ctx.save();
+      ctx.rotate(this.sailLean);
+      const sailLight = 220 + lit * 35;
+      ctx.fillStyle = `rgb(${sailLight}, ${sailLight - 8}, ${sailLight - 25})`;
+      ctx.beginPath();
+      ctx.moveTo(0, -3);
+      ctx.lineTo(0, -11);
+      ctx.lineTo(5, -2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = `rgb(${sailLight - 10}, ${sailLight - 18}, ${sailLight - 35})`;
+      ctx.beginPath();
+      ctx.moveTo(0, -3);
+      ctx.lineTo(-4, -8);
+      ctx.lineTo(0, -8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.restore();
+    }
+  }
+
+  function spawnSplash(x, y, kind) {
+    const n = kind === 'crash' ? 18 : 14;
+    for (let i = 0; i < n; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * (kind === 'crash' ? 2.2 : 1.4),
+        vy: (Math.random() - 1) * (kind === 'crash' ? 2.0 : 1.6),
+        life: 50 + Math.random() * 20,
+        max: 70,
+        kind,
+        size: 1 + Math.random() * 2,
+      });
+    }
+  }
+
+  // ---------- drawing ----------
+  function drawOcean() {
+    // base water gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, SHORE_Y);
+    grad.addColorStop(0, '#0e2236');
+    grad.addColorStop(1, '#1a3a55');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, SHORE_Y);
+
+    // subtle shimmer dots
+    ctx.fillStyle = 'rgba(220, 235, 245, 0.04)';
+    for (let i = 0; i < 80; i++) {
+      const x = (i * 73 + (time * 0.3)) % W;
+      const y = (i * 41 + Math.sin(time * 0.01 + i) * 8) % SHORE_Y;
+      ctx.fillRect(x, y, 1.5, 1);
+    }
+
+    // very faint wave lines
+    ctx.strokeStyle = 'rgba(180, 210, 230, 0.05)';
+    ctx.lineWidth = 1;
+    for (let y = 60; y < SHORE_Y; y += 40) {
+      ctx.beginPath();
+      const wobble = Math.sin(time * 0.01 + y) * 4;
+      ctx.moveTo(0, y + wobble);
+      for (let x = 0; x < W; x += 20) {
+        ctx.lineTo(x, y + Math.sin(x * 0.02 + time * 0.015 + y) * 3);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawRocks(belowFog) {
+    for (const rock of rocks) {
+      const lit = beamIntensity(rock.x, rock.y);
+      // Rocks are dim by default, brighter when lit
+      const baseShade = belowFog ? 0.28 : 0.28 + lit * 0.55;
+      const r = Math.round(28 + baseShade * 90);
+      const g = Math.round(38 + baseShade * 90);
+      const b = Math.round(50 + baseShade * 90);
+      ctx.save();
+      ctx.translate(rock.x, rock.y);
+      ctx.rotate(rock.rot);
+
+      // shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(2, rock.size * 0.6, rock.size * 1.1, rock.size * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // body
+      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+      ctx.beginPath();
+      const verts = rock.verts;
+      for (let i = 0; i < verts.length; i++) {
+        const v = verts[i];
+        const px = Math.cos(v.a) * rock.size * v.r;
+        const py = Math.sin(v.a) * rock.size * v.r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // highlight when lit
+      if (lit > 0.1) {
+        ctx.fillStyle = `rgba(255, 240, 200, ${lit * 0.25})`;
+        ctx.beginPath();
+        ctx.ellipse(-rock.size * 0.3, -rock.size * 0.3, rock.size * 0.4, rock.size * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawShore() {
+    // sand
+    const sand = ctx.createLinearGradient(0, SHORE_Y, 0, H);
+    sand.addColorStop(0, '#c5b58c');
+    sand.addColorStop(1, '#a89770');
+    ctx.fillStyle = sand;
+    ctx.fillRect(0, SHORE_Y, W, H - SHORE_Y);
+
+    // foam line
+    ctx.strokeStyle = 'rgba(245, 240, 225, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let x = 0; x < W; x += 4) {
+      const y = SHORE_Y + Math.sin(x * 0.05 + time * 0.02) * 1.5;
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // tiny grass tufts
+    ctx.fillStyle = '#7a8a4a';
+    for (let i = 0; i < 14; i++) {
+      const x = 30 + i * 65 + Math.sin(i) * 10;
+      const y = SHORE_Y + 30 + Math.sin(i * 2.3) * 8;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 1.5, y - 4);
+      ctx.lineTo(x, y - 2);
+      ctx.lineTo(x + 1.5, y - 5);
+      ctx.lineTo(x + 0.5, y);
+      ctx.fill();
+    }
+  }
+
+  function drawPort(port) {
+    const x = port.x;
+    const y = port.y;
+    port.flagPhase += 0.04;
+
+    // dock posts
+    ctx.fillStyle = '#5a4030';
+    ctx.fillRect(x - 22, y - 4, 4, 16);
+    ctx.fillRect(x + 18, y - 4, 4, 16);
+    // dock planks
+    ctx.fillStyle = '#7d5a3e';
+    ctx.fillRect(x - 26, y - 6, 52, 4);
+    ctx.fillStyle = '#6b4a32';
+    ctx.fillRect(x - 26, y - 2, 52, 1);
+
+    // little house behind
+    ctx.fillStyle = '#d8c3a0';
+    ctx.fillRect(x - 12, y + 4, 24, 18);
+    // roof
+    ctx.fillStyle = '#a4574a';
+    ctx.beginPath();
+    ctx.moveTo(x - 14, y + 4);
+    ctx.lineTo(x, y - 6);
+    ctx.lineTo(x + 14, y + 4);
+    ctx.closePath();
+    ctx.fill();
+    // window
+    ctx.fillStyle = '#f5e4a3';
+    ctx.fillRect(x - 3, y + 9, 6, 6);
+
+    // flag
+    const fx = x;
+    const fy = y - 18;
+    ctx.strokeStyle = '#3b2f24';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx, fy + 14);
+    ctx.stroke();
+    ctx.fillStyle = '#e8a87c';
+    ctx.beginPath();
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx + 8 + Math.sin(port.flagPhase) * 1.5, fy + 2);
+    ctx.lineTo(fx, fy + 5);
+    ctx.closePath();
+    ctx.fill();
+
+    // welcoming glow
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, 35);
+    glow.addColorStop(0, 'rgba(255, 220, 150, 0.18)');
+    glow.addColorStop(1, 'rgba(255, 220, 150, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - 40, y - 40, 80, 80);
+  }
+
+  function drawLighthouse() {
+    const x = lighthouse.x;
+    const y = lighthouse.y;
+
+    // base rock
+    ctx.fillStyle = '#5a5560';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 4, 28, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // tower body
+    ctx.fillStyle = '#f5ede1';
+    ctx.beginPath();
+    ctx.moveTo(x - 12, y);
+    ctx.lineTo(x - 8, y - 50);
+    ctx.lineTo(x + 8, y - 50);
+    ctx.lineTo(x + 12, y);
+    ctx.closePath();
+    ctx.fill();
+
+    // red stripes
+    ctx.fillStyle = '#c45642';
+    ctx.fillRect(x - 11, y - 14, 22, 6);
+    ctx.fillRect(x - 10, y - 30, 20, 6);
+    ctx.fillRect(x - 9, y - 46, 18, 5);
+
+    // lamp room base
+    ctx.fillStyle = '#3b2f24';
+    ctx.fillRect(x - 10, y - 54, 20, 4);
+
+    // lamp room (glass)
+    ctx.fillStyle = '#f9e9a0';
+    ctx.fillRect(x - 8, y - 64, 16, 10);
+    ctx.fillStyle = 'rgba(255, 220, 120, 0.6)';
+    ctx.fillRect(x - 8, y - 64, 16, 10);
+
+    // dome
+    ctx.fillStyle = '#c45642';
+    ctx.beginPath();
+    ctx.moveTo(x - 9, y - 64);
+    ctx.quadraticCurveTo(x, y - 76, x + 9, y - 64);
+    ctx.closePath();
+    ctx.fill();
+
+    // tip
+    ctx.fillStyle = '#3b2f24';
+    ctx.fillRect(x - 0.5, y - 80, 1.5, 6);
+
+    // little glow at lamp
+    const lampGlow = ctx.createRadialGradient(x, y - 59, 0, x, y - 59, 30 + Math.sin(lighthouse.pulse) * 3);
+    lampGlow.addColorStop(0, 'rgba(255, 235, 160, 0.6)');
+    lampGlow.addColorStop(1, 'rgba(255, 235, 160, 0)');
+    ctx.fillStyle = lampGlow;
+    ctx.fillRect(x - 40, y - 90, 80, 60);
+  }
+
+  function drawBeamGlow() {
+    // Composite beam cone with radial+angular falloff
+    const x = lighthouse.x;
+    const y = lighthouse.lightY;
+    const range = lighthouse.beamRange;
+    const halfW = lighthouse.beamWidth / 2;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(lighthouse.beamAngle);
+
+    // Layer 1: warm wash (additive)
+    ctx.globalCompositeOperation = 'lighter';
+    const grad = ctx.createRadialGradient(0, 0, 8, 0, 0, range);
+    grad.addColorStop(0, 'rgba(255, 235, 170, 0.55)');
+    grad.addColorStop(0.4, 'rgba(255, 220, 130, 0.22)');
+    grad.addColorStop(1, 'rgba(255, 200, 110, 0)');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, range, -halfW, halfW);
+    ctx.closePath();
+    ctx.fill();
+
+    // Layer 2: brighter center streak
+    const streak = ctx.createRadialGradient(0, 0, 4, 0, 0, range);
+    streak.addColorStop(0, 'rgba(255, 245, 200, 0.5)');
+    streak.addColorStop(1, 'rgba(255, 245, 200, 0)');
+    ctx.fillStyle = streak;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, range, -halfW * 0.4, halfW * 0.4);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawFog() {
+    // dark blue-grey overlay across sea
+    ctx.save();
+    ctx.fillStyle = 'rgba(20, 35, 55, 0.55)';
+    ctx.fillRect(0, 0, W, SHORE_Y);
+
+    // erase fog inside beam
+    ctx.globalCompositeOperation = 'destination-out';
+    const x = lighthouse.x;
+    const y = lighthouse.lightY;
+    const range = lighthouse.beamRange;
+    const halfW = lighthouse.beamWidth / 2;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(lighthouse.beamAngle);
+
+    const erase = ctx.createRadialGradient(0, 0, 5, 0, 0, range);
+    erase.addColorStop(0, 'rgba(0,0,0,1)');
+    erase.addColorStop(0.7, 'rgba(0,0,0,0.85)');
+    erase.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = erase;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, range, -halfW, halfW);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+
+    // drifting fog patches (subtle)
+    ctx.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < 5; i++) {
+      const fx = ((i * 180 + time * 0.15) % (W + 200)) - 100;
+      const fy = 80 + i * 70;
+      const fg = ctx.createRadialGradient(fx, fy, 0, fx, fy, 120);
+      fg.addColorStop(0, 'rgba(200, 215, 230, 0.07)');
+      fg.addColorStop(1, 'rgba(200, 215, 230, 0)');
+      ctx.fillStyle = fg;
+      ctx.fillRect(fx - 130, fy - 130, 260, 260);
+    }
+  }
+
+  function drawParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.05;
+      p.life--;
+      const a = p.life / p.max;
+      if (p.kind === 'dock') {
+        ctx.fillStyle = `rgba(190, 230, 180, ${a})`;
+      } else {
+        ctx.fillStyle = `rgba(220, 230, 240, ${a * 0.8})`;
+      }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.5 + a * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function drawCursor() {
+    // tiny aim indicator at mouse
+    ctx.strokeStyle = 'rgba(255, 230, 160, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(mouseX, mouseY, 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(mouseX - 9, mouseY);
+    ctx.lineTo(mouseX - 4, mouseY);
+    ctx.moveTo(mouseX + 4, mouseY);
+    ctx.lineTo(mouseX + 9, mouseY);
+    ctx.moveTo(mouseX, mouseY - 9);
+    ctx.lineTo(mouseX, mouseY - 4);
+    ctx.moveTo(mouseX, mouseY + 4);
+    ctx.lineTo(mouseX, mouseY + 9);
+    ctx.stroke();
+  }
+
+  // ---------- ui ----------
+  const savedEl = document.getElementById('saved');
+  const lostEl = document.getElementById('lost');
+  function updateUI() {
+    savedEl.textContent = saved;
+    lostEl.textContent = lost;
+  }
+
+  // ---------- main loop ----------
+  function update() {
+    time++;
+    lighthouse.pulse += 0.06;
+
+    // Smooth beam steering
+    const dx = mouseX - lighthouse.x;
+    const dy = mouseY - lighthouse.lightY;
+    lighthouse.targetAngle = Math.atan2(dy, dx);
+    let diff = lighthouse.targetAngle - lighthouse.beamAngle;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    lighthouse.beamAngle += diff * 0.08;
+
+    // Spawn ships
+    spawnTimer--;
+    if (spawnTimer <= 0) {
+      ships.push(new Ship());
+      // Difficulty: spawn faster over time, bottom out at ~180 frames
+      const baseDelay = Math.max(180, 320 - saved * 6);
+      spawnTimer = baseDelay + Math.random() * 80;
+    }
+
+    for (const s of ships) s.update();
+    // Clean up
+    for (let i = ships.length - 1; i >= 0; i--) {
+      if (ships[i].state === 'gone') ships.splice(i, 1);
+    }
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    drawOcean();
+    // rocks below fog (dim)
+    drawRocks(true);
+    // ships under fog look dim too
+    for (const s of ships) s.draw();
+    // fog overlay (erased inside beam)
+    drawFog();
+    // beam glow on top of fog
+    drawBeamGlow();
+    // re-draw rocks lit inside the beam, on top of fog, so they pop
+    for (const rock of rocks) {
+      if (beamIntensity(rock.x, rock.y) > 0.05) {
+        drawSingleRockLit(rock);
+      }
+    }
+    // re-draw ships inside the beam crisply
+    for (const s of ships) {
+      if (s.state === 'sailing' && beamIntensity(s.x, s.y) > 0.05) s.draw();
+    }
+    // shore + ports
+    drawShore();
+    for (const p of ports) drawPort(p);
+    drawLighthouse();
+    drawParticles();
+    drawCursor();
+  }
+
+  function drawSingleRockLit(rock) {
+    const lit = beamIntensity(rock.x, rock.y);
+    const shade = 0.28 + lit * 0.65;
+    const r = Math.round(40 + shade * 110);
+    const g = Math.round(50 + shade * 100);
+    const b = Math.round(60 + shade * 95);
+    ctx.save();
+    ctx.translate(rock.x, rock.y);
+    ctx.rotate(rock.rot);
+
+    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    ctx.beginPath();
+    for (let i = 0; i < rock.verts.length; i++) {
+      const v = rock.verts[i];
+      const px = Math.cos(v.a) * rock.size * v.r;
+      const py = Math.sin(v.a) * rock.size * v.r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = `rgba(255, 240, 200, ${lit * 0.35})`;
+    ctx.beginPath();
+    ctx.ellipse(-rock.size * 0.3, -rock.size * 0.3, rock.size * 0.45, rock.size * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // foam ring around rock if heavily lit
+    if (lit > 0.4) {
+      ctx.strokeStyle = `rgba(220, 235, 245, ${(lit - 0.4) * 0.6})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, rock.size + 2 + Math.sin(time * 0.1) * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function loop() {
+    update();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  updateUI();
+  loop();
+})();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(127,212,255,.45);color:#7fd4ff;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#7fd4ff;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the arcade"><span class="k">&#9666;</span><span class="t">the arcade</span></a></nav>
+</body>
+</html>

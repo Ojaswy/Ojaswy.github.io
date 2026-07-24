@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jishnu Akella — Museum of an Impossible Mind</title>
+<meta name="description" content="A guided, scroll-driven museum of Jishnu Akella's work — eight wings, ending in an annex of five other experimental web structures.">
+<meta property="og:title" content="The Museum of an Impossible Mind">
+<meta property="og:description" content="A guided tour through eight wings — and an annex of five other structures.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#127963;</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Caveat:wght@500;600&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#2b2118;
+    --ivory:#e9e0cf;
+    --brass:#b08a4f;
+    --amber:#e8a85a;
+    --paper:#fbf6ec;
+    --dim:#8d8170;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    height:100%;overflow:hidden;overscroll-behavior:none;
+    background:#18120d;color:var(--ivory);
+    font-family:'Space Grotesk',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:rgba(176,138,79,.35)}
+  canvas#scene{position:fixed;inset:0;display:block;cursor:crosshair}
+  canvas#guide{position:fixed;inset:0;pointer-events:none;z-index:20}
+
+  /* ---------- floating museum labels ---------- */
+  #overlay{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:10}
+  .volume{
+    position:absolute;left:0;top:0;width:300px;max-width:36vw;
+    pointer-events:auto;cursor:pointer;
+    will-change:transform,opacity,filter;
+  }
+  .volume .v-meta{
+    font-size:9px;letter-spacing:.42em;color:var(--brass);
+    text-transform:uppercase;margin-bottom:8px;
+  }
+  .volume h3{
+    font-family:'Marcellus',serif;font-weight:400;
+    font-size:21px;letter-spacing:.05em;line-height:1.2;color:var(--ivory);
+  }
+  .volume h3.big{font-size:42px}
+  .volume .v-rule{height:1px;width:52px;margin:10px 0;
+    background:linear-gradient(90deg,var(--brass),transparent)}
+  .volume p{
+    font-size:12px;font-weight:300;line-height:1.7;color:#b6ab97;letter-spacing:.02em;
+  }
+  .volume:hover h3{color:#fff}
+  .volume a{
+    color:var(--amber);text-decoration:none;border-bottom:1px solid rgba(232,168,90,.4);
+    pointer-events:auto;
+  }
+  .volume a:hover{border-color:var(--amber)}
+  .volume .v-links{margin-top:10px;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+
+  /* ---------- guide speech ---------- */
+  #bubble{
+    position:fixed;z-index:30;max-width:250px;
+    background:var(--paper);color:var(--ink);
+    border:2px solid var(--ink);
+    border-radius:18px 22px 20px 16px;
+    padding:10px 14px;
+    font-family:'Caveat',cursive;font-weight:600;font-size:19px;line-height:1.25;
+    transform-origin:bottom left;
+    transform:rotate(-2deg) scale(0);
+    transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:3px 4px 0 rgba(43,33,24,.25);
+    pointer-events:none;
+  }
+  #bubble.on{transform:rotate(-2deg) scale(1)}
+
+  /* ---------- HUD ---------- */
+  .hud{position:fixed;z-index:40;pointer-events:none;user-select:none}
+  #hud-name{top:30px;left:36px}
+  #hud-name .n{font-family:'Marcellus',serif;font-size:19px;letter-spacing:.3em;color:var(--ivory)}
+  #hud-name .s{margin-top:5px;font-size:8.5px;letter-spacing:.4em;color:var(--dim);text-transform:uppercase}
+  #growth{bottom:30px;left:36px;font-size:9px;letter-spacing:.26em;
+    color:var(--dim);text-transform:uppercase;line-height:2}
+  #growth b{color:var(--amber);font-weight:400}
+  #toast{
+    position:fixed;left:36px;bottom:64px;z-index:40;
+    font-family:'Caveat',cursive;font-size:17px;color:var(--amber);
+    opacity:0;transition:opacity .8s;pointer-events:none;
+  }
+  #hint{bottom:30px;right:36px;text-align:right;font-size:9px;letter-spacing:.3em;
+    color:var(--dim);text-transform:uppercase;line-height:2.2;transition:opacity 2s}
+
+  /* ---------- wing rail ---------- */
+  #rail{
+    position:fixed;bottom:34px;left:50%;transform:translateX(-50%);
+    display:flex;gap:14px;z-index:50;align-items:center;
+  }
+  .r-dot{
+    width:8px;height:8px;transform:rotate(45deg);
+    border:1px solid rgba(176,138,79,.6);background:transparent;
+    cursor:pointer;pointer-events:auto;transition:all .4s;position:relative;
+  }
+  .r-dot:hover,.r-dot.active{background:var(--brass);box-shadow:0 0 10px rgba(176,138,79,.7)}
+  .r-dot::after{
+    content:attr(data-n);position:absolute;bottom:18px;left:50%;
+    transform:translateX(-50%) rotate(-45deg);transform-origin:bottom center;
+    font-size:8.5px;letter-spacing:.26em;color:var(--ivory);white-space:nowrap;
+    text-transform:uppercase;opacity:0;transition:opacity .3s;pointer-events:none;
+  }
+  .r-dot:hover::after{opacity:.95}
+
+  /* ---------- title ---------- */
+  #title{
+    position:fixed;inset:0;z-index:60;pointer-events:none;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;transition:opacity 2s;
+  }
+  #title h1{
+    font-family:'Marcellus',serif;font-weight:400;
+    font-size:clamp(26px,4.6vw,54px);letter-spacing:.24em;text-indent:.24em;
+    color:var(--ivory);
+  }
+  #title .t2{margin-top:16px;font-family:'Caveat',cursive;font-size:21px;color:var(--amber)}
+  #title .t3{margin-top:34px;font-size:9px;letter-spacing:.5em;text-indent:.5em;
+    color:var(--dim);text-transform:uppercase;animation:pul 3s ease-in-out infinite}
+  @keyframes pul{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  #veil{position:fixed;inset:0;z-index:25;pointer-events:none}
+  #veil::before{content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse at center,transparent 52%,rgba(10,7,4,.6) 100%)}
+  #veil::after{content:"";position:absolute;inset:0;opacity:.045;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>")}
+
+  #fallback{position:fixed;inset:0;display:none;z-index:100;align-items:center;justify-content:center;
+    background:#18120d;color:var(--dim);font-size:11px;letter-spacing:.3em;
+    text-transform:uppercase;text-align:center;line-height:2.4;padding:40px}
+
+  @media (max-width:760px){
+    .volume{width:210px}
+    .volume h3{font-size:16px}
+    .volume h3.big{font-size:28px}
+    #hint{display:none}
+    #hud-name{left:18px}
+    #growth{left:18px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+<div id="overlay"></div>
+<canvas id="guide"></canvas>
+<div id="bubble"></div>
+
+<div class="hud" id="hud-name">
+  <div class="n">JISHNU</div>
+  <div class="s">Museum of an Impossible Mind</div>
+</div>
+<div class="hud" id="growth"><b id="growthN">0</b> <span id="growthTxt">TIMES HAS THIS MUSEUM GROWN DURING YOUR VISIT</span></div>
+<div id="toast"></div>
+<div class="hud" id="hint">scroll to follow the guide<br>click a glyph below to travel between wings<br>the last wing is an annex of five other structures</div>
+<div id="rail"></div>
+
+<div id="title">
+  <h1>THE MUSEUM OF AN<br>IMPOSSIBLE MIND</h1>
+  <div class="t2">a guided tour by Jishnu ✎</div>
+  <div class="t3">scroll to begin</div>
+</div>
+
+<div id="veil"></div>
+<div id="fallback">The museum requires WebGL.<br>The guide will wait by the door.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  /* ================================================================
+     EDIT YOUR CONTENT HERE
+     ================================================================ */
+  var CONTACT={
+    email:'ojaswyajs@gmail.com',
+    socials:[['linkedin','https://linkedin.com/in/jish-akella'],['github','https://github.com/Ojaswy']]
+  };
+  var PROJECTS=[
+    {title:'Edge in the Noise',line:'A live trading book on Polymarket & Kalshi — market-making with dynamic skew, cross-venue arbitrage, and weather ensembles the crowd has not read.',meta:'PREDICTION MARKETS · LIVE CAPITAL'},
+    {title:'Synthetic Prediction Markets',line:'Agent-based markets over dynamic convex sets that learn a binary function by trading it. This one repriced the staircases.',meta:'RESEARCH · PSU · PROF. RAJTMAJER'},
+    {title:'VAE × Reinforcement Learning',line:'Conditional VAEs that compress unruly action spaces so RL can think in fewer, better moves.',meta:'DEEP RL · PYTORCH · 2024'},
+    {title:'DRSM',line:'A Bayesian representation model that watches taste drift across markets — and says where a market moves next.',meta:'IIM-A · WHARTON · STANFORD GSB'}
+  ];
+  var EXPERIENCE=[
+    {year:'2025 — PRESENT',role:'Senior AI Engineer',org:'Smartbots.ai',line:'Agentic AI platform on MCP + LangGraph — memory, guardrails, and audit trails for financial reconciliation.'},
+    {year:'2022',role:'AI Engineer',org:'Pegasystems',line:'Distributed training, GCP data pipelines, and AI-driven CRM decisioning at enterprise scale.'},
+    {year:'2020 — 2021',role:'Research Assistant',org:'IIM Ahmedabad',line:'Built DRSM with advisors from Wharton and Stanford GSB; field experiments on a five-million-user app.'},
+    {year:'2019 — 2020',role:'SDE Intern',org:'ISRO',line:'Land-use classification over live satellite imagery streams for the Indian space programme.'},
+    {year:'2019',role:'Quant Research Intern',org:'Indian School of Business',line:'Deep-RL portfolio management on order-flow imbalance, under volatile regimes.'}
+  ];
+  var SKILLS=['Python','C++','PyTorch','Bayesian Inference','Reinforcement Learning','Time Series','Market Microstructure','LangGraph · Agents','RAG','AWS · GCP','Kubernetes'];
+  var ACHIEVEMENTS=[
+    'Databricks ML Professional — certified',
+    'Databricks Generative AI Professional — certified',
+    'ICPC Nationals — 2021',
+    'Research with ISRO · Stanford · Wharton · Penn State',
+    'A live, calibrated book across Polymarket & Kalshi'
+  ];
+  /* ================================================================ */
+
+  var W=window.innerWidth,H=window.innerHeight;
+  var canvas=document.getElementById('scene');
+  var renderer;
+  try{
+    renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,powerPreference:'high-performance'});
+  }catch(e){
+    document.getElementById('fallback').style.display='flex';return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+  renderer.setSize(W,H);
+  renderer.setClearColor(0x18120d,1);
+  renderer.outputEncoding=THREE.sRGBEncoding;
+
+  var scene=new THREE.Scene();
+  scene.fog=new THREE.FogExp2(0x18120d,0.0085);
+  var camera=new THREE.PerspectiveCamera(58,W/H,0.1,500);
+  scene.add(camera);
+
+  var PI=Math.PI;
+  function clamp(x,a,b){return x<a?a:(x>b?b:x);}
+  function rand(a,b){return a+Math.random()*(b-a);}
+  function v3(x,y,z){return new THREE.Vector3(x,y,z);}
+
+  /* ---------------- museum lighting ---------------- */
+  scene.add(new THREE.HemisphereLight(0xffe8c8,0x241a12,0.7));
+  var key=new THREE.DirectionalLight(0xffd9a0,0.65);
+  key.position.set(24,46,12);scene.add(key);
+  var lantern=new THREE.PointLight(0xffe2b0,0.55,50,2);
+  camera.add(lantern);
+  function pointAt(x,y,z,c,i,d){var L=new THREE.PointLight(c,i,d,2);L.position.set(x,y,z);scene.add(L);return L;}
+  pointAt(0,10,4,0xffd9a0,1.0,46);
+  pointAt(-34,0,-170,0x9fc4d4,1.2,60);
+  pointAt(0,8,-282,0xe8a85a,1.1,70);
+  pointAt(0,6,-322,0xe8a85a,0.9,40);
+  pointAt(0,7,-372,0xe8a85a,0.38,34);
+  pointAt(0,7,-416,0x9fc4d4,0.34,34);
+  pointAt(0,7,-452,0xe8a85a,0.30,30);
+
+  /* ---------------- materials ---------------- */
+  var M_STONE=new THREE.MeshStandardMaterial({color:0xd8cfc0,metalness:0.05,roughness:0.85,flatShading:true});
+  var M_BLACK=new THREE.MeshStandardMaterial({color:0x14100e,metalness:0.6,roughness:0.5});
+  var M_BRASS=new THREE.MeshStandardMaterial({color:0xb08a4f,metalness:0.9,roughness:0.32});
+  var M_GLASS=new THREE.MeshStandardMaterial({color:0xbcd2da,metalness:0.1,roughness:0.1,transparent:true,opacity:0.10,side:THREE.DoubleSide,depthWrite:false});
+  var M_INKGLOW=new THREE.MeshStandardMaterial({color:0xe8a85a,emissive:0xc77f33,emissiveIntensity:1.4,metalness:0.2,roughness:0.4});
+
+  function glowTexture(){
+    var c=document.createElement('canvas');c.width=c.height=128;
+    var x=c.getContext('2d');
+    var g=x.createRadialGradient(64,64,0,64,64,64);
+    g.addColorStop(0,'rgba(255,220,160,0.95)');
+    g.addColorStop(0.35,'rgba(232,168,90,0.35)');
+    g.addColorStop(1,'rgba(232,168,90,0)');
+    x.fillStyle=g;x.fillRect(0,0,128,128);
+    return new THREE.CanvasTexture(c);
+  }
+  var GLOW=glowTexture();
+  function glowSprite(s,o){
+    var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false}));
+    sp.scale.set(s,s,1);return sp;
+  }
+  function edges(geo,color,op){
+    return new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({color:color,transparent:true,opacity:op}));
+  }
+
+  /* ---------------- the route ---------------- */
+  var curve=new THREE.CatmullRomCurve3([
+    v3(  0, 10,  60),
+    v3(  0,  5,  30),
+    v3(  0,  4,   6),   // I  foyer
+    v3( 10,  6, -22),
+    v3(-12, 11, -52),   // II isles
+    v3( -2,  6, -78),
+    v3(  0,  0,-100),   // III timeline top
+    v3(  0,-14,-134),   //    timeline bottom (the slide)
+    v3(-12,-10,-152),
+    v3(-30, -6,-166),   // IV constellation orbit
+    v3(-22,-12,-184),
+    v3( -4, -8,-204),   // V atelier entry
+    v3(  0, -6,-228),   //    atelier mid (rolled)
+    v3(  4, -2,-250),   //    atelier exit
+    v3(  8,  0,-272),   // VI monuments
+    v3(  0,  2,-300),
+    v3(  0,  3,-320),   // VII the drawn door
+    v3(  0,  3,-338),
+    v3(  0,  3,-356),   // VIII the annex — five other structures
+    v3(  0,  3,-386),
+    v3(  0,  3,-416),
+    v3(  0,3.5,-446),
+    v3(  0,  4,-462)
+  ]);
+  var SAMPLES=1800,sampPts=[];
+  for(var i=0;i<=SAMPLES;i++)sampPts.push(curve.getPointAt(i/SAMPLES));
+  function tNear(p){
+    var bi=0,bd=Infinity;
+    for(var i=0;i<=SAMPLES;i++){
+      var d=sampPts[i].distanceToSquared(p);
+      if(d<bd){bd=d;bi=i;}
+    }
+    return bi/SAMPLES;
+  }
+
+  var tAtelierIn=tNear(v3(-4,-8,-204)),tAtelierMid=tNear(v3(0,-6,-228)),tAtelierOut=tNear(v3(4,-2,-250));
+  var rollKeys=[
+    {t:0,r:0},{t:tAtelierIn,r:0},{t:tAtelierMid,r:PI/2},{t:tAtelierOut,r:0},{t:1,r:0}
+  ];
+  function rollAt(t){
+    for(var i=0;i<rollKeys.length-1;i++){
+      var a=rollKeys[i],b=rollKeys[i+1];
+      if(t>=a.t&&t<=b.t){
+        var f=(t-a.t)/Math.max(1e-6,b.t-a.t);
+        var e=0.5-0.5*Math.cos(f*PI);
+        return a.r+(b.r-a.r)*e;
+      }
+    }
+    return 0;
+  }
+
+  var animators=[];
+  var tweens=[];
+  function tween(dur,fn,ease,done){
+    tweens.push({t:0,dur:dur,fn:fn,ease:ease||function(x){return x*x*(3-2*x);},done:done});
+  }
+
+  /* ================================================================
+     WING I — THE FOYER
+     ================================================================ */
+  (function(){
+    var floor=new THREE.Mesh(new THREE.CircleGeometry(15,48),M_STONE);
+    floor.geometry.rotateX(-PI/2);
+    floor.position.set(0,0.4,4);
+    scene.add(floor);
+    [6,10,13.5].forEach(function(r){
+      var ring=new THREE.Mesh(new THREE.RingGeometry(r,r+0.07,64),
+        new THREE.MeshBasicMaterial({color:0xb08a4f,transparent:true,opacity:0.5,side:THREE.DoubleSide}));
+      ring.rotation.x=-PI/2;ring.position.set(0,0.46,4);
+      scene.add(ring);
+    });
+    // floating glass panels catching the light
+    [[-9,6,0,0.4],[9,7,8,-0.5],[0,12,-4,0.15]].forEach(function(d){
+      var p=new THREE.Mesh(new THREE.PlaneGeometry(5,8),M_GLASS);
+      p.position.set(d[0],d[1],d[2]);p.rotation.y=d[3];
+      scene.add(p);
+      animators.push(function(t){p.position.y=d[1]+Math.sin(t*0.5+d[0])*0.4;});
+    });
+    var shaft=new THREE.Mesh(new THREE.ConeGeometry(5,22,24,1,true),
+      new THREE.MeshBasicMaterial({color:0xffd9a0,transparent:true,opacity:0.05,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+    shaft.position.set(0,12,4);
+    scene.add(shaft);
+  })();
+
+  /* ================================================================
+     WING II — PROJECT ISLES (impossible staircases re-dock)
+     ================================================================ */
+  var stairFlights=[],ariaRedock=null;
+  var ISLES=[[16,4,-20],[-16,9,-38],[10,14,-52],[-14,2,-62]];
+  (function(){
+    function island(x,y,z,s){
+      var g=new THREE.Group();
+      var rock=new THREE.Mesh(new THREE.DodecahedronGeometry(s,0),M_STONE);
+      rock.scale.y=0.55;rock.rotation.y=rand(0,PI);
+      g.add(rock);
+      var top=new THREE.Mesh(new THREE.CylinderGeometry(s*0.78,s*0.85,0.4,7),M_BLACK);
+      top.position.y=s*0.42;g.add(top);
+      var rim=edges(new THREE.CylinderGeometry(s*0.78,s*0.85,0.4,7),0xb08a4f,0.8);
+      rim.position.y=s*0.42;g.add(rim);
+      // a little pavilion arch
+      var arch=new THREE.Group();
+      [[-1.4,0],[1.4,0]].forEach(function(p){
+        var c=new THREE.Mesh(new THREE.BoxGeometry(0.28,3,0.28),M_BRASS);
+        c.position.set(p[0],s*0.42+1.6,p[1]);arch.add(c);
+      });
+      var lintel=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.3,0.4),M_BRASS);
+      lintel.position.y=s*0.42+3.1;arch.add(lintel);
+      g.add(arch);
+      var gl=glowSprite(7,0.35);gl.position.y=s*0.42+2;g.add(gl);
+      g.position.set(x,y,z);
+      scene.add(g);
+      return g;
+    }
+    var islands=ISLES.map(function(p,i){return island(p[0],p[1],p[2],i===2?4.6:3.8);});
+    // a small deco islet
+    island(0,19,-34,2.2);
+
+    var Z_AXIS=new THREE.Vector3(0,0,1);
+    var BASE_LEN=30;
+    function anchorOf(p){return v3(p[0],p[1]+1.8,p[2]);}
+    function buildFlight(){
+      var g=new THREE.Group();
+      var n=12;
+      for(var i=0;i<n;i++){
+        var f=i/(n-1);
+        var step=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.22,2.2),M_BLACK);
+        step.position.set(0,Math.sin(f*PI)*1.2,(f-0.5)*BASE_LEN);
+        g.add(step);
+        var se=edges(new THREE.BoxGeometry(1.7,0.22,2.2),0xb08a4f,0.5);
+        se.position.copy(step.position);
+        g.add(se);
+      }
+      scene.add(g);
+      stairFlights.push(g);
+      return g;
+    }
+    function dockPose(P,Q,roll){
+      var dir=Q.clone().sub(P);
+      var len=dir.length();
+      dir.normalize();
+      var q=new THREE.Quaternion().setFromUnitVectors(Z_AXIS,dir);
+      if(roll)q.multiply(new THREE.Quaternion().setFromAxisAngle(Z_AXIS,roll));
+      return {pos:P.clone().add(Q).multiplyScalar(0.5),quat:q,sz:len/BASE_LEN};
+    }
+    function dock(fl,P,Q,roll){
+      var d=dockPose(P,Q,roll);
+      fl.position.copy(d.pos);
+      fl.quaternion.copy(d.quat);
+      fl.scale.set(1,1,d.sz);
+      fl.userData.roll=roll||0;
+    }
+    function animateDock(fl,P,Q,delay){
+      var d=dockPose(P,Q,fl.userData.roll);
+      var p0=fl.position.clone(),q0=fl.quaternion.clone(),s0=fl.scale.z;
+      var dur=2.4+(delay||0);
+      var dl=(delay||0)/dur;
+      tween(dur,function(f){
+        var k=clamp((f-dl)/(1-dl),0,1);
+        fl.position.lerpVectors(p0,d.pos,k);
+        fl.position.y+=Math.sin(k*PI)*4;
+        fl.quaternion.copy(q0).slerp(d.quat,k);
+        fl.scale.z=s0+(d.sz-s0)*k;
+      });
+    }
+    var AP=ISLES.map(anchorOf);
+    var DECO=v3(0,20.8,-34);
+    var fA=buildFlight(),fB=buildFlight(),fC=buildFlight(),fD=buildFlight();
+    dock(fA,AP[0],AP[1],0);
+    dock(fB,AP[1],AP[2],PI);
+    dock(fC,AP[2],AP[3],0);
+    dock(fD,DECO,AP[2],0);
+    ariaRedock=function(){
+      animateDock(fA,AP[0],AP[2],0);
+      animateDock(fC,AP[3],AP[1],0.4);
+    };
+    var phase=0;
+    animators.push(function(t){
+      var want=Math.floor(t/14)%2;
+      if(want!==phase){
+        phase=want;
+        animateDock(fD,DECO,want?AP[1]:AP[2],0);
+      }
+    });
+  })();
+
+  /* ================================================================
+     WING III — THE HANGING YEARS
+     ================================================================ */
+  var visitorPlaque;
+  (function(){
+    EXPERIENCE.forEach(function(e,i){
+      var x=(i%2?7:-7),z=-103-i*10,y=2-i*5.5;
+      var cable=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,46,6),M_BRASS);
+      cable.position.set(x,y+23,z);scene.add(cable);
+      var plq=new THREE.Mesh(new THREE.BoxGeometry(6.4,3.4,0.34),M_BLACK);
+      plq.position.set(x,y,z);scene.add(plq);
+      var pe=edges(new THREE.BoxGeometry(6.4,3.4,0.34),0xb08a4f,0.9);
+      pe.position.set(x,y,z);scene.add(pe);
+      animators.push(function(t){
+        plq.rotation.y=Math.sin(t*0.3+i)*0.08;
+        pe.rotation.y=plq.rotation.y;
+      });
+    });
+    // the visitor's plaque — lowered when you arrive (the museum grows)
+    visitorPlaque=new THREE.Group();
+    var cable2=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,40,6),M_BRASS);
+    cable2.position.y=21;visitorPlaque.add(cable2);
+    var p2=new THREE.Mesh(new THREE.BoxGeometry(5,2.4,0.3),M_INKGLOW);
+    visitorPlaque.add(p2);
+    visitorPlaque.add(edges(new THREE.BoxGeometry(5,2.4,0.3),0x2b2118,0.6));
+    visitorPlaque.position.set(0,-16+44,-141); // starts hidden up in the fog
+    scene.add(visitorPlaque);
+  })();
+
+  /* ================================================================
+     WING IV — CONSTELLATION OF SKILLS
+     ================================================================ */
+  var CONST_C=v3(-34,-8,-170);
+  var starPts=[],constLines,constSegs=0;
+  (function(){
+    var arm1=edges(new THREE.IcosahedronGeometry(11,0),0xb08a4f,0.30);
+    var arm2=edges(new THREE.IcosahedronGeometry(7,0),0x9fc4d4,0.25);
+    arm1.position.copy(CONST_C);arm2.position.copy(CONST_C);
+    scene.add(arm1);scene.add(arm2);
+    animators.push(function(t){
+      arm1.rotation.y=t*0.06;arm1.rotation.x=Math.sin(t*0.1)*0.2;
+      arm2.rotation.y=-t*0.1;arm2.rotation.z=t*0.04;
+    });
+    var rng=function(i){return Math.abs(Math.sin(i*12.97+4.1));};
+    SKILLS.forEach(function(s,i){
+      var th=rng(i)*PI*2,ph=Math.acos(2*rng(i+40)-1),r=3.5+rng(i+80)*6.5;
+      var p=v3(
+        CONST_C.x+r*Math.sin(ph)*Math.cos(th),
+        CONST_C.y+r*Math.cos(ph)*0.8,
+        CONST_C.z+r*Math.sin(ph)*Math.sin(th));
+      starPts.push(p);
+      var gl=glowSprite(2.6,0.9);gl.position.copy(p);scene.add(gl);
+      var core=new THREE.Mesh(new THREE.OctahedronGeometry(0.16,0),M_INKGLOW);
+      core.position.copy(p);scene.add(core);
+      animators.push(function(t){core.rotation.y=t*1.2+i;});
+    });
+    // lines, revealed when the wing is visited
+    var pos=[];
+    for(var i=0;i<starPts.length-1;i++){
+      pos.push(starPts[i].x,starPts[i].y,starPts[i].z,starPts[i+1].x,starPts[i+1].y,starPts[i+1].z);
+    }
+    var lg=new THREE.BufferGeometry();
+    lg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    lg.setDrawRange(0,0);
+    constLines=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:0xe8c98a,transparent:true,opacity:0.85}));
+    scene.add(constLines);
+  })();
+
+  /* ================================================================
+     WING V — THE FOLDED ATELIER (walls are floors with better taste)
+     ================================================================ */
+  var newWing;
+  var paintRegens=[];
+  (function(){
+    // floor plane and wall plane — perpendicular, both inhabited
+    var floor=new THREE.Mesh(new THREE.BoxGeometry(16,0.5,58),M_STONE);
+    floor.position.set(0,-11,-226);scene.add(floor);
+    var wall=new THREE.Mesh(new THREE.BoxGeometry(0.5,16,58),M_STONE);
+    wall.position.set(8.5,-3,-226);scene.add(wall);
+
+    function paintingTexture(i,word){
+      var c=document.createElement('canvas');c.width=128;c.height=170;
+      var x=c.getContext('2d');
+      function paint(){
+        x.fillStyle='#f3ead9';x.fillRect(0,0,128,170);
+        var hue=[28,38,18,200,150][i%5];
+        for(var k=0;k<5;k++){
+          x.fillStyle='hsla('+(hue+k*14)+',42%,'+(58+k*6)+'%,0.55)';
+          x.beginPath();
+          x.ellipse(30+((i*37+k*53)%70),34+((i*61+k*31)%100),22+k*5,14+k*4,k,0,PI*2);
+          x.fill();
+        }
+        x.strokeStyle='#2b2118';x.lineWidth=2.4;
+        x.beginPath();x.moveTo(18,130);
+        for(var k=0;k<7;k++)x.quadraticCurveTo(28+k*14,118+((i+k)%3)*14,32+k*13,132);
+        x.stroke();
+        if(word){
+          x.fillStyle='rgba(243,234,217,0.92)';x.fillRect(8,60,112,52);
+          x.strokeStyle='#2b2118';x.lineWidth=2;x.strokeRect(8,60,112,52);
+          x.fillStyle='#2b2118';
+          x.font='600 30px Caveat, cursive';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(word,64,86);
+        }
+      }
+      paint();
+      var tex=new THREE.CanvasTexture(c);
+      paintRegens.push(function(){paint();tex.needsUpdate=true;});
+      return tex;
+    }
+    function frame(w,h,tex){
+      var g=new THREE.Group();
+      var art=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+        new THREE.MeshStandardMaterial({map:tex,roughness:0.9,metalness:0}));
+      g.add(art);
+      var fw=0.1;
+      [[0,h/2+fw/2,w+fw*2,fw],[0,-h/2-fw/2,w+fw*2,fw],[-w/2-fw/2,0,fw,h],[w/2+fw/2,0,fw,h]].forEach(function(d){
+        var bar=new THREE.Mesh(new THREE.BoxGeometry(d[2],d[3],0.12),M_BRASS);
+        bar.position.set(d[0],d[1],0.02);g.add(bar);
+      });
+      return g;
+    }
+    var PROCESS=['observe','model','backtest','deploy','calibrate'];
+    // five process frames hang on the wall (which will be your floor)
+    PROCESS.forEach(function(w,i){
+      var f=frame(2.0,2.7,paintingTexture(i,w));
+      f.position.set(8.1,-3+Math.sin(i*1.1)*1.4,-206-i*9);
+      f.rotation.y=-PI/2;
+      scene.add(f);
+    });
+    // free paintings stand on the floor
+    for(var i=0;i<4;i++){
+      var f2=frame(2.2,3.0,paintingTexture(i+5,null));
+      f2.position.set(-5.5+((i%2)*2.4),-9.2,-208-i*11);
+      f2.rotation.y=0.5-(i%3)*0.4;
+      scene.add(f2);
+    }
+    // fun-facts frames
+    var ff=frame(2.6,2.0,(function(){
+      var c=document.createElement('canvas');c.width=170;c.height=128;
+      var x=c.getContext('2d');
+      function paint(){
+        x.fillStyle='#f3ead9';x.fillRect(0,0,170,128);
+        x.fillStyle='#2b2118';
+        x.font='600 21px Caveat, cursive';x.textAlign='center';
+        x.fillText('guitar & vocals ♪',85,46);
+        x.fillText('reads settlement rulebooks',85,78);
+        x.fillText('quarter-Kelly, always',85,108);
+      }
+      paint();
+      var tex=new THREE.CanvasTexture(c);
+      paintRegens.push(function(){paint();tex.needsUpdate=true;});
+      return tex;
+    })());
+    ff.position.set(-6.5,-8.9,-246);ff.rotation.y=0.7;
+    scene.add(ff);
+
+    // bookshelves — one row bends into a higher dimension (a helix into the fog)
+    var bookGeo=new THREE.BoxGeometry(0.22,1.05,0.75);
+    var bookMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.8,metalness:0.05});
+    var rows=[
+      function(f){return v3(-7.6,-10+0.6,-200-f*46);},                       // floor row
+      function(f){return v3(8.0,-3+5.4,-200-f*46);},                         // wall row (their floor)
+      function(f){var a=f*PI*2.2;return v3(-2+Math.cos(a)*5.5,-8+f*22,-236-f*18);} // the bending one
+    ];
+    var per=64;
+    var books=new THREE.InstancedMesh(bookGeo,bookMat,rows.length*per);
+    var dummy=new THREE.Object3D();
+    var ci=new THREE.Color();
+    var idx=0;
+    rows.forEach(function(row,r){
+      for(var i=0;i<per;i++){
+        var f=i/(per-1);
+        var p=row(f);
+        dummy.position.copy(p);
+        dummy.rotation.set(0,r===2?f*PI*2.2:0,(Math.sin(i*7+r)*0.1));
+        dummy.scale.set(1,0.8+Math.abs(Math.sin(i*3.3+r))*0.5,1);
+        dummy.updateMatrix();
+        books.setMatrixAt(idx,dummy.matrix);
+        ci.setHSL(0.07+0.06*Math.sin(i*1.7+r),0.45,0.32+0.18*Math.abs(Math.sin(i*2.1)));
+        books.setColorAt(idx,ci);
+        idx++;
+      }
+    });
+    if(books.instanceColor)books.instanceColor.needsUpdate=true;
+    scene.add(books);
+    // shelf rails
+    rows.forEach(function(row,r){
+      if(r===2)return;
+      var a=row(0),b=row(1);
+      var rail=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.12,a.distanceTo(b)),M_BRASS);
+      rail.position.copy(a.clone().add(b).multiplyScalar(0.5));rail.position.y-=0.62;
+      scene.add(rail);
+    });
+
+    // THE NEW WING — a shelf that grows when you visit (research generates architecture)
+    newWing=new THREE.Group();
+    var wingBooks=new THREE.InstancedMesh(bookGeo,bookMat,40);
+    for(var i=0;i<40;i++){
+      var f=i/39;
+      dummy.position.set(-8-f*16,-9.4,-228);
+      dummy.rotation.set(0,0,Math.sin(i*5)*0.1);
+      dummy.scale.set(1,0.8+Math.abs(Math.sin(i*2.7))*0.5,1);
+      dummy.updateMatrix();
+      wingBooks.setMatrixAt(i,dummy.matrix);
+      ci.setHSL(0.55,0.3,0.4);
+      wingBooks.setColorAt(i,ci);
+    }
+    if(wingBooks.instanceColor)wingBooks.instanceColor.needsUpdate=true;
+    newWing.add(wingBooks);
+    var wingRail=new THREE.Mesh(new THREE.BoxGeometry(17,0.12,0.5),M_BRASS);
+    wingRail.position.set(-16,-10.05,-228);
+    newWing.add(wingRail);
+    newWing.scale.set(0.001,1,1);
+    newWing.visible=false;
+    scene.add(newWing);
+  })();
+
+  /* ================================================================
+     WING VI — HALL OF MONUMENTS (they rise, and stay risen)
+     ================================================================ */
+  var monoliths=[],monolithsRisen=false;
+  (function(){
+    ACHIEVEMENTS.forEach(function(a,i){
+      var h=8+(i%3)*3;
+      var g=new THREE.Group();
+      var m=new THREE.Mesh(new THREE.BoxGeometry(2.6,h,1.6),M_BLACK);
+      m.position.y=h/2;g.add(m);
+      var inlay=new THREE.Mesh(new THREE.BoxGeometry(0.12,h*0.7,0.06),M_INKGLOW);
+      inlay.position.set(0.6,h/2,0.84);g.add(inlay);
+      g.add((function(){var e=edges(new THREE.BoxGeometry(2.6,h,1.6),0xb08a4f,0.4);e.position.y=h/2;return e;})());
+      var shaft=new THREE.Mesh(new THREE.ConeGeometry(2.4,14,20,1,true),
+        new THREE.MeshBasicMaterial({color:0xffd9a0,transparent:true,opacity:0.05,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+      shaft.position.y=h+5;g.add(shaft);
+      g.position.set((i%2?8.5:-8.5),-22,-262-i*8); // sunk in darkness
+      scene.add(g);
+      monoliths.push({g:g,finalY:-4,sunkY:-22});
+    });
+  })();
+
+  /* ================================================================
+     WING VII — THE DRAWN DOOR
+     ================================================================ */
+  var portal=new THREE.Group();
+  (function(){
+    var ring=new THREE.Mesh(new THREE.TorusGeometry(3,0.13,12,60),M_BRASS);
+    portal.add(ring);
+    var inner=new THREE.Mesh(new THREE.CircleGeometry(2.85,48),
+      new THREE.MeshBasicMaterial({color:0xe8a85a,transparent:true,opacity:0.16,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+    portal.add(inner);
+    var gl=glowSprite(12,0.6);portal.add(gl);
+    portal.position.set(0,3.4,-323);
+    portal.scale.setScalar(0.001);
+    portal.visible=false;
+    scene.add(portal);
+    animators.push(function(t){
+      portal.rotation.z=Math.sin(t*0.4)*0.06;
+    });
+  })();
+
+  /* ================================================================
+     WING VIII — THE ANNEX
+     Five other structures, each its own building. The museum keeps
+     them behind the drawn door because they are not about me.
+     ================================================================ */
+  var ANNEX=[
+    {glyph:'∞',name:'AION',sub:'An Infinite Museum',href:'aion.html',
+     line:'Six chambers on one continuous architectural path, est. 2050. No pages, no sections — the structure self-curates and responds to attention.'},
+    {glyph:'ℵ',name:'Object Without Category',sub:'Recovered observation record',href:'aleph.html',
+     line:'Not a building, machine, organism or sculpture — a stabilised event made of 22,000 points of light. Scrolling does not move you; it moves the object between what it is.'},
+    {glyph:'斬',name:'ZAN',sub:'The Heaven-Cutting Engine',href:'zan.html',
+     line:'Scroll turns the engine. A fast stroke draws the blade. Hold still and time kneels. Ten thousand gates in blood and bone.'},
+    {glyph:'❦',name:'a word inside a word',sub:'An infinite sentence',href:'word-inside-a-word.html',
+     line:'The fractal was discovered before the page, so there are no pages. Every word opens into a sentence; every sentence is a word in a larger one. Migration replaces navigation.'},
+    {glyph:'∴',name:'∴',sub:'Not a website — a medium',href:'therefore.html',
+     line:'A Gray–Scott reaction diffuses across the whole screen. Every structure you see is genuinely emergent, unrepeatable and temporary. Attention injects possibility.'}
+  ];
+  var annexDoors=[],annexOpen=false,annexShell,M_ANNEXFLOOR,M_ANNEXRUN;
+  var Z_ANNEX=-360, Z_STEP=22;
+  (function(){
+    function glyphTex(ch){
+      var c=document.createElement('canvas');c.width=c.height=256;
+      var x=c.getContext('2d');
+      x.font='400 168px Marcellus, "Noto Serif JP", serif';
+      x.textAlign='center';x.textBaseline='middle';
+      x.shadowColor='rgba(232,168,90,0.9)';x.shadowBlur=26;
+      x.fillStyle='rgba(247,222,183,0.95)';
+      x.fillText(ch,128,138);
+      return new THREE.CanvasTexture(c);
+    }
+    // corridor floor + colonnade — the whole shell builds itself on arrival,
+    // so nothing of the annex is visible from the drawn door.
+    annexShell=new THREE.Group();
+    annexShell.position.y=-3.4;
+    annexShell.scale.y=0.02;
+    annexShell.visible=false;
+    scene.add(annexShell);
+
+    M_ANNEXFLOOR=new THREE.MeshStandardMaterial({color:0x120c07,metalness:0.05,roughness:1,
+      transparent:true,opacity:0});
+    var floor=new THREE.Mesh(new THREE.PlaneGeometry(24,152),M_ANNEXFLOOR);
+    floor.geometry.rotateX(-PI/2);
+    floor.position.set(0,0,Z_ANNEX-48);
+    annexShell.add(floor);
+
+    M_ANNEXRUN=new THREE.MeshBasicMaterial({color:0xb08a4f,transparent:true,opacity:0,side:THREE.DoubleSide});
+    var runner=new THREE.Mesh(new THREE.PlaneGeometry(4.6,152),M_ANNEXRUN);
+    runner.geometry.rotateX(-PI/2);
+    runner.position.set(0,0.05,Z_ANNEX-48);
+    annexShell.add(runner);
+
+    // one pair midway between each doorway, so nothing crosses a lit frame
+    var colGeo=new THREE.CylinderGeometry(0.3,0.36,13,6);
+    for(var c=0;c<8;c++){
+      var cz=Z_ANNEX+11-c*Z_STEP;
+      [-14.5,14.5].forEach(function(cx){
+        var col=new THREE.Mesh(colGeo,M_BLACK);
+        col.position.set(cx,6.5,cz);
+        annexShell.add(col);
+        var ed=edges(colGeo,0xb08a4f,0.18);
+        ed.position.set(cx,6.5,cz);
+        annexShell.add(ed);
+        var cap=new THREE.Mesh(new THREE.BoxGeometry(1,0.26,1),M_BRASS);
+        cap.position.set(cx,13.1,cz);
+        annexShell.add(cap);
+      });
+    }
+
+    ANNEX.forEach(function(a,i){
+      var side=(i%2?1:-1);
+      var z=Z_ANNEX-i*Z_STEP;
+      var g=new THREE.Group();
+      var fw=6.4,fh=9.6;
+
+      var pane=new THREE.Mesh(new THREE.PlaneGeometry(fw,fh),
+        new THREE.MeshBasicMaterial({map:GLOW,color:0xe8a85a,transparent:true,opacity:0.75,
+          blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+      g.add(pane);
+      var frame=edges(new THREE.BoxGeometry(fw,fh,0.55),0xb08a4f,0.95);
+      g.add(frame);
+      var lintel=new THREE.Mesh(new THREE.BoxGeometry(fw+1.1,0.34,0.8),M_BRASS);
+      lintel.position.y=fh/2+0.5;g.add(lintel);
+      var sill=new THREE.Mesh(new THREE.BoxGeometry(fw+1.1,0.34,0.8),M_BRASS);
+      sill.position.y=-fh/2-0.5;g.add(sill);
+      var plaque=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.5,0.16),M_BRASS);
+      plaque.position.y=-fh/2-1.5;g.add(plaque);
+
+      var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glyphTex(a.glyph),
+        transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+      sp.scale.set(4.6,4.6,1);sp.position.z=0.3;g.add(sp);
+      var gl=glowSprite(13,0.42);gl.position.z=0.2;g.add(gl);
+
+      g.position.set(side*7.9,3,z);
+      g.rotation.y=-side*0.55;
+      g.scale.setScalar(0.001);
+      g.visible=false;
+      scene.add(g);
+      animators.push(function(t){
+        sp.material.opacity=0.72+0.28*Math.sin(t*0.8+i*1.7);
+      });
+      annexDoors.push({g:g,i:i,data:a,
+        world:new THREE.Vector3(side*7.9,3,z)});
+    });
+  })();
+
+  /* ---------------- stars where ceilings dissolve ---------------- */
+  (function(){
+    var n=850,pos=new Float32Array(n*3);
+    for(var i=0;i<n;i++){
+      pos[i*3]=rand(-160,160);
+      pos[i*3+1]=rand(14,130);
+      pos[i*3+2]=rand(-470,40);
+    }
+    var g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0xf0d9a8,size:0.35,transparent:true,opacity:0.7,sizeAttenuation:true,fog:false})));
+  })();
+
+  /* ---------------- ghost year numerals ---------------- */
+  var lateTex=[];
+  function yearSprites(){
+    ['2025','2022','2020','2019'].forEach(function(y,i){
+      var c=document.createElement('canvas');c.width=256;c.height=128;
+      var x=c.getContext('2d');
+      x.font='400 92px Marcellus, serif';
+      x.textAlign='center';x.textBaseline='middle';
+      x.fillStyle='rgba(233,224,207,0.13)';
+      x.fillText(y,128,70);
+      var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false}));
+      sp.position.set((i%2?-13:13),0-i*5.5,-104-i*10);
+      sp.scale.set(15,7.5,1);
+      scene.add(sp);
+    });
+  }
+
+  /* ================================================================
+     FLOATING LABELS
+     ================================================================ */
+  var volumes=[];
+  var overlay=document.getElementById('overlay');
+  function addVolume(w,html,opts){
+    opts=opts||{};
+    var el=document.createElement('div');
+    el.className='volume';
+    el.innerHTML=html;
+    overlay.appendChild(el);
+    var vol={w:w,el:el,t:Math.max(0,tNear(w)-0.010),small:opts.small,cond:opts.cond};
+    el.addEventListener('click',function(){flyTo(vol.t);});
+    volumes.push(vol);
+    return vol;
+  }
+  // foyer
+  addVolume(v3(6.5,7,2),
+    '<div class="v-meta">WING I — THE FOYER</div><h3 class="big">Jishnu</h3><div class="v-rule"></div><p>Jishnu Sri Ojaswy Akella — AI engineer & quantitative researcher. Prediction markets, Bayesian modelling, agentic systems. A prediction market is not a forecast; it is a price — and prices have plumbing.</p>');
+  addVolume(v3(-7.5,5,0),
+    '<div class="v-meta">EDUCATION</div><h3 style="font-size:16px">Penn State — MS Computer Science</h3><div class="v-rule"></div><p>2024. Before that: Integrated MTech in Computer Science, University of Hyderabad, 2022.</p>',{small:true});
+  // projects
+  PROJECTS.forEach(function(p,i){
+    var ip=ISLES[i];
+    addVolume(v3(ip[0]+(ip[0]>0?5:-5),ip[1]+6,ip[2]),
+      '<div class="v-meta">'+p.meta+'</div><h3>'+p.title+'</h3><div class="v-rule"></div><p>'+p.line+'</p>');
+  });
+  // experience
+  EXPERIENCE.forEach(function(e,i){
+    addVolume(v3((i%2?7:-7)*1.9,2-i*5.5+0.6,-103-i*10),
+      '<div class="v-meta">'+e.year+'</div><h3>'+e.role+' · '+e.org+'</h3><div class="v-rule"></div><p>'+e.line+'</p>');
+  });
+  // skills (small star tags)
+  SKILLS.forEach(function(s,i){
+    addVolume(starPts[i].clone().add(v3(0,0.8,0)),
+      '<h3 style="font-size:13px;letter-spacing:.14em">'+s+'</h3>',{small:true});
+  });
+  addVolume(CONST_C.clone().add(v3(0,11,0)),
+    '<div class="v-meta">WING IV</div><h3>Constellation of Skills</h3><div class="v-rule"></div><p>Every tool learned becomes a star. They connect when someone visits.</p>');
+  // atelier
+  addVolume(v3(-6,-2,-212),
+    '<div class="v-meta">WING V — THE RESEARCH STACKS</div><h3>Observe → Calibrate</h3><div class="v-rule"></div><p>observe → model → backtest → deploy → calibrate. Synthetic markets at Penn State, DRSM at IIM Ahmedabad, geospatial systems at Smeal. The wall is the floor; priors are for updating.</p>');
+  addVolume(v3(-7,-6,-244),
+    '<div class="v-meta">MARGINALIA</div><h3>Fun Facts</h3><div class="v-rule"></div><p>Guitar and vocals. Reads settlement rulebooks for fun. Sizes life by quarter-Kelly.</p>');
+  // monuments
+  ACHIEVEMENTS.forEach(function(a,i){
+    addVolume(v3((i%2?8.5:-8.5)*1.6,4,-262-i*8),
+      '<div class="v-meta">MONUMENT '+['I','II','III','IV','V'][i]+'</div><h3 style="font-size:15px">'+a+'</h3>',
+      {small:true,cond:function(){return monolithsRisen;}});
+  });
+  // contact
+  var socialHtml=CONTACT.socials.map(function(s){return '<a href="'+s[1]+'" target="_blank">'+s[0]+'</a>';}).join(' · ');
+  addVolume(v3(6,4.5,-318),
+    '<div class="v-meta">WING VII — THE DRAWN DOOR</div><h3>Let\'s price something impossible</h3><div class="v-rule"></div><p>A market to read, a system to build, a desk to join — step through.</p><p class="v-links"><a href="mailto:'+CONTACT.email+'">'+CONTACT.email+'</a><br><br>'+socialHtml+'</p>',
+    {cond:function(){return portal.visible;}});
+  // annex
+  addVolume(v3(0,9.5,Z_ANNEX+13),
+    '<div class="v-meta">WING VIII — THE ANNEX</div><h3>Five other structures</h3><div class="v-rule"></div><p>Rooms built the same way but about other things. Each is its own building; walk into any of them.</p>',
+    {cond:function(){return annexOpen;}});
+  annexDoors.forEach(function(d){
+    var off=d.world.x>0?-4.6:4.6;
+    addVolume(d.world.clone().add(v3(off,-1.4,1.5)),
+      '<div class="v-meta">ANNEX · ROOM '+['I','II','III','IV','V'][d.i]+'</div>'+
+      '<h3>'+d.data.name+'</h3><div class="v-rule"></div>'+
+      '<p>'+d.data.sub+'. '+d.data.line+'</p>'+
+      '<p class="v-links"><a href="'+d.data.href+'">enter this structure ↗</a></p>',
+      {cond:function(){return annexOpen;}});
+  });
+
+  /* ================================================================
+     NAVIGATION
+     ================================================================ */
+  var tCur=0,tTarget=0,userMoved=false;
+  function flyTo(t){tTarget=clamp(t,0,1);userMoved=true;}
+  window.addEventListener('wheel',function(e){
+    e.preventDefault();
+    tTarget=clamp(tTarget+e.deltaY*0.00008,0,1);
+    userMoved=true;
+  },{passive:false});
+  var touchY=null;
+  window.addEventListener('touchstart',function(e){touchY=e.touches[0].clientY;},{passive:true});
+  window.addEventListener('touchmove',function(e){
+    if(touchY===null)return;
+    tTarget=clamp(tTarget+(touchY-e.touches[0].clientY)*0.00032,0,1);
+    touchY=e.touches[0].clientY;userMoved=true;
+  },{passive:true});
+  window.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key===' ')flyTo(tTarget+0.0092);
+    else if(e.key==='ArrowUp'||e.key==='ArrowLeft')flyTo(tTarget-0.0092);
+  });
+  var mouse={x:0,y:0},mouseS={x:0,y:0};
+  window.addEventListener('mousemove',function(e){
+    mouse.x=(e.clientX/W)*2-1;mouse.y=(e.clientY/H)*2-1;
+  });
+  setTimeout(function(){if(!userMoved)tTarget=0.035;},2000);
+
+  /* wings rail */
+  var WINGS=[
+    ['I · Foyer',v3(0,4,6)],
+    ['II · Project Isles',v3(-12,11,-52)],
+    ['III · The Hanging Years',v3(0,0,-100)],
+    ['IV · Constellation',v3(-30,-6,-166)],
+    ['V · Research Stacks',v3(0,-6,-228)],
+    ['VI · Hall of Monuments',v3(8,0,-272)],
+    ['VII · The Drawn Door',v3(0,3,-320)],
+    ['VIII · The Annex',v3(0,3,-356)]
+  ];
+  var railEl=document.getElementById('rail');
+  var wingTs=WINGS.map(function(wg){
+    var t=Math.max(0,tNear(wg[1])-0.008);
+    var d=document.createElement('div');
+    d.className='r-dot';d.setAttribute('data-n',wg[0]);
+    d.addEventListener('click',function(){flyTo(t);});
+    railEl.appendChild(d);
+    return {t:t,el:d};
+  });
+
+  /* ---------------- camera ---------------- */
+  var UP=new THREE.Vector3(0,1,0);
+  function updateCamera(){
+    var t=clamp(tCur,0,0.9995);
+    var pos=curve.getPointAt(t);
+    var tan=curve.getTangentAt(t).normalize();
+    var r=rollAt(t);
+    var up=UP.clone();
+    up.addScaledVector(tan,-up.dot(tan));
+    if(up.lengthSq()<1e-4){up.set(1,0,0);up.addScaledVector(tan,-up.dot(tan));}
+    up.normalize().applyAxisAngle(tan,r);
+    camera.position.copy(pos);
+    camera.up.copy(up);
+    camera.lookAt(pos.clone().add(tan));
+    camera.rotateY(-mouseS.x*0.09);
+    camera.rotateX(-mouseS.y*0.06);
+  }
+
+  /* ---------------- label projection ---------------- */
+  var prj=new THREE.Vector3(),camDir=new THREE.Vector3();
+  function updateVolumes(){
+    camera.getWorldDirection(camDir);
+    var screenRoll=-rollAt(clamp(tCur,0,1));
+    for(var i=0;i<volumes.length;i++){
+      var vol=volumes[i];
+      if(vol.cond&&!vol.cond()){vol.el.style.display='none';continue;}
+      var toN=prj.copy(vol.w).sub(camera.position);
+      var dist=toN.length();
+      var facing=toN.normalize().dot(camDir);
+      var maxD=vol.small?34:58;
+      if(facing<0.35||dist>maxD||dist<2.5){vol.el.style.display='none';continue;}
+      prj.copy(vol.w).project(camera);
+      if(prj.z>1){vol.el.style.display='none';continue;}
+      var x=(prj.x*0.5+0.5)*W,y=(-prj.y*0.5+0.5)*H;
+      var visIn=clamp(((vol.small?30:52)-dist)/14,0,1);
+      var visOut=clamp((dist-3)/5,0,1);
+      var vis=visIn*visOut*clamp((facing-0.35)/0.25,0,1);
+      if(vis<=0.02){vol.el.style.display='none';continue;}
+      var sc=clamp(22/dist,0.5,1.2);
+      vol.el.style.display='block';
+      var visQ=(Math.round(vis*25)/25).toFixed(2);
+      if(vol._o!==visQ){vol.el.style.opacity=visQ;vol._o=visQ;}
+      var blurQ=vis<0.65?Math.round((0.65-vis)*6):0;
+      if(vol._f!==blurQ){vol.el.style.filter=blurQ?('blur('+blurQ+'px)'):'none';vol._f=blurQ;}
+      vol.el.style.transform='translate(-50%,-50%) translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px) rotate('+screenRoll.toFixed(3)+'rad) scale('+sc.toFixed(3)+')';
+      vol.el.style.zIndex=String(1000-Math.round(dist*10));
+    }
+  }
+
+  /* ================================================================
+     THE GUIDE — hand-drawn, boiling at 8 fps, walking ahead of you
+     ================================================================ */
+  var gcv=document.getElementById('guide');
+  var g2=gcv.getContext('2d');
+  function sizeGuide(){gcv.width=W;gcv.height=H;}
+  sizeGuide();
+  var INK='#2b2118',HOOD='#1f1b22',SKIN='#f3c9a0',HAIR='#241a14';
+
+  var boilSeed=0;
+  function J(i){
+    var x=Math.sin(i*127.1+boilSeed*311.7)*43758.5453;
+    return (x-Math.floor(x))*2-1;
+  }
+  function limb(x1,y1,mx,my,x2,y2,col,wo,wi){
+    g2.lineCap='round';
+    g2.strokeStyle=INK;g2.lineWidth=wo;
+    g2.beginPath();g2.moveTo(x1,y1);g2.quadraticCurveTo(mx,my,x2,y2);g2.stroke();
+    g2.strokeStyle=col;g2.lineWidth=wi;
+    g2.beginPath();g2.moveTo(x1,y1);g2.quadraticCurveTo(mx,my,x2,y2);g2.stroke();
+  }
+  function blob(x,y,rx,ry,fill,jit){
+    g2.beginPath();
+    for(var a=0;a<=12;a++){
+      var th=a/12*PI*2;
+      var jr=1+J(jit+a)*0.05;
+      var px=x+Math.cos(th)*rx*jr,py=y+Math.sin(th)*ry*jr;
+      if(a===0)g2.moveTo(px,py);else g2.lineTo(px,py);
+    }
+    g2.closePath();
+    g2.fillStyle=fill;g2.fill();
+    g2.strokeStyle=INK;g2.lineWidth=3;g2.stroke();
+  }
+
+  var guide={
+    state:'idle',until:0,face:1,
+    walkPhase:0,blinkT:0,
+    sketch:0
+  };
+  function setGuideState(s,dur){guide.state=s;guide.until=performance.now()+dur*1000;}
+
+  function drawGuide(x,y,scalePx,rot,time,moving){
+    var st=guide.state;
+    if(performance.now()>guide.until&&st!=='idle'&&st!=='walk')st=null;
+    var state=st||(moving?'walk':'idle');
+    var s=scalePx/110;
+    g2.save();
+    g2.translate(x,y);
+    g2.rotate(rot);
+    // shadow
+    g2.beginPath();
+    g2.ellipse(0,2*s,26*s,6*s,0,0,PI*2);
+    g2.fillStyle='rgba(0,0,0,0.20)';g2.fill();
+    g2.scale(guide.face*s,s);
+    if(state==='slide')g2.rotate(-0.35);
+
+    var p=guide.walkPhase;
+    var bob=(state==='walk')?Math.abs(Math.sin(p))*2.2:Math.sin(time*1.8)*1.1;
+    g2.translate(0,-bob);
+
+    var lift1=(state==='walk')?Math.max(0,Math.sin(p))*5:0;
+    var lift2=(state==='walk')?Math.max(0,Math.sin(p+PI))*5:0;
+    var fx1=(state==='walk')?Math.sin(p)*10:(state==='slide'?14:7);
+    var fx2=(state==='walk')?Math.sin(p+PI)*10:(state==='slide'?6:-7);
+
+    // backpack
+    g2.save();g2.translate(-15,-50);g2.rotate(0.06+J(1)*0.02);
+    blob(0,0,9,13,'#322a2e',40);
+    g2.restore();
+    // far arm
+    var farArm;
+    if(state==='wave')farArm=[ -16,-54,-22,-46,-15,-38];
+    else if(state==='amazed')farArm=[-13,-56,-22,-72,-20,-88];
+    else if(state==='balance')farArm=[-13,-56,-24,-58,-30,-56+Math.sin(time*3)*3];
+    else if(state==='walk')farArm=[-13,-56,-14,-46,fx2*0.7-2,-36];
+    else if(state==='slide')farArm=[-13,-56,-22,-66,-26,-72];
+    else farArm=[-13,-56,-13,-46,-6,-40];
+    limb(farArm[0],farArm[1],farArm[2],farArm[3],farArm[4]+J(2),farArm[5]+J(3),HOOD,8,4.5);
+    blob(farArm[4]+J(2),farArm[5]+J(3),4,4,SKIN,44);
+    // far leg
+    limb(-6,-30,fx2*0.5-4,-16,fx2+J(4),-3-lift2,HOOD,9,5.5);
+    g2.save();g2.translate(fx2+J(4),-3-lift2);
+    blob(3,0,7,3.4,'#f5f1e8',48);g2.restore();
+    // body
+    g2.beginPath();
+    g2.moveTo(-13+J(5),-30);
+    g2.lineTo(-15+J(6),-56);
+    g2.quadraticCurveTo(-15,-64,-7,-64);
+    g2.lineTo(7+J(7),-64);
+    g2.quadraticCurveTo(15,-64,15,-56);
+    g2.lineTo(13+J(8),-30);
+    g2.quadraticCurveTo(0,-26,-13+J(5),-30);
+    g2.closePath();
+    g2.fillStyle=HOOD;g2.fill();
+    g2.strokeStyle=INK;g2.lineWidth=3;g2.stroke();
+    // pocket + strings
+    g2.strokeStyle='rgba(240,230,210,0.35)';g2.lineWidth=2;
+    g2.beginPath();g2.moveTo(-7,-36);g2.quadraticCurveTo(0,-32,7,-36);g2.stroke();
+    g2.beginPath();g2.moveTo(-3,-62);g2.lineTo(-4,-54);g2.moveTo(3,-62);g2.lineTo(4,-54);g2.stroke();
+    // near leg
+    limb(6,-30,fx1*0.5+4,-16,fx1+J(9),-3-lift1,HOOD,9,5.5);
+    g2.save();g2.translate(fx1+J(9),-3-lift1);
+    blob(3,0,7,3.4,'#f5f1e8',52);g2.restore();
+    // hood behind head
+    g2.beginPath();g2.ellipse(0,-66,15,7,0,0,PI*2);
+    g2.fillStyle=HOOD;g2.fill();g2.strokeStyle=INK;g2.lineWidth=3;g2.stroke();
+    // head
+    blob(0,-86,24,23,SKIN,60);
+    // hair
+    g2.beginPath();
+    g2.moveTo(-24,-86);
+    for(var k=0;k<=6;k++){
+      var th=PI-(k/6)*PI;
+      var rr=27+J(70+k)*2.5+(k%2)*4;
+      g2.lineTo(Math.cos(th)*rr,-88+Math.sin(th)*-rr*0.86);
+    }
+    g2.lineTo(24,-86);
+    for(var k=0;k<=4;k++){
+      var fxh=24-(k/4)*48;
+      g2.quadraticCurveTo(fxh+6,-95+J(80+k)*2,fxh,-99+(k%2)*6);
+    }
+    g2.closePath();
+    g2.fillStyle=HAIR;g2.fill();
+    g2.strokeStyle=INK;g2.lineWidth=3;g2.stroke();
+    // side tuft
+    g2.beginPath();g2.moveTo(25,-95);g2.lineTo(31+J(90),-99);g2.lineTo(26,-88);g2.closePath();
+    g2.fillStyle=HAIR;g2.fill();
+
+    // face
+    var blink=guide.blinkT>0;
+    var eyeY=-84;
+    function eye(ex){
+      if(state==='amazed'){
+        g2.beginPath();g2.arc(ex,eyeY,7,0,PI*2);g2.fillStyle='#fff';g2.fill();g2.strokeStyle=INK;g2.lineWidth=2;g2.stroke();
+        g2.beginPath();g2.arc(ex,eyeY,3.6,0,PI*2);g2.fillStyle='#3a2418';g2.fill();
+        g2.beginPath();g2.arc(ex+1.2,eyeY-1.4,1.3,0,PI*2);g2.fillStyle='#fff';g2.fill();
+      }else if(state==='wave'||state==='slide'||blink){
+        g2.strokeStyle=INK;g2.lineWidth=2.6;g2.lineCap='round';
+        g2.beginPath();g2.arc(ex,eyeY+1,5,PI*1.15,PI*1.85);g2.stroke();
+      }else{
+        g2.beginPath();g2.ellipse(ex,eyeY,5.4,6.4,0,0,PI*2);g2.fillStyle='#fff';g2.fill();g2.strokeStyle=INK;g2.lineWidth=2;g2.stroke();
+        g2.beginPath();g2.arc(ex+1.5,eyeY+0.5,3,0,PI*2);g2.fillStyle='#3a2418';g2.fill();
+        g2.beginPath();g2.arc(ex+2.4,eyeY-0.8,1.1,0,PI*2);g2.fillStyle='#fff';g2.fill();
+      }
+    }
+    eye(-9);eye(10);
+    // brows
+    g2.strokeStyle=INK;g2.lineWidth=3.2;g2.lineCap='round';
+    var braise=(state==='amazed')?4:(state==='point'?2:0);
+    g2.beginPath();g2.moveTo(-14,-93-braise+J(11));g2.lineTo(-4,-95-braise);g2.stroke();
+    g2.beginPath();g2.moveTo(5,-95-braise);g2.lineTo(15,-93-braise+J(12));g2.stroke();
+    // mouth
+    if(state==='amazed'){
+      g2.beginPath();g2.ellipse(1,-71,3.6,4.6,0,0,PI*2);
+      g2.fillStyle='#5a2f2a';g2.fill();g2.strokeStyle=INK;g2.lineWidth=2;g2.stroke();
+    }else if(state==='wave'||state==='point'||state==='sketch'){
+      g2.beginPath();g2.moveTo(-6,-74);g2.quadraticCurveTo(1,-66,8,-74);
+      g2.quadraticCurveTo(1,-70,-6,-74);
+      g2.fillStyle='#5a2f2a';g2.fill();g2.strokeStyle=INK;g2.lineWidth=2;g2.stroke();
+    }else{
+      g2.strokeStyle=INK;g2.lineWidth=2.6;
+      g2.beginPath();g2.arc(1,-76,6,PI*0.15,PI*0.85);g2.stroke();
+    }
+    // blush
+    g2.fillStyle='rgba(233,140,120,0.32)';
+    g2.beginPath();g2.arc(-16,-77,4.4,0,PI*2);g2.fill();
+    g2.beginPath();g2.arc(17,-77,4.4,0,PI*2);g2.fill();
+
+    // near arm
+    var nearArm,hand;
+    if(state==='wave'){nearArm=[13,-56,26,-78,24,-96+Math.sin(time*9)*4];}
+    else if(state==='point'){nearArm=[13,-56,26,-70,34,-74];}
+    else if(state==='amazed'){nearArm=[13,-56,24,-74,22,-90];}
+    else if(state==='balance'){nearArm=[13,-56,26,-58,32,-56-Math.sin(time*3)*3];}
+    else if(state==='sketch'){nearArm=[13,-56,24,-62,30,-66+Math.sin(time*14)*2];}
+    else if(state==='walk'){nearArm=[13,-56,14,-46,fx1*0.7+2,-36];}
+    else if(state==='slide'){nearArm=[13,-56,24,-64,28,-70];}
+    else nearArm=[13,-56,13,-46,6,-40];
+    limb(nearArm[0],nearArm[1],nearArm[2],nearArm[3],nearArm[4]+J(13),nearArm[5]+J(14),HOOD,8,4.5);
+    hand=[nearArm[4]+J(13),nearArm[5]+J(14)];
+    blob(hand[0],hand[1],4.2,4.2,SKIN,64);
+    if(state==='sketch'||state==='point'){
+      // the pencil
+      g2.strokeStyle=INK;g2.lineWidth=3;
+      g2.beginPath();g2.moveTo(hand[0],hand[1]);g2.lineTo(hand[0]+10,hand[1]-7);g2.stroke();
+      g2.strokeStyle='#e8a85a';g2.lineWidth=2.4;
+      g2.beginPath();g2.moveTo(hand[0]+10,hand[1]-7);g2.lineTo(hand[0]+13,hand[1]-9);g2.stroke();
+    }
+    if(state==='amazed'){
+      // sparkles
+      for(var k=0;k<3;k++){
+        var sx=-20+k*20+J(100+k)*4,sy=-110-(k%2)*8;
+        g2.strokeStyle='#e8a85a';g2.lineWidth=2;
+        g2.beginPath();g2.moveTo(sx-4,sy);g2.lineTo(sx+4,sy);g2.moveTo(sx,sy-4);g2.lineTo(sx,sy+4);g2.stroke();
+      }
+    }
+    g2.restore();
+  }
+
+  /* ---------------- doodle breadcrumbs ---------------- */
+  var doodles=[];
+  function doodleAt(p,kind){doodles.push({p:p,k:kind});}
+  function drawDoodle(x,y,s,k,idx){
+    g2.save();g2.translate(x,y);g2.scale(s,s);g2.rotate(J(idx)*0.2);
+    g2.strokeStyle='rgba(201,138,59,0.85)';g2.lineWidth=2.2;g2.lineCap='round';
+    g2.beginPath();
+    if(k===0){ // star
+      for(var i=0;i<=10;i++){
+        var a=i/10*PI*2,r=(i%2?4:10)+J(idx+i)*0.8;
+        var px=Math.cos(a)*r,py=Math.sin(a)*r;
+        if(i===0)g2.moveTo(px,py);else g2.lineTo(px,py);
+      }
+    }else if(k===1){ // spiral
+      for(var i=0;i<=20;i++){
+        var a=i/20*PI*4,r=i/20*10;
+        var px=Math.cos(a)*r,py=Math.sin(a)*r;
+        if(i===0)g2.moveTo(px,py);else g2.lineTo(px,py);
+      }
+    }else if(k===2){ // arrow swoosh
+      g2.moveTo(-10,6);g2.quadraticCurveTo(0,-10+J(idx),10,2);
+      g2.moveTo(6,-2);g2.lineTo(10,2);g2.lineTo(5,5);
+    }else{ // !
+      g2.moveTo(0,-8);g2.lineTo(0,2);g2.moveTo(0,7);g2.lineTo(0,8);
+    }
+    g2.stroke();
+    g2.restore();
+  }
+
+  /* ---------------- speech ---------------- */
+  var bubbleEl=document.getElementById('bubble');
+  var bubbleUntil=0;
+  function say(text,dur){
+    bubbleEl.textContent=text;
+    bubbleEl.classList.add('on');
+    bubbleUntil=performance.now()+(dur||4.5)*1000;
+  }
+
+  /* ---------------- growth ---------------- */
+  var growthN=0;
+  var growthNEl=document.getElementById('growthN');
+  var toastEl=document.getElementById('toast');
+  var toastTimer=null;
+  function grow(msg){
+    growthN++;
+    growthNEl.textContent=String(growthN);
+    toastEl.textContent='✎ '+msg;
+    toastEl.style.opacity='1';
+    if(toastTimer)clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){toastEl.style.opacity='0';},3500);
+  }
+
+  /* ---------------- the tour script ---------------- */
+  var tFoyer=tNear(v3(0,4,6)),tIsles=tNear(v3(-12,11,-52)),tAria=tNear(v3(-2,6,-78));
+  var tTimeTop=tNear(v3(0,0,-100)),tTimeBot=tNear(v3(0,-14,-134));
+  var tSkills=tNear(v3(-30,-6,-166)),tMon=tNear(v3(8,0,-272)),tDoor=tNear(v3(0,3,-320));
+  var tAnnex=tNear(v3(0,3,-350));
+  var EVENTS=[
+    {t:tFoyer,fired:false,run:function(){
+      setGuideState('wave',4);
+      say("Hi! I'm Jishnu. Welcome to my head — mind the staircases, they trade places.",5);
+      doodleAt(v3(4,5,2),0);
+    }},
+    {t:tIsles,fired:false,run:function(){
+      setGuideState('point',4);
+      say('These islands are my projects! The stairs rearrange when ideas talk to each other.',5);
+      doodleAt(v3(-10,13,-48),2);
+    }},
+    {t:tAria,fired:false,run:function(){
+      setGuideState('amazed',4.5);
+      say("Oh! The synthetic market just repriced the staircases. It does that.",5);
+      if(ariaRedock)ariaRedock();
+      grow('the synthetic market repriced the staircases');
+      doodleAt(v3(-4,8,-74),3);
+    }},
+    {t:tTimeTop,fired:false,run:function(){
+      setGuideState('point',3);
+      say('Six years, hung in order — Dallas to Bengaluru. This ramp is the fun way down!',4.5);
+    }},
+    {t:tTimeBot,fired:false,run:function(){
+      say('And one new plaque — for today. You are part of the timeline now.',5);
+      var fromY=visitorPlaque.position.y,toY=-15;
+      tween(2.4,function(f){visitorPlaque.position.y=fromY+(toY-fromY)*f;});
+      grow('a plaque was hung for your visit');
+      doodleAt(v3(3,-13,-138),0);
+    }},
+    {t:tSkills,fired:false,run:function(){
+      setGuideState('amazed',4);
+      say('My constellation! Every tool I learn becomes a star. Watch them connect—',5);
+      var n=(starPts.length-1)*2,c=0;
+      tween(2.6,function(f){
+        var k=Math.round(f*n);
+        if(k!==c){c=k;constLines.geometry.setDrawRange(0,k);}
+      });
+      grow('the skill constellation wired itself');
+      doodleAt(CONST_C.clone().add(v3(6,8,2)),1);
+    }},
+    {t:tAtelierIn,fired:false,run:function(){
+      say('Careful: in the research stacks, walls are floors with better priors.',4.5);
+    }},
+    {t:tAtelierMid,fired:false,run:function(){
+      say('A paper lands… and the library grows a new wing. It reads itself in.',5);
+      newWing.visible=true;
+      tween(2.2,function(f){newWing.scale.set(Math.max(0.001,f),1,1);});
+      grow('a paper generated a new wing');
+      doodleAt(v3(-5,-7,-232),2);
+    }},
+    {t:tMon,fired:false,run:function(){
+      setGuideState('point',4);
+      say("Things I'm proud of. They rise when someone visits. That's you!",5);
+      monolithsRisen=true;
+      monoliths.forEach(function(m,i){
+        var from=m.sunkY,to=m.finalY;
+        tween(2.2+i*0.35,function(f){m.g.position.y=from+(to-from)*f;});
+      });
+      grow('five monuments rose from the dark');
+      doodleAt(v3(0,2,-276),0);
+    }},
+    {t:tDoor,fired:false,run:function(){
+      setGuideState('sketch',5.5);
+      say('Got a market to price, or a system to build? I\'ll sketch us a door ✉',7);
+      portal.visible=true;
+      tween(3.2,function(f){
+        guide.sketch=f;
+        var e=1-Math.pow(1-f,3);
+        portal.scale.setScalar(Math.max(0.001,e));
+      });
+      grow('the museum grew a door');
+      doodleAt(v3(-5,4,-318),3);
+    }},
+    {t:tAnnex,fired:false,run:function(){
+      setGuideState('point',5);
+      say('Keep walking — the annex. Five structures that are not about me. Step into any of them ✎',6.5);
+      annexOpen=true;
+      annexShell.visible=true;
+      tween(2.4,function(f){
+        var e=1-Math.pow(1-f,3);
+        annexShell.scale.y=Math.max(0.02,e);
+        M_ANNEXFLOOR.opacity=e;
+        M_ANNEXRUN.opacity=e*0.10;
+      });
+      annexDoors.forEach(function(d,i){
+        d.g.visible=true;
+        tween(1.8+i*0.45,function(f){
+          var e=1-Math.pow(1-f,3);
+          d.g.scale.setScalar(Math.max(0.001,e));
+        });
+      });
+      grow('the annex opened five other structures');
+      doodleAt(v3(0,8,Z_ANNEX+8),1);
+    }}
+  ];
+
+  /* portal click → mail */
+  canvas.addEventListener('click',function(e){
+    if(!portal.visible)return;
+    var p=portal.position.clone().project(camera);
+    var px=(p.x*0.5+0.5)*W,py=(-p.y*0.5+0.5)*H;
+    if(Math.hypot(e.clientX-px,e.clientY-py)<90&&camera.position.distanceTo(portal.position)<26){
+      window.location.href='mailto:'+CONTACT.email;
+    }
+  });
+
+  /* annex doorway click → that structure */
+  canvas.addEventListener('click',function(e){
+    if(!annexOpen)return;
+    for(var i=0;i<annexDoors.length;i++){
+      var d=annexDoors[i];
+      if(camera.position.distanceTo(d.world)>22)continue;
+      var p=d.world.clone().project(camera);
+      if(p.z>1)continue;
+      var px=(p.x*0.5+0.5)*W,py=(-p.y*0.5+0.5)*H;
+      if(Math.hypot(e.clientX-px,e.clientY-py)<86){
+        window.location.href=d.data.href;return;
+      }
+    }
+  });
+
+  /* ---------------- main loop ---------------- */
+  var titleEl=document.getElementById('title');
+  var hintEl=document.getElementById('hint');
+  var clock=new THREE.Clock();
+  var frame=0,prevT=0;
+  var guidePrevX=0;
+
+  function animate(){
+    requestAnimationFrame(animate);
+    var dt=Math.min(clock.getDelta(),0.05);
+    var time=clock.elapsedTime;
+    boilSeed=Math.floor(time*8);
+
+    var tBefore=tCur;
+    var gap=Math.abs(tTarget-tCur);
+    tCur+=(tTarget-tCur)*(1-Math.exp(-dt*(2.4+gap*6)));
+    mouseS.x+=(mouse.x-mouseS.x)*0.05;
+    mouseS.y+=(mouse.y-mouseS.y)*0.05;
+
+    updateCamera();
+
+    // tweens
+    for(var i=tweens.length-1;i>=0;i--){
+      var tw=tweens[i];
+      tw.t+=dt;
+      var f=clamp(tw.t/tw.dur,0,1);
+      tw.fn(tw.ease(f));
+      if(f>=1){if(tw.done)tw.done();tweens.splice(i,1);}
+    }
+    for(var i=0;i<animators.length;i++)animators[i](time);
+
+    // events
+    EVENTS.forEach(function(ev){
+      if(!ev.fired&&(Math.abs(tCur-ev.t)<0.008||(tBefore-ev.t)*(tCur-ev.t)<0)){
+        ev.fired=true;ev.run();
+      }
+    });
+
+    // guide position: he walks a little ahead, beside the path
+    var tG=clamp(tCur+0.010,0,0.998);
+    var gp=curve.getPointAt(tG);
+    var gtan=curve.getTangentAt(tG).normalize();
+    var r=rollAt(tG);
+    var gup=UP.clone().applyAxisAngle(gtan,r);
+    var side=new THREE.Vector3().crossVectors(gtan,gup).normalize();
+    gp.addScaledVector(side,1.9).addScaledVector(gup,-1.2);
+
+    var spdT=Math.abs(tCur-prevT)/Math.max(dt,1e-4);
+    var moving=spdT>0.0009;
+    if(moving)guide.walkPhase+=dt*clamp(5+spdT*260,5,24);
+    prevT=tCur;
+    // slide zone & balance zone override
+    if(tCur>tTimeTop+0.004&&tCur<tTimeBot){guide.state='slide';guide.until=performance.now()+200;}
+    else if(tCur>tAtelierIn+0.004&&tCur<tAtelierOut-0.004&&performance.now()>guide.until){guide.state='balance';guide.until=performance.now()+200;}
+    if(Math.random()<dt*0.4)guide.blinkT=0.12;
+    guide.blinkT=Math.max(0,guide.blinkT-dt);
+
+    // draw overlay
+    g2.clearRect(0,0,W,H);
+    var sp=gp.clone().project(camera);
+    var behind=sp.z>1;
+    var headWorld=gp.clone().addScaledVector(gup,2.4);
+    var hp=headWorld.clone().project(camera);
+    if(!behind){
+      var gx=(sp.x*0.5+0.5)*W,gy=(-sp.y*0.5+0.5)*H;
+      var hx=(hp.x*0.5+0.5)*W,hy=(-hp.y*0.5+0.5)*H;
+      var hpx=Math.hypot(hx-gx,hy-gy);     // 2.4 world units in px
+      var scalePx=hpx*1.05; // feet→head is 2.4 world units; drawn height tracks it
+      var fpA=curve.getPointAt(clamp(tG,0,0.999)).project(camera).x;
+      var fpB=curve.getPointAt(clamp(tG+0.006,0,0.999)).project(camera).x;
+      if(Math.abs(fpB-fpA)>0.004)guide.face=fpB>fpA?1:-1;
+      var screenRoll=-rollAt(clamp(tCur,0,1));
+      if(scalePx>14&&scalePx<460){
+        drawGuide(gx,gy,scalePx,screenRoll,time,moving);
+        // bubble follows head
+        if(performance.now()<bubbleUntil){
+          var bx=clamp(hx+24,12,W-260),by=clamp(hy-86,12,H-140);
+          bubbleEl.style.left=bx+'px';bubbleEl.style.top=by+'px';
+          if(!bubbleEl.classList.contains('on'))bubbleEl.classList.add('on');
+        }else{
+          bubbleEl.classList.remove('on');
+        }
+        // sketch ink: he draws the portal ring in screen space
+        if(guide.state==='sketch'&&portal.visible&&guide.sketch>0&&guide.sketch<1){
+          var pp=portal.position.clone().project(camera);
+          var ppx=(pp.x*0.5+0.5)*W,ppy=(-pp.y*0.5+0.5)*H;
+          var rr=Math.max(10,90*guide.sketch);
+          g2.strokeStyle='rgba(232,168,90,0.9)';g2.lineWidth=3;
+          g2.beginPath();
+          for(var a=0;a<=guide.sketch*PI*2;a+=0.2){
+            var px=ppx+Math.cos(a-PI/2)*rr,py=ppy+Math.sin(a-PI/2)*rr*1.1;
+            if(a===0)g2.moveTo(px,py);else g2.lineTo(px+J(a*10)*2,py+J(a*10+1)*2);
+          }
+          g2.stroke();
+        }
+      }else{
+        bubbleEl.classList.remove('on');
+      }
+    }
+    // doodles
+    doodles.forEach(function(d,i){
+      var dp=d.p.clone().project(camera);
+      if(dp.z>1)return;
+      var dist=camera.position.distanceTo(d.p);
+      if(dist>40)return;
+      var dx2=(dp.x*0.5+0.5)*W,dy2=(-dp.y*0.5+0.5)*H;
+      drawDoodle(dx2,dy2,clamp(18/dist,0.4,1.6),d.k,i*7);
+    });
+
+    updateVolumes();
+
+    titleEl.style.opacity=String(Math.max(0,1-tCur/0.04));
+    hintEl.style.opacity=tCur>0.1?'0':'1';
+
+    if((frame++%8)===0){
+      var best=0,bd=1;
+      wingTs.forEach(function(wd,i){
+        var d=Math.abs(tCur-wd.t);
+        if(d<bd){bd=d;best=i;}
+      });
+      wingTs.forEach(function(wd,i){wd.el.classList.toggle('active',i===best&&bd<0.05);});
+    }
+
+    renderer.render(scene,camera);
+  }
+
+  window.addEventListener('resize',function(){
+    W=window.innerWidth;H=window.innerHeight;
+    camera.aspect=W/H;camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+    sizeGuide();
+  });
+
+  var fontsDone=false;
+  function onFonts(){
+    if(fontsDone)return;
+    fontsDone=true;
+    yearSprites();
+    paintRegens.forEach(function(f){f();});
+  }
+  if(document.fonts&&document.fonts.ready){
+    document.fonts.ready.then(onFonts,onFonts);
+    setTimeout(onFonts,2200);
+  }else{
+    onFonts();
+  }
+  animate();
+})();
+</script>
+<!-- museum complete · edit CONTACT/PROJECTS/EXPERIENCE/SKILLS/ACHIEVEMENTS at the top of the script -->
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(176,138,79,.5);color:#e8a85a;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:144px;background:rgba(8,7,6,.92);border-color:#e8a85a;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="../index.html" title="two doors"><span class="k">&#9666;</span><span class="t">two doors</span></a></nav>
+</body>
+</html>

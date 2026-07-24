@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Storm Area 51 — demo</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #1a1f2a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #f5ede1;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  #wrap {
+    position:relative; width:1000px; height:640px;
+    max-width:100vw; max-height:100vh;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    border-radius:8px; overflow:hidden;
+  }
+  canvas { display:block; width:100%; height:100%; background:#d4b878; }
+  .topbar {
+    position:absolute; top:0; left:0; right:0; height:50px;
+    background: linear-gradient(to bottom, rgba(20,25,35,0.95), rgba(20,25,35,0.85));
+    display:flex; align-items:center; padding: 0 16px; gap: 18px;
+    color: #f5ede1; font-size:13px; letter-spacing: 1px; text-transform:uppercase;
+    z-index: 5;
+  }
+  .topbar .badge { background:#2a2f3a; padding:4px 10px; border-radius:4px; opacity:0.7; }
+  .topbar .budget { font-weight:700; font-size:18px; color:#f5d04a; }
+  .topbar .phase { margin-left:auto; opacity:0.6; font-size:11px; }
+  .roster {
+    position:absolute; left:0; top:50px; bottom:0; width:140px;
+    background: rgba(20,25,35,0.92);
+    padding: 10px 8px; display:flex; flex-direction:column; gap:8px;
+    z-index: 5;
+  }
+  .unit-card {
+    background: rgba(60,70,90,0.6);
+    border-radius:6px; padding:8px;
+    border: 2px solid transparent;
+    cursor:pointer; user-select:none; transition: all 0.15s;
+  }
+  .unit-card:hover { background: rgba(80,95,120,0.7); }
+  .unit-card.selected { border-color:#f5d04a; background: rgba(80,95,120,0.8); }
+  .unit-card.disabled { opacity:0.35; cursor:not-allowed; }
+  .unit-card .name { font-size:11px; font-weight:600; letter-spacing:0.5px; }
+  .unit-card .cost {
+    display:inline-block; background:#f5d04a; color:#1a1f2a;
+    padding:1px 6px; border-radius:3px; font-size:10px; font-weight:700; margin-top:3px;
+  }
+  .unit-card .desc { font-size:9px; opacity:0.7; margin-top:4px; line-height:1.3; }
+  .go-button {
+    margin-top:auto; padding:14px;
+    background:#d4574a; color:#fff; border:none; border-radius:6px;
+    font-size:14px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+    cursor:pointer;
+  }
+  .go-button:disabled { opacity:0.4; cursor:not-allowed; }
+  .go-button:not(:disabled):hover { background:#e0685b; }
+  .hint {
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+    background: rgba(20,25,35,0.85); padding: 6px 14px; border-radius: 6px;
+    opacity:0; transition: opacity 1s ease; pointer-events:none;
+  }
+  .hint.show { opacity:0.85; }
+
+  /* Documentary recap overlay */
+  .recap {
+    position:absolute; inset:0; display:none;
+    background: #000; color:#fff; overflow:hidden;
+  }
+  .recap.show { display:block; }
+  .film-grain {
+    position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 3px);
+    opacity:0.6;
+  }
+  .recap .timestamp {
+    position:absolute; top:14px; right:18px;
+    font-family: 'Courier New', monospace; font-size:13px;
+    background: rgba(0,0,0,0.5); padding: 4px 8px; color:#f5d04a;
+    letter-spacing:1px;
+  }
+  .recap .rec {
+    position:absolute; top:14px; left:18px;
+    display:flex; align-items:center; gap:6px;
+    font-family: 'Courier New', monospace; font-size:13px;
+    background: rgba(0,0,0,0.5); padding: 4px 10px;
+  }
+  .recap .rec .dot {
+    width:8px; height:8px; background:#d4574a; border-radius:50%;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.2; } }
+  .recap .footage {
+    position:absolute; inset:60px 20px 140px 20px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .recap .lower-third {
+    position:absolute; bottom:50px; left:0; right:0;
+    background: linear-gradient(to right, #c41818 0%, #c41818 6px, rgba(0,0,0,0.85) 6px);
+    padding: 10px 16px;
+  }
+  .recap .lower-third .label {
+    font-size: 11px; letter-spacing: 2px; text-transform:uppercase;
+    color: #c41818; font-weight:700;
+  }
+  .recap .lower-third .headline {
+    font-size: 22px; font-weight: 700; letter-spacing:0.5px;
+    margin-top: 2px;
+  }
+  .recap .ticker {
+    position:absolute; bottom:0; left:0; right:0;
+    height: 36px; background: #c41818; color:#fff;
+    display:flex; align-items:center; overflow:hidden;
+    font-size:14px; letter-spacing:1px;
+  }
+  .recap .ticker-content {
+    white-space: nowrap;
+    animation: scroll 35s linear infinite;
+    padding-left: 100%;
+  }
+  @keyframes scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-100%); }
+  }
+  .recap .ticker .sep {
+    display:inline-block; padding: 0 18px; color: #ffd;
+  }
+  .recap .verdict-title {
+    font-size: 44px; font-weight: 700; text-align:center;
+    text-shadow: 3px 3px 0 #c41818;
+    letter-spacing: 2px; margin-bottom: 8px;
+  }
+  .recap .verdict-sub {
+    font-size: 16px; text-align:center; opacity:0.85;
+    margin-bottom: 24px;
+  }
+  .recap .recap-list {
+    max-width: 600px; margin: 0 auto;
+    font-family: 'Courier New', monospace; font-size:13px;
+    background: rgba(255,255,255,0.05); padding: 16px 20px;
+    border-left: 3px solid #c41818;
+  }
+  .recap .recap-list div { margin: 4px 0; opacity:0; animation: fadeIn 0.4s forwards; }
+  @keyframes fadeIn { to { opacity: 1; } }
+  .recap-restart {
+    position:absolute; bottom:80px; left:50%; transform:translateX(-50%);
+    background:#c41818; color:#fff; border:none; padding:12px 28px;
+    font-size:13px; letter-spacing:2px; text-transform:uppercase; font-weight:700;
+    border-radius:4px; cursor:pointer;
+  }
+  .shake { animation: shake 0.5s infinite; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0); }
+    25% { transform: translate(-1px, 1px); }
+    50% { transform: translate(1px, -1px); }
+    75% { transform: translate(-1px, -1px); }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="1000" height="640"></canvas>
+  <div class="topbar">
+    <span class="badge">budget</span><span class="budget" id="budget">10</span>
+    <span class="badge">deployed</span><span id="deployed">0</span>
+    <span class="phase" id="phase">— placement phase —</span>
+  </div>
+  <div class="roster" id="roster">
+    <!-- populated by JS -->
+  </div>
+  <div class="hint" id="hint">click a unit, then click a lane to deploy · hit RAID when ready</div>
+
+  <div class="recap" id="recap">
+    <div class="film-grain"></div>
+    <div class="rec"><span class="dot"></span>REC</div>
+    <div class="timestamp" id="ts">00:00:00</div>
+    <div class="footage" id="footage">
+      <div>
+        <div class="verdict-title" id="verdictTitle">RAID FAILED</div>
+        <div class="verdict-sub" id="verdictSub">Officials say the alien remains undisturbed.</div>
+        <div class="recap-list" id="recapList"></div>
+      </div>
+    </div>
+    <div class="lower-third">
+      <div class="label">breaking · channel 9 nevada</div>
+      <div class="headline" id="headline">CIVILIANS STORM RESTRICTED ZONE, ARE STORMED BACK</div>
+    </div>
+    <div class="ticker">
+      <div class="ticker-content" id="ticker"></div>
+    </div>
+    <button class="recap-restart" onclick="location.reload()">run it back</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // ---------- layout ----------
+  const TOPBAR_H = 50;
+  const ROSTER_W = 140;
+  const PLAY_X = ROSTER_W;
+  const PLAY_W = W - ROSTER_W;
+  const PLAY_Y = TOPBAR_H + 10;
+  const PLAY_H = H - PLAY_Y - 10;
+  const LANES = 5;
+  const LANE_H = PLAY_H / LANES;
+  const FENCE_X = W - 90; // base fence
+  const ALIEN_X = W - 50;
+
+  // ---------- unit types ----------
+  const UNIT_TYPES = {
+    naruto: {
+      name: 'Naruto Runner', cost: 1, hp: 18, speed: 1.4, attack: 4, atkRange: 14, atkCooldown: 30,
+      color: '#f5a04a', desc: 'Fast. Fragile. Believes.',
+    },
+    kyle: {
+      name: 'Kyle', cost: 2, hp: 60, speed: 0.7, attack: 14, atkRange: 16, atkCooldown: 45,
+      color: '#d4574a', desc: 'Punches drywall. And guards.',
+    },
+    karen: {
+      name: 'Karen', cost: 2, hp: 32, speed: 0.6, attack: 2, atkRange: 80, atkCooldown: 90,
+      special: 'stun', color: '#c47ba0', desc: 'Stuns enemies. Demands manager.',
+    },
+    furry: {
+      name: 'Furry', cost: 3, hp: 130, speed: 0.4, attack: 8, atkRange: 14, atkCooldown: 50,
+      color: '#7a5a8a', desc: 'Tank. Fursuit absorbs bullets.',
+    },
+    weeb: {
+      name: 'Weeb', cost: 2, hp: 45, speed: 1.0, attack: 16, atkRange: 18, atkCooldown: 35,
+      color: '#4a8acf', desc: 'Real katana. Genuine threat.',
+    },
+  };
+
+  const ENEMY_TYPES = {
+    guard: { name:'guard', hp: 50, speed: 0.45, attack: 7, atkRange: 14, atkCooldown: 50, color: '#5a6e3a' },
+    drone: { name:'drone', hp: 22, speed: 0.85, attack: 4, atkRange: 14, atkCooldown: 40, color: '#3a3a4a' },
+    mib:   { name:'MIB',   hp: 90, speed: 0.55, attack: 18, atkRange: 16, atkCooldown: 55, color: '#1a1a2a' },
+  };
+
+  // ---------- state ----------
+  const state = {
+    phase: 'placement', // 'placement', 'battle', 'recap'
+    budget: 10,
+    selectedType: null,
+    playerUnits: [],
+    enemies: [],
+    waveTimer: 0,
+    waveNum: 0,
+    particles: [],
+    sandTime: 0,
+    raidStart: 0,
+    casualties: [],
+    survivors: [],
+    breached: false,
+  };
+
+  // ---------- people DB for procedural names ----------
+  const FIRST_NAMES = ['Brayden','Kayden','Aiden','Chad','Tucker','Kyle','Brandon','Tyler','Hunter','Logan','Madison','Karen','Brittany','Tiffany','Heather','Jaxon','Caden','Connor','Tanner','Cooper'];
+  const CITIES = ['Tampa','Cincinnati','Boise','Tulsa','Reno','Spokane','Fresno','Akron','Bakersfield','Lubbock','Toledo','Wichita','Scranton','Mobile','Modesto'];
+  const DEATH_CAUSES = {
+    guard: ['shot by guard','tackled at the perimeter','pepper-sprayed','arrested for trespassing'],
+    drone: ['tazed from above','intercepted by surveillance drone','blinded by spotlight'],
+    mib:   ['memory-wiped','escorted into unmarked van','never heard from again','removed from internet'],
+    other: ['dehydration','lost their nerve and went home','wandered into wrong fence','heat exhaustion','tripped over cattle guard','phone died, gave up'],
+  };
+
+  function pickName() {
+    const f = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
+    const c = CITIES[Math.floor(Math.random() * CITIES.length)];
+    const age = 18 + Math.floor(Math.random() * 14);
+    return `${f}, ${age}, ${c}`;
+  }
+
+  // ---------- create unit ----------
+  function spawnPlayerUnit(type, lane) {
+    const t = UNIT_TYPES[type];
+    state.playerUnits.push({
+      type, x: PLAY_X + 25, y: PLAY_Y + lane * LANE_H + LANE_H / 2,
+      lane, hp: t.hp, maxHp: t.hp, speed: t.speed,
+      attack: t.attack, atkRange: t.atkRange, atkCooldown: t.atkCooldown,
+      atkTimer: 0, name: pickName(), bob: Math.random() * 10,
+      special: t.special, stunningTarget: null, dead:false,
+      reachedBase: false,
+    });
+  }
+
+  function spawnEnemy(type, lane) {
+    const t = ENEMY_TYPES[type];
+    state.enemies.push({
+      type, x: FENCE_X - 10, y: PLAY_Y + lane * LANE_H + LANE_H / 2,
+      lane, hp: t.hp, maxHp: t.hp, speed: t.speed,
+      attack: t.attack, atkRange: t.atkRange, atkCooldown: t.atkCooldown,
+      atkTimer: 0, stunUntil: 0, bob: Math.random()*10, dead:false,
+    });
+  }
+
+  // ---------- roster UI ----------
+  const rosterEl = document.getElementById('roster');
+  const budgetEl = document.getElementById('budget');
+  const deployedEl = document.getElementById('deployed');
+  const phaseEl = document.getElementById('phase');
+
+  function buildRoster() {
+    rosterEl.innerHTML = '';
+    for (const [key, t] of Object.entries(UNIT_TYPES)) {
+      const card = document.createElement('div');
+      card.className = 'unit-card';
+      card.dataset.type = key;
+      card.innerHTML = `
+        <div class="name">${t.name}</div>
+        <div class="cost">$${t.cost}</div>
+        <div class="desc">${t.desc}</div>
+      `;
+      card.addEventListener('click', () => {
+        if (state.phase !== 'placement') return;
+        if (t.cost > state.budget) return;
+        if (state.selectedType === key) state.selectedType = null;
+        else state.selectedType = key;
+        updateRosterUI();
+      });
+      rosterEl.appendChild(card);
+    }
+    const go = document.createElement('button');
+    go.className = 'go-button';
+    go.id = 'goBtn';
+    go.textContent = 'RAID!';
+    go.disabled = true;
+    go.addEventListener('click', startBattle);
+    rosterEl.appendChild(go);
+  }
+  buildRoster();
+
+  function updateRosterUI() {
+    budgetEl.textContent = state.budget;
+    deployedEl.textContent = state.playerUnits.length;
+    document.querySelectorAll('.unit-card').forEach(card => {
+      const key = card.dataset.type;
+      const t = UNIT_TYPES[key];
+      card.classList.toggle('selected', state.selectedType === key);
+      card.classList.toggle('disabled', t.cost > state.budget || state.phase !== 'placement');
+    });
+    document.getElementById('goBtn').disabled =
+      state.playerUnits.length === 0 || state.phase !== 'placement';
+  }
+
+  // ---------- canvas click handling ----------
+  canvas.addEventListener('click', (e) => {
+    if (state.phase !== 'placement') return;
+    if (!state.selectedType) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (W / rect.width);
+    const y = (e.clientY - rect.top) * (H / rect.height);
+    if (x < PLAY_X || x > PLAY_X + 200) return; // can only place in deploy zone
+    if (y < PLAY_Y || y > PLAY_Y + PLAY_H) return;
+    const lane = Math.floor((y - PLAY_Y) / LANE_H);
+    if (lane < 0 || lane >= LANES) return;
+    const t = UNIT_TYPES[state.selectedType];
+    if (t.cost > state.budget) return;
+    spawnPlayerUnit(state.selectedType, lane);
+    state.budget -= t.cost;
+    sparkle(PLAY_X + 25, PLAY_Y + lane*LANE_H + LANE_H/2, '#f5d04a');
+    if (t.cost > state.budget) state.selectedType = null;
+    updateRosterUI();
+  });
+
+  const hintEl = document.getElementById('hint');
+  setTimeout(()=>hintEl.classList.add('show'), 300);
+  setTimeout(()=>hintEl.classList.remove('show'), 7000);
+
+  // ---------- battle ----------
+  function startBattle() {
+    state.phase = 'battle';
+    state.raidStart = Date.now();
+    state.waveTimer = 60;
+    state.waveNum = 0;
+    phaseEl.textContent = '— raid in progress —';
+    updateRosterUI();
+  }
+
+  function spawnWave() {
+    state.waveNum++;
+    const pool = ['guard', 'guard', 'drone'];
+    if (state.waveNum >= 2) pool.push('mib');
+    if (state.waveNum >= 3) pool.push('guard');
+    // Spawn 2-3 enemies in random lanes
+    const numEnemies = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < numEnemies; i++) {
+      const lane = Math.floor(Math.random() * LANES);
+      const type = pool[Math.floor(Math.random() * pool.length)];
+      spawnEnemy(type, lane);
+    }
+  }
+
+  function updateBattle() {
+    const now = Date.now();
+
+    // Spawn waves
+    state.waveTimer--;
+    if (state.waveTimer <= 0) {
+      spawnWave();
+      state.waveTimer = 220 + Math.random() * 100;
+    }
+
+    // Update player units
+    for (const u of state.playerUnits) {
+      if (u.dead) continue;
+      u.bob += 0.2;
+      if (u.atkTimer > 0) u.atkTimer--;
+
+      // Find nearest enemy in same lane to the right
+      let target = null, bestDist = Infinity;
+      for (const e of state.enemies) {
+        if (e.dead) continue;
+        if (e.lane !== u.lane) continue;
+        if (e.x < u.x) continue;
+        const d = e.x - u.x;
+        if (d < bestDist) { bestDist = d; target = e; }
+      }
+
+      if (target && bestDist < u.atkRange + 20) {
+        // attack
+        if (u.atkTimer <= 0) {
+          target.hp -= u.attack;
+          u.atkTimer = u.atkCooldown;
+          spawnHit(target.x, target.y, u.attack);
+          if (u.special === 'stun') {
+            target.stunUntil = now + 1500;
+          }
+        }
+      } else {
+        // move forward
+        u.x += u.speed;
+        // Check if reached base
+        if (u.x >= FENCE_X - 6) {
+          u.reachedBase = true;
+          state.breached = true;
+        }
+      }
+
+      if (u.hp <= 0) {
+        u.dead = true;
+        // Determine cause
+        const killer = nearestEnemyTo(u);
+        const causeKey = killer ? killer.type : 'other';
+        const causes = DEATH_CAUSES[causeKey] || DEATH_CAUSES.other;
+        u.causeOfDeath = causes[Math.floor(Math.random() * causes.length)];
+        u.distanceReached = Math.floor(((u.x - PLAY_X) / (FENCE_X - PLAY_X)) * 100);
+        state.casualties.push(u);
+        sparkle(u.x, u.y, '#f5ede1');
+      }
+    }
+
+    // Update enemies
+    for (const e of state.enemies) {
+      if (e.dead) continue;
+      if (e.stunUntil > now) {
+        // stunned, sway
+        e.bob += 0.4;
+        continue;
+      }
+      e.bob += 0.15;
+      if (e.atkTimer > 0) e.atkTimer--;
+
+      // Find nearest player unit in same lane to the left
+      let target = null, bestDist = Infinity;
+      for (const u of state.playerUnits) {
+        if (u.dead || u.reachedBase) continue;
+        if (u.lane !== e.lane) continue;
+        if (u.x > e.x) continue;
+        const d = e.x - u.x;
+        if (d < bestDist) { bestDist = d; target = u; }
+      }
+
+      if (target && bestDist < e.atkRange + 20) {
+        if (e.atkTimer <= 0) {
+          target.hp -= e.attack;
+          e.atkTimer = e.atkCooldown;
+          spawnHit(target.x, target.y, e.attack);
+        }
+      } else {
+        e.x -= e.speed;
+        if (e.x < PLAY_X - 20) e.dead = true; // escaped left
+      }
+
+      if (e.hp <= 0) { e.dead = true; sparkle(e.x, e.y, '#a4a8b0'); }
+    }
+
+    // Cleanup dead
+    // (keep for visual a sec) — instead, just freeze them; clean periodically
+    // Check end conditions
+    const anyAlive = state.playerUnits.some(u => !u.dead && !u.reachedBase);
+    if (state.breached && state.playerUnits.some(u => u.reachedBase)) {
+      // small delay to feel
+      setTimeout(() => endRaid(true), 600);
+      state.phase = 'ending';
+    } else if (!anyAlive) {
+      setTimeout(() => endRaid(false), 800);
+      state.phase = 'ending';
+    }
+  }
+
+  function nearestEnemyTo(unit) {
+    let best = null, bestD = Infinity;
+    for (const e of state.enemies) {
+      const d = Math.hypot(e.x - unit.x, e.y - unit.y);
+      if (d < bestD) { bestD = d; best = e; }
+    }
+    return best;
+  }
+
+  // ---------- particles ----------
+  function sparkle(x, y, color) {
+    for (let i = 0; i < 10; i++) {
+      state.particles.push({
+        x, y, vx:(Math.random()-0.5)*3, vy:-Math.random()*2-0.3,
+        color, life:35, max:35, size:1.5+Math.random()*1.5,
+      });
+    }
+  }
+  function spawnHit(x, y, dmg) {
+    state.particles.push({
+      kind:'text', x, y: y - 10, vy: -1, text: `-${dmg}`,
+      life: 35, max: 35, color: '#fff',
+    });
+  }
+  function updateParticles() {
+    for (let i = state.particles.length-1; i >= 0; i--) {
+      const p = state.particles[i];
+      if (p.kind === 'text') {
+        p.y += p.vy; p.vy *= 0.95;
+      } else {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.15;
+      }
+      p.life--;
+      if (p.life <= 0) state.particles.splice(i, 1);
+    }
+  }
+
+  // ---------- end ----------
+  function endRaid(success) {
+    state.phase = 'recap';
+    showRecap(success);
+  }
+
+  function showRecap(success) {
+    const recap = document.getElementById('recap');
+    const list = document.getElementById('recapList');
+    const headline = document.getElementById('headline');
+    const verdictTitle = document.getElementById('verdictTitle');
+    const verdictSub = document.getElementById('verdictSub');
+    const ticker = document.getElementById('ticker');
+    const survivors = state.playerUnits.filter(u => !u.dead && u.reachedBase);
+
+    if (success) {
+      verdictTitle.textContent = 'ALIEN LIBERATED';
+      verdictSub.textContent = `${survivors.length} raider${survivors.length===1?'':'s'} breached the perimeter and freed the prisoner.`;
+      headline.textContent = 'UNVERIFIED FOOTAGE: ALIEN CONTAINMENT BREACHED';
+    } else {
+      verdictTitle.textContent = 'RAID FAILED';
+      verdictSub.textContent = 'Officials confirm the perimeter held. The alien remains undisturbed.';
+      headline.textContent = 'CIVILIANS STORM RESTRICTED ZONE, ARE STORMED BACK';
+    }
+
+    // Build chyron casualty list
+    list.innerHTML = '';
+    const items = [];
+    for (const u of state.casualties) {
+      const ut = UNIT_TYPES[u.type];
+      items.push(`<b>${u.name}</b> (${ut.name}) — KIA, ${u.causeOfDeath}. <span style="opacity:0.6">[reached ${u.distanceReached}%]</span>`);
+    }
+    for (const u of survivors) {
+      const ut = UNIT_TYPES[u.type];
+      items.push(`<b>${u.name}</b> (${ut.name}) — <span style="color:#7ed4a8">BREACHED PERIMETER</span>. Whereabouts unknown.`);
+    }
+    if (items.length === 0) {
+      items.push('No one showed up. As expected.');
+    }
+    items.forEach((html, i) => {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      div.style.animationDelay = (i * 0.15) + 's';
+      list.appendChild(div);
+    });
+
+    // Ticker
+    const tickerLines = [
+      'BREAKING — Area 51 perimeter event ongoing',
+      'AUTHORITIES URGE PUBLIC TO STAY HOME',
+      'unconfirmed reports of "Naruto-style running" near gate',
+      'one (1) furry treated for heat exhaustion',
+      'pentagon: "we do not comment on memes"',
+      success ? 'eyewitness: "I saw the alien wave"' : 'no aliens were freed in the making of this event',
+    ];
+    ticker.innerHTML = tickerLines.map(l => `<span>${l}</span><span class="sep">●</span>`).join('') + tickerLines.map(l => `<span>${l}</span><span class="sep">●</span>`).join('');
+
+    // Animate timestamp
+    const tsEl = document.getElementById('ts');
+    let secs = 0;
+    setInterval(() => {
+      secs++;
+      const h = Math.floor(secs/3600).toString().padStart(2,'0');
+      const m = Math.floor((secs%3600)/60).toString().padStart(2,'0');
+      const s = (secs%60).toString().padStart(2,'0');
+      tsEl.textContent = `${h}:${m}:${s}`;
+    }, 1000);
+
+    // Subtle shake to feel like a cellphone documentary
+    recap.classList.add('show', 'shake');
+  }
+
+  // ---------- drawing ----------
+  function drawSand() {
+    // base
+    ctx.fillStyle = '#d4b878';
+    ctx.fillRect(0, 0, W, H);
+
+    // gradient
+    const grad = ctx.createLinearGradient(0, PLAY_Y, 0, H);
+    grad.addColorStop(0, 'rgba(212,184,120,0)');
+    grad.addColorStop(1, 'rgba(170,140,90,0.4)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, PLAY_Y, W, PLAY_H);
+
+    // sand speckle
+    state.sandTime++;
+    ctx.fillStyle = 'rgba(140,110,70,0.18)';
+    for (let i = 0; i < 200; i++) {
+      const x = (i * 53 + state.sandTime * 0.05) % W;
+      const y = PLAY_Y + (i * 31) % PLAY_H;
+      ctx.fillRect(x, y, 1.5, 1);
+    }
+
+    // lane dashed lines
+    ctx.strokeStyle = 'rgba(120,90,50,0.3)';
+    ctx.lineWidth = 1; ctx.setLineDash([6, 8]);
+    for (let i = 1; i < LANES; i++) {
+      const y = PLAY_Y + i * LANE_H;
+      ctx.beginPath(); ctx.moveTo(PLAY_X, y); ctx.lineTo(FENCE_X, y); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // deploy zone tint
+    if (state.phase === 'placement') {
+      ctx.fillStyle = 'rgba(245,208,74,0.12)';
+      ctx.fillRect(PLAY_X, PLAY_Y, 200, PLAY_H);
+      ctx.strokeStyle = 'rgba(245,208,74,0.5)';
+      ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+      ctx.strokeRect(PLAY_X+2, PLAY_Y+2, 196, PLAY_H-4);
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(245,208,74,0.7)';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('DEPLOY ZONE', PLAY_X + 100, PLAY_Y - 2);
+    }
+  }
+
+  function drawFence() {
+    // chain link fence at FENCE_X
+    ctx.strokeStyle = '#6a7080';
+    ctx.lineWidth = 2;
+    // posts
+    for (let y = PLAY_Y; y < PLAY_Y + PLAY_H + 1; y += LANE_H) {
+      ctx.beginPath(); ctx.moveTo(FENCE_X, y); ctx.lineTo(FENCE_X, y + LANE_H); ctx.stroke();
+    }
+    // chain mesh
+    ctx.strokeStyle = 'rgba(106,112,128,0.7)';
+    ctx.lineWidth = 1;
+    for (let y = PLAY_Y; y < PLAY_Y + PLAY_H; y += 6) {
+      ctx.beginPath();
+      ctx.moveTo(FENCE_X - 6, y); ctx.lineTo(FENCE_X + 6, y + 6);
+      ctx.moveTo(FENCE_X + 6, y); ctx.lineTo(FENCE_X - 6, y + 6);
+      ctx.stroke();
+    }
+    // red caution tape
+    ctx.fillStyle = '#c41818';
+    ctx.fillRect(FENCE_X - 7, PLAY_Y + 14, 14, 7);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 6px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('US GOV', FENCE_X, PLAY_Y + 19);
+
+    // alien containment beyond fence
+    drawAlien(ALIEN_X, PLAY_Y + PLAY_H / 2);
+  }
+
+  function drawAlien(x, y) {
+    // saucer base shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(x, y + 20, 24, 5, 0, 0, Math.PI*2); ctx.fill();
+
+    // saucer
+    ctx.fillStyle = '#9ab0c4';
+    ctx.beginPath(); ctx.ellipse(x, y + 8, 22, 5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#7a90a4';
+    ctx.beginPath(); ctx.ellipse(x, y + 10, 22, 3, 0, 0, Math.PI*2); ctx.fill();
+
+    // dome
+    ctx.fillStyle = '#a4d4d8';
+    ctx.beginPath(); ctx.arc(x, y + 4, 12, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath(); ctx.ellipse(x - 3, y - 2, 4, 2, 0, 0, Math.PI*2); ctx.fill();
+
+    // alien inside
+    ctx.fillStyle = '#5ed4a8';
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2); ctx.fill();
+    // big eyes
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(x - 2, y, 1.4, 2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + 2, y, 1.4, 2, 0, 0, Math.PI*2); ctx.fill();
+
+    // lights blinking
+    const blink = Math.sin(Date.now()*0.005) > 0;
+    ctx.fillStyle = blink ? '#f5d04a' : '#a48a30';
+    ctx.beginPath(); ctx.arc(x - 14, y + 8, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 14, y + 8, 1.5, 0, Math.PI*2); ctx.fill();
+  }
+
+  function drawUnit(u) {
+    if (u.dead) {
+      // ghost X
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath(); ctx.ellipse(u.x, u.y + 8, 10, 3, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(80,60,40,0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(u.x - 6, u.y - 6); ctx.lineTo(u.x + 6, u.y + 6);
+      ctx.moveTo(u.x + 6, u.y - 6); ctx.lineTo(u.x - 6, u.y + 6); ctx.stroke();
+      return;
+    }
+    const t = UNIT_TYPES[u.type];
+    const yo = Math.sin(u.bob * 0.5) * 1;
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.beginPath(); ctx.ellipse(u.x, u.y + 10, 9, 3, 0, 0, Math.PI*2); ctx.fill();
+
+    // body
+    ctx.fillStyle = t.color;
+    ctx.beginPath();
+    ctx.roundRect(u.x - 7, u.y - 4 + yo, 14, 12, 3);
+    ctx.fill();
+
+    // head
+    ctx.fillStyle = '#f0d4b0';
+    ctx.beginPath(); ctx.arc(u.x, u.y - 10 + yo, 6, 0, Math.PI*2); ctx.fill();
+
+    // type-specific accessories
+    switch (u.type) {
+      case 'naruto':
+        // forward lean (rotate)
+        // headband
+        ctx.fillStyle = '#1a4a8a';
+        ctx.fillRect(u.x - 6, u.y - 13 + yo, 12, 3);
+        ctx.fillStyle = '#f5d04a';
+        ctx.fillRect(u.x - 2, u.y - 13 + yo, 4, 3);
+        // arms back (running)
+        ctx.fillStyle = t.color;
+        ctx.fillRect(u.x - 10, u.y - 2 + yo, 4, 2);
+        break;
+      case 'kyle':
+        // backwards cap
+        ctx.fillStyle = '#d4574a';
+        ctx.fillRect(u.x - 6, u.y - 15 + yo, 12, 4);
+        ctx.fillStyle = '#a44030';
+        ctx.fillRect(u.x - 9, u.y - 13 + yo, 3, 2); // backwards brim
+        // energy can in hand
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(u.x + 5, u.y + yo, 2, 4);
+        ctx.fillStyle = '#5ed4a8';
+        ctx.fillRect(u.x + 5, u.y + 1 + yo, 2, 1);
+        break;
+      case 'karen':
+        // bob haircut
+        ctx.fillStyle = '#c47ba0';
+        ctx.beginPath(); ctx.arc(u.x, u.y - 12 + yo, 7, Math.PI, 0); ctx.fill();
+        ctx.fillRect(u.x - 7, u.y - 12 + yo, 14, 3);
+        // phone in hand
+        ctx.fillStyle = '#222';
+        ctx.fillRect(u.x + 5, u.y - 2 + yo, 2, 3);
+        // angry brow
+        ctx.fillStyle = '#000';
+        ctx.fillRect(u.x - 3, u.y - 12 + yo, 2, 1);
+        ctx.fillRect(u.x + 1, u.y - 12 + yo, 2, 1);
+        break;
+      case 'furry':
+        // fursuit head over body
+        ctx.fillStyle = '#7a5a8a';
+        ctx.beginPath(); ctx.arc(u.x, u.y - 10 + yo, 7, 0, Math.PI*2); ctx.fill();
+        // ears
+        ctx.beginPath(); ctx.moveTo(u.x - 5, u.y - 15 + yo); ctx.lineTo(u.x - 3, u.y - 18 + yo); ctx.lineTo(u.x - 2, u.y - 13 + yo); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(u.x + 5, u.y - 15 + yo); ctx.lineTo(u.x + 3, u.y - 18 + yo); ctx.lineTo(u.x + 2, u.y - 13 + yo); ctx.closePath(); ctx.fill();
+        // snout
+        ctx.fillStyle = '#f0d4b0';
+        ctx.beginPath(); ctx.ellipse(u.x, u.y - 8 + yo, 3, 2, 0, 0, Math.PI*2); ctx.fill();
+        // eyes
+        ctx.fillStyle = '#f5d04a';
+        ctx.beginPath(); ctx.arc(u.x - 2, u.y - 11 + yo, 1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(u.x + 2, u.y - 11 + yo, 1, 0, Math.PI*2); ctx.fill();
+        break;
+      case 'weeb':
+        // anime hair (spiky bangs)
+        ctx.fillStyle = '#1a1a2a';
+        ctx.beginPath();
+        ctx.moveTo(u.x - 6, u.y - 13 + yo);
+        ctx.lineTo(u.x - 4, u.y - 16 + yo);
+        ctx.lineTo(u.x - 1, u.y - 13 + yo);
+        ctx.lineTo(u.x + 2, u.y - 17 + yo);
+        ctx.lineTo(u.x + 5, u.y - 13 + yo);
+        ctx.lineTo(u.x + 6, u.y - 14 + yo);
+        ctx.lineTo(u.x + 6, u.y - 9 + yo);
+        ctx.lineTo(u.x - 6, u.y - 9 + yo);
+        ctx.closePath(); ctx.fill();
+        // katana
+        ctx.strokeStyle = '#ccd4dc';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(u.x + 5, u.y + yo);
+        ctx.lineTo(u.x + 16, u.y - 8 + yo);
+        ctx.stroke();
+        ctx.fillStyle = '#a45032';
+        ctx.fillRect(u.x + 4, u.y - 1 + yo, 2, 3);
+        break;
+    }
+
+    // eyes (default if not drawn)
+    if (u.type !== 'furry' && u.type !== 'karen') {
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(u.x - 2, u.y - 9 + yo, 0.8, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(u.x + 2, u.y - 9 + yo, 0.8, 0, Math.PI*2); ctx.fill();
+    }
+
+    // HP bar
+    if (u.hp < u.maxHp) {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(u.x - 8, u.y - 18, 16, 2);
+      ctx.fillStyle = u.hp / u.maxHp > 0.4 ? '#7ed4a8' : '#d4574a';
+      ctx.fillRect(u.x - 8, u.y - 18, 16 * (u.hp / u.maxHp), 2);
+    }
+
+    // attack flash
+    if (u.atkTimer > u.atkCooldown - 8) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(u.x + 12, u.y, 4, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    // karen aura
+    if (u.type === 'karen' && u.atkTimer > u.atkCooldown - 15) {
+      ctx.strokeStyle = `rgba(196,123,160,${(u.atkTimer - u.atkCooldown + 15)/15 * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(u.x, u.y, 30, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+
+  function drawEnemy(e) {
+    if (e.dead) return;
+    const t = ENEMY_TYPES[e.type];
+    const yo = Math.sin(e.bob * 0.5) * 1;
+    const stunned = e.stunUntil > Date.now();
+
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.beginPath(); ctx.ellipse(e.x, e.y + 10, 9, 3, 0, 0, Math.PI*2); ctx.fill();
+
+    if (e.type === 'drone') {
+      // hover drone
+      const hover = Math.sin(Date.now() * 0.01) * 2;
+      ctx.fillStyle = '#3a3a4a';
+      ctx.beginPath();
+      ctx.moveTo(e.x - 8, e.y + hover);
+      ctx.lineTo(e.x, e.y - 5 + hover);
+      ctx.lineTo(e.x + 8, e.y + hover);
+      ctx.lineTo(e.x, e.y + 5 + hover);
+      ctx.closePath();
+      ctx.fill();
+      // propellers
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(e.x - 6, e.y + hover - 2, 3, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(e.x + 6, e.y + hover - 2, 3, 0, Math.PI*2); ctx.stroke();
+      // red light
+      ctx.fillStyle = '#d4574a';
+      ctx.beginPath(); ctx.arc(e.x, e.y + hover, 1.2, 0, Math.PI*2); ctx.fill();
+    } else {
+      // humanoid
+      ctx.fillStyle = t.color;
+      ctx.beginPath(); ctx.roundRect(e.x - 7, e.y - 4 + yo, 14, 12, 3); ctx.fill();
+      // head
+      ctx.fillStyle = '#f0d4b0';
+      ctx.beginPath(); ctx.arc(e.x, e.y - 10 + yo, 6, 0, Math.PI*2); ctx.fill();
+
+      if (e.type === 'guard') {
+        // helmet
+        ctx.fillStyle = '#3a4a2a';
+        ctx.beginPath(); ctx.arc(e.x, e.y - 11 + yo, 6.5, Math.PI, 0); ctx.fill();
+        ctx.fillRect(e.x - 7, e.y - 11 + yo, 14, 2);
+        // chinstrap
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.arc(e.x, e.y - 8 + yo, 6, 0.3, Math.PI - 0.3); ctx.stroke();
+        // rifle
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(e.x - 12, e.y + yo, 8, 1.5);
+      } else if (e.type === 'mib') {
+        // hair black
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(e.x, e.y - 12 + yo, 6, Math.PI, 0); ctx.fill();
+        // sunglasses
+        ctx.fillStyle = '#000';
+        ctx.fillRect(e.x - 4, e.y - 10 + yo, 8, 2);
+        // black suit (already body color)
+        // white shirt
+        ctx.fillStyle = '#f5ede1';
+        ctx.fillRect(e.x - 1, e.y - 3 + yo, 2, 8);
+        // red tie
+        ctx.fillStyle = '#c41818';
+        ctx.beginPath();
+        ctx.moveTo(e.x, e.y - 3 + yo); ctx.lineTo(e.x - 1.5, e.y + yo);
+        ctx.lineTo(e.x, e.y + 5 + yo); ctx.lineTo(e.x + 1.5, e.y + yo);
+        ctx.closePath(); ctx.fill();
+      }
+      // eyes
+      if (e.type !== 'mib') {
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(e.x - 2, e.y - 9 + yo, 0.8, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(e.x + 2, e.y - 9 + yo, 0.8, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    // HP bar
+    if (e.hp < e.maxHp) {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(e.x - 8, e.y - 18, 16, 2);
+      ctx.fillStyle = '#d4574a';
+      ctx.fillRect(e.x - 8, e.y - 18, 16 * (e.hp / e.maxHp), 2);
+    }
+
+    // stun stars
+    if (stunned) {
+      ctx.fillStyle = '#f5d04a';
+      const rot = Date.now() * 0.005;
+      for (let i = 0; i < 3; i++) {
+        const a = rot + (i / 3) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(e.x + Math.cos(a) * 8, e.y - 16 + Math.sin(a) * 3, 1.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawParticles() {
+    for (const p of state.particles) {
+      const a = p.life / p.max;
+      if (p.kind === 'text') {
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.text, p.x, p.y);
+      } else {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = a;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawTitle() {
+    if (state.phase === 'placement') {
+      ctx.fillStyle = 'rgba(20,25,35,0.5)';
+      ctx.font = 'bold 36px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('STORM AREA 51', W/2 + 40, PLAY_Y + 30);
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = 'rgba(20,25,35,0.35)';
+      ctx.fillText('they cannot stop all of us', W/2 + 40, PLAY_Y + 48);
+    }
+  }
+
+  function render() {
+    drawSand();
+    drawFence();
+    drawTitle();
+    for (const u of state.playerUnits) drawUnit(u);
+    for (const e of state.enemies) drawEnemy(e);
+    drawParticles();
+  }
+
+  // ---------- main loop ----------
+  function loop() {
+    if (state.phase === 'battle' || state.phase === 'ending') {
+      updateBattle();
+    }
+    updateParticles();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  updateRosterUI();
+  loop();
+})();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(127,212,255,.45);color:#7fd4ff;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#7fd4ff;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the arcade"><span class="k">&#9666;</span><span class="t">the arcade</span></a></nav>
+</body>
+</html>

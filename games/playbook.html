@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Ragebait Playbook — Hot Seat &amp; the nostalgia→viral game portfolio</title>
+<style>
+  :root{
+    --bg:#0a0c11; --panel:#13161f; --panel2:#181c27; --line:rgba(255,255,255,.09);
+    --line2:rgba(255,255,255,.16); --tx:#eceef3; --mut:#9aa1b0; --dim:#6b7080;
+    --acid:#c8f64e; --acidd:#0e1305; --coral:#ff6a45; --violet:#9d8bff; --cyan:#5fd4e6;
+    --gold:#ffc24b;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+  a{color:var(--acid);text-decoration:none}
+  h1,h2,h3{line-height:1.15;margin:0;font-weight:800}
+  .eyebrow{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--acid);font-weight:700}
+  .mut{color:var(--mut)} .dim{color:var(--dim)}
+  .tag{display:inline-block;font-size:11.5px;letter-spacing:.04em;font-weight:700;
+    padding:3px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--mut)}
+
+  /* hero */
+  header{padding:62px 0 30px;border-bottom:1px solid var(--line);
+    background:radial-gradient(900px 380px at 78% -8%,rgba(200,246,78,.10),transparent 60%),
+               radial-gradient(700px 340px at 8% 0%,rgba(255,106,69,.10),transparent 55%)}
+  h1{font-size:clamp(34px,6vw,60px);letter-spacing:-.02em;margin:14px 0 0}
+  h1 .hl{color:var(--acid)}
+  .lede{font-size:clamp(16px,2.1vw,20px);color:#d7dae3;max-width:760px;margin:18px 0 0}
+  .proof{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 15px;min-width:140px}
+  .stat b{display:block;font-size:21px;font-weight:800;letter-spacing:-.01em}
+  .stat span{font-size:12px;color:var(--mut)}
+  .benchref{margin-top:14px;font-size:13px;color:var(--dim)}
+
+  section{padding:52px 0;border-bottom:1px solid var(--line)}
+  .kicker{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  .kicker h2{font-size:clamp(24px,3.4vw,34px);letter-spacing:-.02em}
+  .kicker .n{font-size:13px;font-weight:800;color:var(--acid);letter-spacing:.1em}
+  .sub{color:var(--mut);max-width:780px;margin:6px 0 28px;font-size:15.5px}
+
+  /* formula grid */
+  .grid{display:grid;gap:14px}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card h3{font-size:16px;font-weight:800;margin-bottom:6px}
+  .card p{font-size:13.5px;color:var(--mut);margin:0}
+  .card .ix{font-size:12px;font-weight:800;color:var(--acid);letter-spacing:.08em}
+
+  /* hero game block */
+  .hero-game{background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line2);border-radius:20px;padding:30px;position:relative;overflow:hidden}
+  .hero-game::before{content:"";position:absolute;inset:0;
+    background:radial-gradient(540px 220px at 88% -10%,rgba(200,246,78,.12),transparent 60%);pointer-events:none}
+  .crown{display:inline-flex;align-items:center;gap:8px;background:var(--acid);color:var(--acidd);
+    font-weight:800;font-size:12px;letter-spacing:.08em;padding:5px 12px;border-radius:999px}
+  .gtitle{font-size:clamp(30px,5vw,46px);letter-spacing:-.02em;margin:14px 0 2px}
+  .gsub{font-size:16px;color:#dfe2ea;max-width:720px}
+  .oneliner{margin:18px 0;padding:14px 16px;border-left:3px solid var(--acid);
+    background:rgba(200,246,78,.06);border-radius:0 10px 10px 0;font-size:16px}
+  .oneliner b{color:var(--acid)}
+
+  .loop{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:8px 0 4px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .step .s{font-size:11px;font-weight:800;color:var(--coral);letter-spacing:.1em}
+  .step b{display:block;font-size:14px;margin:4px 0 3px}
+  .step p{font-size:12px;color:var(--mut);margin:0}
+
+  .merge{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:8px}
+  .mc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .mc .from{font-size:12px;font-weight:800;letter-spacing:.02em}
+  .mc .arrow{color:var(--dim);font-size:12px;margin:6px 0}
+  .mc p{font-size:12.5px;color:var(--mut);margin:0}
+  .mc.c1 .from{color:var(--coral)} .mc.c2 .from{color:var(--violet)}
+  .mc.c3 .from{color:var(--cyan)} .mc.c4 .from{color:var(--gold)}
+
+  .twocol{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;margin-top:22px}
+  .checks li{list-style:none;padding:7px 0 7px 28px;position:relative;font-size:14px;color:#d7dae3}
+  .checks li::before{content:"✓";position:absolute;left:0;top:6px;color:var(--acid);font-weight:800}
+  .checks{margin:0;padding:0}
+  .roast{background:#0e1208;border:1px solid rgba(200,246,78,.28);border-radius:14px;padding:18px}
+  .roast .lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--acid);font-weight:800}
+  .roast q{display:block;font-size:15px;font-style:italic;color:#eef3df;margin-top:8px;line-height:1.55}
+  .roast .cap{font-size:12px;color:var(--dim);margin-top:10px}
+
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .pill{font-size:12.5px;background:var(--panel);border:1px solid var(--line2);border-radius:999px;padding:6px 12px;color:#d7dae3}
+  .pill i{color:var(--acid);font-style:normal;font-weight:800}
+
+  /* portfolio cards */
+  .pcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
+  .pcard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .pcard .gname{font-size:19px;font-weight:800;letter-spacing:-.01em}
+  .pcard .orig{font-size:12px;color:var(--dim);font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+  .pcard .twist{font-size:14px;color:#d7dae3}
+  .row{font-size:13px;color:var(--mut)} .row b{color:#cfd3dd;font-weight:700}
+  .meter{margin-top:2px}
+  .meter .ml{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:700}
+  .bar{height:7px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:5px}
+  .bar i{display:block;height:100%;border-radius:999px;background:var(--acid)}
+  .bar.coral i{background:var(--coral)} .bar.gold i{background:var(--gold)}
+
+  /* bonus + footer */
+  .bonus{background:var(--panel);border:1px dashed var(--line2);border-radius:16px;padding:24px}
+  .foot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
+  .fitem{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .fitem b{font-size:14px} .fitem p{font-size:12.5px;color:var(--mut);margin:5px 0 0}
+  footer{padding:34px 0 60px;color:var(--dim);font-size:12.5px}
+
+  @media(max-width:860px){
+    .g4,.g3,.merge{grid-template-columns:repeat(2,1fr)}
+    .loop{grid-template-columns:repeat(2,1fr)}
+    .twocol{grid-template-columns:1fr}
+    .foot-grid{grid-template-columns:1fr}
+  }
+  @media(max-width:560px){ .g4,.g3,.g2,.merge,.loop{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Nostalgic playground games → clippable viral party games</div>
+    <h1>The <span class="hl">Ragebait</span> Playbook</h1>
+    <p class="lede">Every kid played hide-and-seek. <b>Meccha Chameleon</b> turned it into camouflage and made $15M in a week. Here's the formula that did it — plus eight more childhood games reverse-engineered into clip machines, and one hero game built to win.</p>
+    <div class="proof">
+      <div class="stat"><b>3M+ copies</b><span>in ~5 days (~$15M)</span></div>
+      <div class="stat"><b>127,656</b><span>peak Twitch viewers, day 1</span></div>
+      <div class="stat"><b>$5.99</b><span>impulse price ($4.79 launch)</span></div>
+      <div class="stat"><b>1 dev</b><span>solo, blob-tier art</span></div>
+    </div>
+    <p class="benchref">Benchmark: Meccha Chameleon (hide &amp; seek + paint), June 2026. The target to beat.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="kicker"><span class="n">01</span><h2>The formula</h2></div>
+    <p class="sub">Strip Meccha and the whole "friendslop" gold rush down to parts. Every concept below is built from these eight. Miss one and the clip doesn't write itself.</p>
+    <div class="grid g4">
+      <div class="card"><div class="ix">01</div><h3>One-sentence twist</h3><p>If you can't explain it in a breath, it's not a free tutorial. "Hide &amp; seek, but you paint yourself."</p></div>
+      <div class="card"><div class="ix">02</div><h3>Fix the original's flaw</h3><p>Hiding is boring → painting is funny. Find what made the kids' game drag and delete it.</p></div>
+      <div class="card"><div class="ix">03</div><h3>Betrayal &amp; blame</h3><p>The game must let friends screw each other. Shared blame is what people scream about on camera.</p></div>
+      <div class="card"><div class="ix">04</div><h3>Readable, funny failure</h3><p>The funniest moment must also be the most shareable screenshot. Bad outcome = instant comedy.</p></div>
+      <div class="card"><div class="ix">05</div><h3>Chat = judge + saboteur</h3><p>Twitch chat votes and meddles. Channel-point participation is what locked in the streamers.</p></div>
+      <div class="card"><div class="ix">06</div><h3>The auto-clip engine</h3><p>Build one repeatable moment the game spits out as a shareable artifact. That's free marketing.</p></div>
+      <div class="card"><div class="ix">07</div><h3>Below the friction price</h3><p>$3.99–$4.99. The viewer buys it mid-stream without thinking. Friction kills the impulse.</p></div>
+      <div class="card"><div class="ix">08</div><h3>Blobs &gt; fidelity</h3><p>Stick figures and blobs. Meccha proved the mechanic carries it. Spend zero on polish.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="kicker"><span class="n">02</span><h2>The hero game</h2></div>
+    <p class="sub">Curse Tag + Public Trial + Haunted + Elementary, merged onto the one childhood game with a perfect built-in clip rhythm: musical chairs.</p>
+
+    <div class="hero-game">
+      <span class="crown">★ HERO PICK · highest ceiling</span>
+      <h2 class="gtitle">HOT SEAT</h2>
+      <p class="gsub">Musical chairs — the trial. The chair you fight for and the seat you're judged in are the same seat.</p>
+
+      <div class="oneliner">One sentence: <b>Musical chairs, but losing doesn't eliminate you — it curses you, and the whole lobby (plus chat) votes how badly.</b></div>
+
+      <h3 style="font-size:15px;margin:22px 0 10px;color:var(--mut)">The fix that makes it work</h3>
+      <p class="mut" style="margin:0 0 18px;font-size:14.5px;max-width:820px">Real musical chairs has a fatal flaw: losers are <i>eliminated</i> and sit there bored. Hot Seat deletes that flaw. The loser isn't out — they're <b style="color:var(--tx)">cursed</b> and keep playing, falling apart a little more each round. Nobody leaves. Losing just gets funnier the more it happens. (Same move Meccha made on "hiding is boring.")</p>
+
+      <h3 style="font-size:15px;margin:0 0 10px;color:var(--mut)">The 90-second loop</h3>
+      <div class="loop">
+        <div class="step"><div class="s">01</div><b>Scramble</b><p>N players, N-1 physics chairs. Music plays, everyone circles.</p></div>
+        <div class="step"><div class="s">02</div><b>Dive</b><p>Music stops (chat can trigger it). Everyone ragdoll-dives for a seat.</p></div>
+        <div class="step"><div class="s">03</div><b>Hot seat</b><p>The chairless loser is strapped in. Lobby + chat vote: mercy or curse.</p></div>
+        <div class="step"><div class="s">04</div><b>Curse</b><p>Curse drawn — tilt screen, invert, drunk-legs. It stacks and lingers.</p></div>
+        <div class="step"><div class="s">05</div><b>Reveal</b><p>You see exactly who voted to curse you. Revenge starts now.</p></div>
+      </div>
+
+      <h3 style="font-size:15px;margin:26px 0 10px;color:var(--mut)">How the four ideas merge in</h3>
+      <div class="merge">
+        <div class="mc c1"><div class="from">CURSE TAG</div><div class="arrow">↓</div><p>Curses stack &amp; linger. By the final round the worst player is gloriously unplayable.</p></div>
+        <div class="mc c2"><div class="from">PUBLIC TRIAL</div><div class="arrow">↓</div><p>The hot-seat vote strips a mechanic. Chat is the judge; conviction = a debuff.</p></div>
+        <div class="mc c3"><div class="from">HAUNTED</div><div class="arrow">↓</div><p>The reveal names who cursed you. Vendetta spiral — shove them next round.</p></div>
+        <div class="mc c4"><div class="from">ELEMENTARY</div><div class="arrow">↓</div><p>Most-cursed player becomes "The Gremlin" — a theatrical villain + an auto-roast clip.</p></div>
+      </div>
+
+      <div class="twocol">
+        <div>
+          <h3 style="font-size:15px;margin:0 0 10px;color:var(--mut)">Why it rages</h3>
+          <ul class="checks">
+            <li><b>Twist:</b> explained in one breath — free tutorial.</li>
+            <li><b>Betrayal:</b> you vote to curse friends, then shove them off chairs.</li>
+            <li><b>Failure:</b> the Gremlin face-planting an empty chair is the screenshot.</li>
+            <li><b>Participation:</b> chat is the judge <i>and</i> the chair thief.</li>
+          </ul>
+          <h3 style="font-size:15px;margin:22px 0 8px;color:var(--mut)">Chat hooks</h3>
+          <div class="pills">
+            <span class="pill"><i>vote</i> mercy / curse</span>
+            <span class="pill"><i>yank</i> a chair pre-stop</span>
+            <span class="pill"><i>pick</i> which curse drops</span>
+            <span class="pill"><i>trigger</i> the music stop</span>
+          </div>
+          <div class="pills" style="margin-top:14px">
+            <span class="tag" style="color:var(--acid);border-color:rgba(200,246,78,.4)">$4.99</span>
+            <span class="tag">6–8 players</span>
+            <span class="tag">blob art</span>
+            <span class="tag">1 arena at launch</span>
+            <span class="tag">solo-dev scope</span>
+          </div>
+        </div>
+        <div class="roast">
+          <div class="lbl">The auto-roast — your whole marketing campaign</div>
+          <q>"Player Greg. You lost the chair four times. You voted to curse your own friend — then they cursed you back. You dove face-first into a wall and missed an empty seat. The chair was always yours, Greg. Sit."</q>
+          <p class="cap">A 10-sec animated roast of the most-cursed player, auto-generated from real match events, watermarked, one-tap share. Every match spits one out. It writes itself.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="kicker"><span class="n">03</span><h2>The portfolio</h2></div>
+    <p class="sub">Eight childhood games → clippable modern versions, ranked by viral ceiling. Hot Seat is the bet; these are the bench (and your sequel pipeline).</p>
+    <div class="grid g2">
+
+      <div class="pcard">
+        <div class="top"><div><div class="gname">THRONE</div><div class="orig">King of the Hill</div></div></div>
+        <div class="twist">The longer you hold the throne, the heavier and clumsier you get — while everyone else gets a "regicide" speed buff.</div>
+        <div class="row"><b>Clip:</b> the smug leader dogpiled off the hill in slow motion.</div>
+        <div class="row"><b>Betrayal:</b> alliances form to dethrone #1, then instantly collapse.</div>
+        <div class="row"><b>Chat:</b> grease the hill, or drop a buff for the underdog.</div>
+        <div class="meter"><div class="ml">Viral ceiling · very high</div><div class="bar"><i style="width:92%"></i></div></div>
+      </div>
+
+      <div class="pcard">
+        <div class="top"><div><div class="gname">FUSE</div><div class="orig">Hot Potato</div></div></div>
+        <div class="twist">Pass a live bomb. You can fake the throw. Chat can see the timer — you can't.</div>
+        <div class="row"><b>Clip:</b> the ragdoll launch when it blows in your hands.</div>
+        <div class="row"><b>Betrayal:</b> force a catch on someone with one second left.</div>
+        <div class="row"><b>Chat:</b> secretly speed up the fuse for a chosen victim.</div>
+        <div class="meter"><div class="ml">Viral ceiling · high</div><div class="bar"><i style="width:84%"></i></div></div>
+      </div>
+
+      <div class="pcard">
+        <div class="top"><div><div class="gname">POLO</div><div class="orig">Marco Polo</div></div></div>
+        <div class="twist">Everyone's blindfolded (black screen + 3D audio) except one traitor who can see — and lies about being blind.</div>
+        <div class="row"><b>Clip:</b> walking confidently off a ledge into the void.</div>
+        <div class="row"><b>Betrayal:</b> the seer imitates other players' voices.</div>
+        <div class="row"><b>Chat:</b> shout fake "Polo!" pings to misdirect.</div>
+        <div class="meter"><div class="ml">Viral ceiling · high</div><div class="bar"><i style="width:82%"></i></div></div>
+      </div>
+
+      <div class="pcard">
+        <div class="top"><div><div class="gname">CURSE TAG</div><div class="orig">Tag / Freeze Tag</div></div></div>
+        <div class="twist">Being "it" visibly corrupts your controls, and a residue lingers after you pass it on — everyone ends slightly broken.</div>
+        <div class="row"><b>Clip:</b> the tilted-screen meltdown of someone "it" too long.</div>
+        <div class="row"><b>Betrayal:</b> the lobby ganging up to keep one person "it".</div>
+        <div class="row"><b>Chat:</b> picks who starts the match cursed.</div>
+        <div class="meter"><div class="ml">Viral ceiling · high · (DNA folded into Hot Seat)</div><div class="bar coral"><i style="width:80%"></i></div></div>
+      </div>
+
+      <div class="pcard">
+        <div class="top"><div><div class="gname">SARDINES</div><div class="orig">Sardines (reverse hide &amp; seek)</div></div></div>
+        <div class="twist">One person hides; everyone who finds them must silently cram into the same spot. Proximity voice rises — giggles betray you.</div>
+        <div class="row"><b>Clip:</b> eight blobs stuffed in a locker, one idiot blowing it.</div>
+        <div class="row"><b>Betrayal:</b> loudly "accidentally" revealing the spot.</div>
+        <div class="row"><b>Chat:</b> ping a noise that force-triggers your mic.</div>
+        <div class="meter"><div class="ml">Viral ceiling · medium-high · closest Meccha cousin</div><div class="bar"><i style="width:72%"></i></div></div>
+      </div>
+
+      <div class="pcard">
+        <div class="top"><div><div class="gname">SIMON</div><div class="orig">Simon Says</div></div></div>
+        <div class="twist">Simon is a player who wins by baiting you into moving — and everyone who's out becomes a ghost-Simon who can also bark fake commands.</div>
+        <div class="row"><b>Clip:</b> the whole lobby twitching at contradictory orders.</div>
+        <div class="row"><b>Betrayal:</b> ghost-Simons hunting the one who got them out.</div>
+        <div class="row"><b>Chat:</b> bribe Simon to target a specific player.</div>
+        <div class="meter"><div class="ml">Viral ceiling · medium-high</div><div class="bar"><i style="width:66%"></i></div></div>
+      </div>
+
+      <div class="pcard">
+        <div class="top"><div><div class="gname">ROPE</div><div class="orig">Tug of War</div></div></div>
+        <div class="twist">You can cut the rope, or defect to the other side mid-pull. The losing team ragdoll-faceplants into the mud.</div>
+        <div class="row"><b>Clip:</b> the synchronized faceplant; the traitor's smug walk-over.</div>
+        <div class="row"><b>Betrayal:</b> literally switching sides at the last second.</div>
+        <div class="row"><b>Chat:</b> votes one secret saboteur onto each team.</div>
+        <div class="meter"><div class="ml">Viral ceiling · medium</div><div class="bar gold"><i style="width:58%"></i></div></div>
+      </div>
+
+      <div class="pcard" style="border-color:rgba(200,246,78,.3);background:linear-gradient(180deg,#161a12,var(--panel))">
+        <div class="top"><div><div class="gname" style="color:var(--acid)">★ HOT SEAT</div><div class="orig">Musical Chairs</div></div><span class="tag" style="color:var(--acid);border-color:rgba(200,246,78,.4)">hero</span></div>
+        <div class="twist">Lose the chair → you're cursed, not eliminated. The lobby + chat vote how badly. Full breakdown in section 02.</div>
+        <div class="row"><b>Why crowned:</b> crisp clip rhythm, zero dead time, the funniest moment is the screenshot, and the auto-roast self-markets.</div>
+        <div class="meter"><div class="ml">Viral ceiling · top</div><div class="bar"><i style="width:100%"></i></div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="kicker"><span class="n">04</span><h2>Bonus bet — public-domain IP</h2></div>
+    <p class="sub">A different genre (social deduction) and a second, lower-risk shot on goal — because Sherlock Holmes is free and the role asymmetry is free tutorial.</p>
+    <div class="bonus">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px">
+        <div><div class="gname" style="font-size:24px;font-weight:800">ELEMENTARY</div><div class="orig">One Moriarty. Everyone else is Holmes.</div></div>
+        <span class="tag" style="color:var(--violet);border-color:rgba(157,139,255,.4)">deduction · $3.99</span>
+      </div>
+      <p class="mut" style="font-size:14.5px;margin:14px 0 0;max-width:880px">Moriarty sabotages the objective; the Holmeses must deduce who. The twist: you can't just vote — you spend a <b style="color:var(--tx)">deduction token</b> to accuse <i>with a stated reason</i>. Wrong accusation → Moriarty picks your debuff (screen flips, sepia, half-speed). The killer feature: after each round an animated Holmes delivers an auto-generated post-mortem roast of the worst player ("You walked into the same pillar twice. Your accusation was baseless. You are, demonstrably, why Moriarty wins. Elementary."). Unlike Among Us's anonymous imposter, Moriarty is <b style="color:var(--tx)">named, theatrical, and has a victory monologue</b> — streamers will fight to be him. Art: stick figures in deerstalker hats; the gap between low-fi art and dead-serious dialogue is the joke.</p>
+    </div>
+  </div>
+</section>
+
+<section style="border-bottom:none">
+  <div class="wrap">
+    <div class="kicker"><span class="n">05</span><h2>Execution — non-negotiable</h2></div>
+    <p class="sub">The game that wins isn't the most polished. It's the one where the funniest moment is also the most shareable screenshot — shipped cheap and chat-native.</p>
+    <div class="foot-grid">
+      <div class="fitem"><b>Streamer lobby codes</b><p>Friends + viewers join in one click. No friction, no account walls.</p></div>
+      <div class="fitem"><b>Twitch channel-point voting</b><p>Chat votes and sabotages every round. This is what converts viewers to buyers.</p></div>
+      <div class="fitem"><b>Price $4.99 ($3.99 deduction)</b><p>Below the impulse threshold. Bought mid-stream without a second thought.</p></div>
+      <div class="fitem"><b>Blob / stick-figure art</b><p>The mechanic carries it. Keep dev cost near zero; every screenshot funnier for it.</p></div>
+      <div class="fitem"><b>The auto-clip is the product</b><p>The roast / face-plant clip is the marketing unit. Build the share button first.</p></div>
+      <div class="fitem"><b>Ship one arena</b><p>One map, ~8 curses, ragdoll physics. Replayability comes from people, not content.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    The Ragebait Playbook · benchmark: Meccha Chameleon (June 2026) · concepts original. Build the share button before the menu screen.
+  </div>
+</footer>
+
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(127,212,255,.45);color:#7fd4ff;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#7fd4ff;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the arcade"><span class="k">&#9666;</span><span class="t">the arcade</span></a></nav>
+</body>
+</html>

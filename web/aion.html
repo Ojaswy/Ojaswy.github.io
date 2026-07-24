@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AION — An Infinite Museum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#050608;
+    --bone:#e8e4da;
+    --gold:#d8c9a3;
+    --cyan:#7fd4ff;
+    --dim:#5d6878;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    height:100%;
+    overflow:hidden;
+    overscroll-behavior:none;
+    background:var(--void);
+    color:var(--bone);
+    font-family:'Space Grotesk',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:rgba(216,201,163,.25)}
+  canvas#scene{
+    position:fixed;inset:0;display:block;
+    cursor:crosshair;
+  }
+
+  /* ---------- floating information volumes ---------- */
+  #overlay{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .volume{
+    position:absolute;left:0;top:0;
+    width:300px;max-width:34vw;
+    pointer-events:auto;
+    cursor:pointer;
+    will-change:transform,opacity,filter;
+  }
+  .volume .v-index{
+    font-family:'Space Grotesk',monospace;
+    font-size:10px;letter-spacing:.45em;
+    color:var(--gold);opacity:.85;
+    margin-bottom:8px;
+  }
+  .volume h3{
+    font-family:'Syne',sans-serif;
+    font-weight:700;font-size:19px;
+    letter-spacing:.06em;line-height:1.25;
+    color:var(--bone);
+    text-transform:uppercase;
+  }
+  .volume .v-rule{
+    height:1px;width:54px;margin:12px 0;
+    background:linear-gradient(90deg,var(--gold),transparent);
+  }
+  .volume p{
+    font-size:12.5px;font-weight:300;
+    line-height:1.75;color:#aab2bf;
+    letter-spacing:.02em;
+    will-change:transform,opacity;
+  }
+  .volume:hover h3{color:#fff}
+  .volume:hover .v-rule{background:linear-gradient(90deg,var(--cyan),transparent)}
+  .v-act{
+    display:inline-block;margin-top:14px;
+    background:none;border:1px solid rgba(216,201,163,.4);
+    color:var(--gold);font-family:'Space Grotesk',sans-serif;
+    font-size:10px;letter-spacing:.35em;text-transform:uppercase;
+    padding:10px 18px;cursor:pointer;
+    transition:all .4s;
+  }
+  .v-act:hover{border-color:var(--cyan);color:var(--cyan);letter-spacing:.45em}
+
+  /* ---------- HUD ---------- */
+  .hud{position:fixed;z-index:40;pointer-events:none;user-select:none}
+  #hud-id{top:34px;left:38px}
+  #hud-id .sigil{
+    font-family:'Syne',sans-serif;font-weight:800;
+    font-size:20px;letter-spacing:.55em;color:var(--bone);
+  }
+  #hud-id .est{
+    margin-top:6px;font-size:9px;letter-spacing:.4em;
+    color:var(--dim);text-transform:uppercase;
+  }
+  #hud-meta{top:38px;right:74px;text-align:right;
+    font-size:9px;letter-spacing:.38em;color:var(--dim);
+    text-transform:uppercase;line-height:2.1}
+  #readout{bottom:34px;left:38px;
+    font-size:9.5px;letter-spacing:.3em;color:var(--dim);
+    text-transform:uppercase;line-height:2}
+  #readout .ch{color:var(--gold)}
+  #hint{bottom:36px;right:74px;text-align:right;
+    font-size:9px;letter-spacing:.34em;color:var(--dim);
+    text-transform:uppercase;line-height:2.2;
+    transition:opacity 2s}
+
+  /* ---------- depth gauge (the wayline) ---------- */
+  #gauge{
+    position:fixed;right:34px;top:50%;
+    transform:translateY(-50%);
+    height:46vh;width:18px;z-index:50;
+  }
+  #gauge .thread{
+    position:absolute;left:50%;top:0;bottom:0;width:1px;
+    background:linear-gradient(180deg,transparent,rgba(216,201,163,.35) 12%,rgba(216,201,163,.35) 88%,transparent);
+  }
+  #gauge .tracer{
+    position:absolute;left:50%;width:5px;height:5px;
+    transform:translate(-50%,-50%) rotate(45deg);
+    background:var(--cyan);
+    box-shadow:0 0 12px rgba(127,212,255,.8);
+    transition:top .15s linear;
+  }
+  .g-node{
+    position:absolute;left:50%;width:7px;height:7px;
+    transform:translate(-50%,-50%) rotate(45deg);
+    border:1px solid rgba(216,201,163,.55);
+    background:var(--void);
+    cursor:pointer;pointer-events:auto;
+    transition:all .4s;
+  }
+  .g-node:hover,.g-node.active{
+    background:var(--gold);
+    box-shadow:0 0 14px rgba(216,201,163,.7);
+  }
+  .g-node::after{
+    content:attr(data-name);
+    position:absolute;right:22px;top:50%;
+    transform:translateY(-50%) rotate(-45deg);
+    transform-origin:right center;
+    font-size:8.5px;letter-spacing:.32em;color:var(--gold);
+    text-transform:uppercase;white-space:nowrap;
+    opacity:0;transition:opacity .35s;pointer-events:none;
+  }
+  .g-node:hover::after{opacity:1}
+
+  /* ---------- threshold (intro) ---------- */
+  #intro{
+    position:fixed;inset:0;z-index:60;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    pointer-events:none;text-align:center;
+  }
+  #intro .mark{
+    font-family:'Syne',sans-serif;font-weight:800;
+    font-size:clamp(64px,11vw,160px);
+    letter-spacing:.32em;text-indent:.32em;
+    color:var(--bone);
+    text-shadow:0 0 80px rgba(127,212,255,.25);
+  }
+  #intro .sub{
+    margin-top:18px;font-size:11px;letter-spacing:.6em;
+    text-indent:.6em;color:var(--dim);text-transform:uppercase;
+  }
+  #intro .enter{
+    margin-top:56px;font-size:9.5px;letter-spacing:.5em;
+    text-indent:.5em;color:var(--gold);text-transform:uppercase;
+    animation:pulse 3.2s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  /* ---------- veil: vignette + grain ---------- */
+  #veil{position:fixed;inset:0;z-index:30;pointer-events:none}
+  #veil::before{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse at center,transparent 52%,rgba(2,3,5,.55) 100%);
+  }
+  #veil::after{
+    content:"";position:absolute;inset:0;opacity:.05;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+  }
+
+  #fallback{
+    position:fixed;inset:0;display:none;z-index:100;
+    align-items:center;justify-content:center;
+    background:var(--void);color:var(--dim);
+    font-size:11px;letter-spacing:.3em;text-transform:uppercase;
+    text-align:center;padding:40px;line-height:2.4;
+  }
+  @media (max-width:760px){
+    .volume{width:220px;max-width:62vw}
+    .volume h3{font-size:15px}
+    .volume p{font-size:11.5px}
+    #hud-meta{display:none}
+    #gauge{right:16px}
+    #hint{right:46px}
+    #hud-id{left:20px}
+    #readout{left:20px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div id="overlay"></div>
+
+<div class="hud" id="hud-id">
+  <div class="sigil">AION</div>
+  <div class="est">Infinite Museum · est. 2050</div>
+</div>
+<div class="hud" id="hud-meta">
+  VI chambers · ∞ floors<br>structure self-curating
+</div>
+<div class="hud" id="readout">
+  <span class="ch" id="ro-ch">CH. I — THRESHOLD</span><br>
+  <span id="ro-pos">DEPTH 0.0 M · ROLL 0°</span>
+</div>
+<div class="hud" id="hint">
+  scroll to traverse<br>the structure responds to attention<br>glyphs on the thread tunnel between chambers
+</div>
+
+<div id="gauge"><div class="thread"></div><div class="tracer"></div></div>
+
+<div id="intro">
+  <div class="mark">AION</div>
+  <div class="sub">An Infinite Museum — est. 2050</div>
+  <div class="enter">scroll to enter the structure</div>
+</div>
+
+<div id="veil"></div>
+<div id="fallback">This structure requires WebGL.<br>Please enter through a modern browser.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  /* ================================================================
+     AION — a navigable information structure.
+     No pages. No sections. One continuous architectural path.
+     ================================================================ */
+
+  var canvas = document.getElementById('scene');
+  var renderer;
+  try{
+    renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, powerPreference:'high-performance'});
+  }catch(e){
+    document.getElementById('fallback').style.display='flex';
+    return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x050608, 1);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  var scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x050608, 0.0105);
+
+  var camera = new THREE.PerspectiveCamera(62, window.innerWidth/window.innerHeight, 0.1, 400);
+  scene.add(camera);
+
+  /* ---------------- lighting ---------------- */
+  scene.add(new THREE.AmbientLight(0x26334a, 0.85));
+  var lantern = new THREE.PointLight(0xd8c9a3, 1.15, 110, 2);
+  lantern.position.set(0, 0.5, 1.5);
+  camera.add(lantern);
+  var manifoldLight = new THREE.PointLight(0x7fd4ff, 1.4, 90, 2);
+  manifoldLight.position.set(0, 2, -262);
+  scene.add(manifoldLight);
+  var archiveLight = new THREE.PointLight(0xd8c9a3, 1.0, 80, 2);
+  archiveLight.position.set(-22, 6, -330);
+  scene.add(archiveLight);
+
+  /* ---------------- the path through the structure ---------------- */
+  function v3(x,y,z){ return new THREE.Vector3(x,y,z); }
+
+  var curve = new THREE.CatmullRomCurve3([
+    v3(   0,  0,   60),
+    v3(   0,  0,    0),   // I    THRESHOLD
+    v3(   0,  5,  -60),   // II   HALL OF RECURSION
+    v3(  16, 10, -120),   //      bend
+    v3(  16,  4, -160),   //      fold entry
+    v3(  16,  4, -220),   // III  THE FOLD (roll segment)
+    v3(   0, -6, -262),   // IV   MANIFOLD GARDEN
+    v3( -22,  0, -330),   // V    ARCHIVE OF LIGHT
+    v3(  -8,  6, -390),   //      bend
+    v3(   0,  6, -440),   // VI   THE DEEP INDEX
+    v3(   0,  6, -520)    //      terminus / origin
+  ]);
+
+  var SAMPLES = 1600;
+  var sampPts = [];
+  for(var i=0;i<=SAMPLES;i++) sampPts.push(curve.getPointAt(i/SAMPLES));
+  function tNear(p){
+    var bi=0, bd=Infinity;
+    for(var i=0;i<=SAMPLES;i++){
+      var d=sampPts[i].distanceToSquared(p);
+      if(d<bd){bd=d;bi=i;}
+    }
+    return bi/SAMPLES;
+  }
+
+  /* ---------------- camera roll: the non-euclidean fold ----------------
+     Through chamber III the corridor rotates a half turn; the floor
+     becomes the ceiling. The rotation completes on approach to IV,
+     so the world quietly agrees with you again.                       */
+  var PI = Math.PI;
+  var tFoldIn  = tNear(v3(16,4,-160));
+  var tFoldOut = tNear(v3(16,4,-220));
+  var tManif   = tNear(v3(0,-6,-262));
+  var rollKeys = [
+    {t:0,        r:0},
+    {t:tFoldIn,  r:0},
+    {t:tFoldOut, r:PI},
+    {t:tManif,   r:PI*2},
+    {t:1,        r:PI*2}
+  ];
+  function rollAt(t){
+    if(t<=rollKeys[0].t) return rollKeys[0].r;
+    for(var i=0;i<rollKeys.length-1;i++){
+      var a=rollKeys[i], b=rollKeys[i+1];
+      if(t>=a.t && t<=b.t){
+        var f=(t-a.t)/Math.max(1e-6,b.t-a.t);
+        var e=0.5-0.5*Math.cos(f*PI);
+        return a.r+(b.r-a.r)*e;
+      }
+    }
+    return rollKeys[rollKeys.length-1].r;
+  }
+
+  /* ---------------- chambers ---------------- */
+  var ROMAN = ['I','II','III','IV','V','VI'];
+  var chambers = [
+    {name:'THRESHOLD',         center:v3(  0,  0,    0)},
+    {name:'HALL OF RECURSION', center:v3(  0,  5,  -60)},
+    {name:'THE FOLD',          center:v3( 16,  4, -190)},
+    {name:'MANIFOLD GARDEN',   center:v3(  0, -6, -262)},
+    {name:'ARCHIVE OF LIGHT',  center:v3(-22,  0, -330)},
+    {name:'THE DEEP INDEX',    center:v3(  0,  6, -460)}
+  ];
+  chambers.forEach(function(c){
+    c.t = tNear(c.center);
+    c.dwell = 0;
+    c.group = new THREE.Group();
+    c.group.position.copy(c.center);
+    scene.add(c.group);
+  });
+
+  var animators = [];
+
+  /* ---------------- materials ---------------- */
+  function lineMat(color,opacity){
+    return new THREE.LineBasicMaterial({color:color, transparent:true, opacity:opacity});
+  }
+
+  /* ---------------- corridor ribs: the visible skeleton of travel ----
+     Rectangular frames strung along the entire path, twisting with
+     the roll of the corridor. They make movement legible —
+     architecture instead of empty space.                              */
+  (function(){
+    var N=120;
+    for(var i=0;i<N;i++){
+      var tt=0.01+(i/(N-1))*0.985;
+      var p=curve.getPointAt(tt);
+      var tan=curve.getTangentAt(tt).normalize();
+      var w=7.5+3.2*Math.sin(i*0.61)+1.5*Math.sin(i*0.13);
+      var h=w*(0.72+0.18*Math.sin(i*0.37));
+      var geo=new THREE.EdgesGeometry(new THREE.PlaneGeometry(w,h));
+      var gold=(i%9===0);
+      var m=lineMat(gold?0xd8c9a3:0x3d4a61, gold?0.34:0.16);
+      var frame=new THREE.LineSegments(geo,m);
+      frame.position.copy(p);
+      frame.lookAt(p.clone().add(tan));
+      frame.rotateZ(-rollAt(tt)+i*0.018);
+      scene.add(frame);
+    }
+  })();
+
+  /* ---------------- ambient dust ---------------- */
+  (function(){
+    var n=1500, pos=new Float32Array(n*3);
+    for(var i=0;i<n;i++){
+      var tt=Math.random();
+      var p=curve.getPointAt(tt);
+      pos[i*3  ]=p.x+(Math.random()-0.5)*70;
+      pos[i*3+1]=p.y+(Math.random()-0.5)*55;
+      pos[i*3+2]=p.z+(Math.random()-0.5)*70;
+    }
+    var g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    var m=new THREE.PointsMaterial({color:0x96a8bd,size:0.09,transparent:true,opacity:0.5,sizeAttenuation:true});
+    scene.add(new THREE.Points(g,m));
+  })();
+
+  /* ---------------- translucent monoliths: layered glass volumes ----- */
+  (function(){
+    var defs=[
+      {p:v3(  9,  2,  -8), s:[0.5,20,12], ry:0.3},
+      {p:v3(-10,  3, -48), s:[0.5,16,10], ry:-0.5},
+      {p:v3( 22,  6,-140), s:[0.5,22,14], ry:1.2},
+      {p:v3(  8, -8,-250), s:[0.5,18,12], ry:0.7},
+      {p:v3(-30,  2,-318), s:[0.5,20,12], ry:-0.9},
+      {p:v3( -6,  8,-430), s:[0.5,24,14], ry:0.2},
+      {p:v3(  6,  4,-470), s:[0.5,24,14], ry:-0.2}
+    ];
+    var mat=new THREE.MeshPhysicalMaterial({
+      color:0x9fb4c8, metalness:0.1, roughness:0.12,
+      transparent:true, opacity:0.07,
+      side:THREE.DoubleSide, depthWrite:false
+    });
+    defs.forEach(function(d){
+      var m=new THREE.Mesh(new THREE.BoxGeometry(d.s[0],d.s[1],d.s[2]),mat);
+      m.position.copy(d.p); m.rotation.y=d.ry;
+      scene.add(m);
+      animators.push(function(time){ m.rotation.y=d.ry+Math.sin(time*0.07+d.p.z)*0.06; });
+    });
+  })();
+
+  /* ================ CHAMBER I — THRESHOLD ================ */
+  (function(){
+    var g=chambers[0].group;
+    var rings=[];
+    [6,9,12.5].forEach(function(r,k){
+      var ring=new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.TorusGeometry(r,0.04,4,90)),
+        lineMat(k===1?0xd8c9a3:0x55657f, k===1?0.5:0.28)
+      );
+      g.add(ring); rings.push(ring);
+    });
+    animators.push(function(time){
+      rings[0].rotation.z= time*0.05; rings[0].rotation.x=Math.sin(time*0.11)*0.25;
+      rings[1].rotation.z=-time*0.04; rings[1].rotation.y=Math.sin(time*0.09)*0.3;
+      rings[2].rotation.z= time*0.025; rings[2].rotation.x=Math.cos(time*0.07)*0.2;
+    });
+  })();
+
+  /* ================ CHAMBER II — HALL OF RECURSION ================ */
+  (function(){
+    var g=chambers[1].group;
+    var cubes=[];
+    for(var k=0;k<6;k++){
+      var s=15*Math.pow(0.62,k);
+      var c=new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(s,s,s)),
+        lineMat(k%2?0xd8c9a3:0x66788f, 0.18+k*0.085)
+      );
+      g.add(c); cubes.push(c);
+    }
+    var core=new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.8,0),
+      new THREE.MeshStandardMaterial({color:0xd8c9a3,metalness:0.9,roughness:0.2,emissive:0x6b5f3e,emissiveIntensity:0.6})
+    );
+    g.add(core);
+    animators.push(function(time){
+      for(var k=0;k<cubes.length;k++){
+        var dir=(k%2?1:-1), sp=0.03+k*0.022;
+        cubes[k].rotation.x=time*sp*dir;
+        cubes[k].rotation.y=time*sp*0.8*dir;
+      }
+      core.rotation.y=time*0.5;
+      core.position.y=Math.sin(time*0.7)*0.4;
+    });
+  })();
+
+  /* ================ CHAMBER III — THE FOLD ================ */
+  (function(){
+    var g=chambers[2].group;
+    // square frames rotating progressively: the corridor visibly twists
+    var frames=[];
+    for(var i=0;i<15;i++){
+      var f=new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.PlaneGeometry(10,10)),
+        lineMat(i%5===0?0x7fd4ff:0x4a5870, i%5===0?0.4:0.22)
+      );
+      f.position.z=-30+ i*(60/14);
+      f.rotation.z=(i/14)*PI;
+      g.add(f); frames.push(f);
+    }
+    // impossible stair ring — steps that climb forever around a loop
+    var stair=new THREE.Group();
+    var steps=14;
+    for(var i=0;i<steps;i++){
+      var a=(i/steps)*PI*2;
+      var box=new THREE.Mesh(
+        new THREE.BoxGeometry(1.6,0.28,0.9),
+        new THREE.MeshStandardMaterial({color:0x8a93a5,metalness:0.7,roughness:0.35})
+      );
+      box.position.set(Math.cos(a)*4.2, (i/steps)*2.4-1.2, Math.sin(a)*4.2);
+      box.rotation.y=-a;
+      stair.add(box);
+    }
+    stair.position.set(0,-7,0);
+    g.add(stair);
+    animators.push(function(time){
+      stair.rotation.y=time*0.12;
+      for(var i=0;i<frames.length;i++){
+        frames[i].rotation.z=(i/14)*PI+Math.sin(time*0.15)*0.05;
+      }
+    });
+  })();
+
+  /* ================ CHAMBER IV — MANIFOLD GARDEN ================ */
+  function kleinFigure8(slices,stacks,a,sc){
+    var pos=[],idx=[];
+    for(var i=0;i<=slices;i++){
+      var u=(i/slices)*PI*2;
+      var cu=Math.cos(u/2), su=Math.sin(u/2);
+      for(var j=0;j<=stacks;j++){
+        var w=(j/stacks)*PI*2;
+        var r=a+cu*Math.sin(w)-su*Math.sin(2*w);
+        var x=r*Math.cos(u), y=r*Math.sin(u);
+        var z=su*Math.sin(w)+cu*Math.sin(2*w);
+        pos.push(x*sc, z*sc, y*sc);
+      }
+    }
+    for(var i=0;i<slices;i++){
+      for(var j=0;j<stacks;j++){
+        var r1=i*(stacks+1)+j, r2=(i+1)*(stacks+1)+j;
+        idx.push(r1,r2,r1+1, r2,r2+1,r1+1);
+      }
+    }
+    var g=new THREE.BufferGeometry();
+    g.setIndex(idx);
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+    g.computeVertexNormals();
+    return g;
+  }
+  (function(){
+    var g=chambers[3].group;
+    var geo=kleinFigure8(150,42,2.6,1.55);
+    var solid=new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+      color:0x46566e, metalness:0.85, roughness:0.28,
+      side:THREE.DoubleSide, flatShading:false
+    }));
+    var wire=new THREE.LineSegments(
+      new THREE.WireframeGeometry(geo),
+      lineMat(0xd8c9a3,0.07)
+    );
+    var pivot=new THREE.Group();
+    pivot.add(solid); pivot.add(wire);
+    pivot.position.y=1;
+    g.add(pivot);
+    animators.push(function(time){
+      pivot.rotation.y=time*0.09;
+      pivot.rotation.z=Math.sin(time*0.05)*0.22;
+      pivot.position.y=1+Math.sin(time*0.3)*0.5;
+    });
+  })();
+
+  /* ================ CHAMBER V — ARCHIVE OF LIGHT ================ */
+  (function(){
+    var g=chambers[4].group;
+    var n=2600;
+    var pos=new Float32Array(n*3), col=new Float32Array(n*3);
+    var cGold=new THREE.Color(0xd8c9a3), cCyan=new THREE.Color(0x7fd4ff), cBone=new THREE.Color(0xe8e4da);
+    for(var i=0;i<n;i++){
+      // spherical shell distribution — a constellation of past visitors
+      var r=5+Math.pow(Math.random(),0.6)*22;
+      var th=Math.random()*PI*2, ph=Math.acos(2*Math.random()-1);
+      pos[i*3  ]=r*Math.sin(ph)*Math.cos(th);
+      pos[i*3+1]=r*Math.cos(ph)*0.65;
+      pos[i*3+2]=r*Math.sin(ph)*Math.sin(th);
+      var c=Math.random()<0.12?cCyan:(Math.random()<0.3?cGold:cBone);
+      col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+    }
+    var geo=new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+    var mat=new THREE.PointsMaterial({
+      size:0.17, vertexColors:true, transparent:true, opacity:0.85,
+      blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+    });
+    var cloud=new THREE.Points(geo,mat);
+    g.add(cloud);
+    animators.push(function(time){
+      cloud.rotation.y=time*0.03;
+      cloud.rotation.x=Math.sin(time*0.04)*0.1;
+      mat.size=0.17+0.05*Math.sin(time*0.8);
+    });
+  })();
+
+  /* ================ CHAMBER VI — THE DEEP INDEX ================ */
+  (function(){
+    var g=chambers[5].group;
+    var outer=new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(26,1)),
+      lineMat(0x55657f,0.2)
+    );
+    var inner=new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(12,0)),
+      lineMat(0xd8c9a3,0.35)
+    );
+    var heart=new THREE.Mesh(
+      new THREE.IcosahedronGeometry(2.2,0),
+      new THREE.MeshStandardMaterial({color:0x7fd4ff,metalness:0.6,roughness:0.2,emissive:0x1d4a63,emissiveIntensity:0.9})
+    );
+    g.add(outer); g.add(inner); g.add(heart);
+    animators.push(function(time){
+      outer.rotation.y= time*0.035; outer.rotation.x=Math.sin(time*0.05)*0.15;
+      inner.rotation.y=-time*0.06;  inner.rotation.z=time*0.02;
+      heart.rotation.y=time*0.4;
+      heart.scale.setScalar(1+0.12*Math.sin(time*1.1));
+    });
+  })();
+
+  /* ================================================================
+     FLOATING INFORMATION VOLUMES
+     Text anchored to coordinates in space. It condenses out of depth
+     as you approach, unfolds with proximity, dissolves behind you.
+     ================================================================ */
+  var volumes=[
+    {n:'01', w:v3(  7,  1,  -2), title:'On Arrival',
+     body:'There is no entrance, because the museum has no outside. You did not load this place; you noticed it. Every visitor arrives mid-thought, somewhere between the first room and the last — which are the same room, observed at different angles.'},
+    {n:'02', w:v3( -7, -1, -16), title:'Protocol of Attention',
+     body:'Nothing here is stored. Exhibits condense out of depth when watched and dissolve when forgotten. Move slowly. The architecture is listening.'},
+
+    {n:'03', w:v3( -8,  10, -52), title:'The Self-Similar Archive',
+     body:'Each gallery contains a smaller, complete copy of the museum. Curators have descended forty-one levels and report no loss of detail. The catalogue describes the catalogue describing the catalogue, accurately.'},
+    {n:'04', w:v3(  8,  3, -68), title:'Droste Engine, 2047',
+     body:'A machine built to picture itself picturing itself. It has not yet finished its first thought. Estimated completion: never, gracefully.'},
+    {n:'05', w:v3(  1, 12, -78), title:'A Note on Scale',
+     body:'In this wing, “smaller” is a direction — like north. Visitors who walk inward long enough return from above.'},
+
+    {n:'06', w:v3( 23,  9, -172), title:'Orientation Is a Convention',
+     body:'This corridor disagrees with your inner ear. The floor you remember is becoming a wall; the wall, a ceiling. Nothing is rotating except your assumptions. Down is wherever the architecture decides to rest your attention.'},
+    {n:'07', w:v3(  9, -1, -206), title:'Escher Wing — Permanent Loan',
+     body:'Stairs that ascend in both directions. A balcony overlooking itself. The geometry is not broken; it has simply finished arguing with Euclid.'},
+
+    {n:'08', w:v3(  8, -3, -254), title:'Specimen M-417',
+     body:'A surface with one side, grown from a seed equation in nine dimensions and pruned to three so that you could stand near it. It is still growing where you cannot look.'},
+    {n:'09', w:v3( -8, -10, -272), title:'Parametric Greenhouse',
+     body:'Nothing in this garden was modelled. Every form is the shadow of a rule, repeated until it became beautiful. The gardeners tend coefficients.'},
+
+    {n:'10', w:v3(-15,  6, -320), title:'All Previous Visitors',
+     body:'Each point of light is a path once walked through this structure. Yours is already among them — a few seconds in the past, still warm.'},
+    {n:'11', w:v3(-29, -4, -340), title:'Generative Requiem',
+     body:'An installation that recomposes itself each time it is observed. No two visitors have stood in the same room, including you, twice.'},
+
+    {n:'12', w:v3(  6, 10, -446), title:'The Catalogue of Everything',
+     body:'The index of this museum is an exhibit in this museum, and therefore must list itself. It does so on every page, in the margin, in a typeface that gets smaller forever.'},
+    {n:'13', w:v3(  0,  6, -484), title:'Final Note / First Note',
+     body:'You have reached the deepest chamber, which is also the lobby. The exit is the entrance, observed at a different angle.',
+     action:'⟲ Return to threshold'}
+  ];
+
+  var overlay=document.getElementById('overlay');
+  volumes.forEach(function(vol){
+    vol.t=Math.max(0,tNear(vol.w)-0.012);
+    var el=document.createElement('div');
+    el.className='volume';
+    el.innerHTML='<div class="v-index">VOLUME '+vol.n+'</div><h3>'+vol.title+'</h3><div class="v-rule"></div><p>'+vol.body+'</p>'
+      +(vol.action?'<button class="v-act">'+vol.action+'</button>':'');
+    overlay.appendChild(el);
+    vol.el=el;
+    vol.pEl=el.querySelector('p');
+    el.addEventListener('click',function(){ flyTo(vol.t); });
+    if(vol.action){
+      el.querySelector('.v-act').addEventListener('click',function(e){
+        e.stopPropagation(); flyTo(0.01);
+      });
+    }
+  });
+
+  /* ---------------- the wayline (depth gauge) ---------------- */
+  var gauge=document.getElementById('gauge');
+  var tracer=gauge.querySelector('.tracer');
+  chambers.forEach(function(c,i){
+    var d=document.createElement('div');
+    d.className='g-node';
+    d.style.top=(c.t*100)+'%';
+    d.setAttribute('data-name', ROMAN[i]+' · '+c.name);
+    d.addEventListener('click',function(){ flyTo(Math.max(0.005,c.t-0.008)); });
+    gauge.appendChild(d);
+    c.node=d;
+  });
+
+  /* ---------------- navigation state ---------------- */
+  var tCur=0, tTarget=0, userMoved=false;
+  function clamp(x,a,b){ return x<a?a:(x>b?b:x); }
+  function flyTo(t){ tTarget=clamp(t,0,1); userMoved=true; }
+
+  window.addEventListener('wheel',function(e){
+    e.preventDefault();
+    tTarget=clamp(tTarget+e.deltaY*0.000115,0,1);
+    userMoved=true;
+  },{passive:false});
+
+  var touchY=null;
+  window.addEventListener('touchstart',function(e){ touchY=e.touches[0].clientY; },{passive:true});
+  window.addEventListener('touchmove',function(e){
+    if(touchY===null) return;
+    var dy=touchY-e.touches[0].clientY;
+    touchY=e.touches[0].clientY;
+    tTarget=clamp(tTarget+dy*0.00045,0,1);
+    userMoved=true;
+  },{passive:true});
+
+  window.addEventListener('keydown',function(e){
+    var step=0.012;
+    if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key===' ') flyTo(tTarget+step);
+    else if(e.key==='ArrowUp'||e.key==='ArrowLeft') flyTo(tTarget-step);
+    else if(e.key==='Home') flyTo(0);
+    else if(e.key==='End') flyTo(1);
+  });
+
+  var mouse={x:0,y:0}, mouseS={x:0,y:0};
+  window.addEventListener('mousemove',function(e){
+    mouse.x=(e.clientX/window.innerWidth)*2-1;
+    mouse.y=(e.clientY/window.innerHeight)*2-1;
+  });
+
+  // gentle invitation: the structure starts moving toward you
+  setTimeout(function(){ if(!userMoved){ tTarget=0.035; } },1900);
+
+  /* ---------------- camera ---------------- */
+  var UP=new THREE.Vector3(0,1,0);
+  function updateCamera(){
+    var t=clamp(tCur,0,0.9995);
+    var pos=curve.getPointAt(t);
+    var tan=curve.getTangentAt(t).normalize();
+    var r=rollAt(t);
+    var up=UP.clone();
+    up.addScaledVector(tan,-up.dot(tan));
+    if(up.lengthSq()<1e-4){ up.set(1,0,0); up.addScaledVector(tan,-up.dot(tan)); }
+    up.normalize().applyAxisAngle(tan,r);
+    camera.position.copy(pos);
+    camera.up.copy(up);
+    camera.lookAt(pos.clone().add(tan));
+    camera.rotateY(-mouseS.x*0.11);
+    camera.rotateX(-mouseS.y*0.075);
+  }
+
+  /* ---------------- HUD elements ---------------- */
+  var introEl=document.getElementById('intro');
+  var hintEl=document.getElementById('hint');
+  var roCh=document.getElementById('ro-ch');
+  var roPos=document.getElementById('ro-pos');
+  var camDir=new THREE.Vector3();
+
+  function nearestChamber(){
+    var bi=0,bd=Infinity;
+    for(var i=0;i<chambers.length;i++){
+      var d=Math.abs(tCur-chambers[i].t);
+      if(d<bd){bd=d;bi=i;}
+    }
+    return bi;
+  }
+
+  /* ---------------- volume projection ---------------- */
+  var prj=new THREE.Vector3();
+  function updateVolumes(){
+    camera.getWorldDirection(camDir);
+    var w=window.innerWidth, h=window.innerHeight;
+    var screenRoll=-rollAt(clamp(tCur,0,1));
+    for(var i=0;i<volumes.length;i++){
+      var vol=volumes[i];
+      var toNode=prj.copy(vol.w).sub(camera.position);
+      var dist=toNode.length();
+      var facing=toNode.normalize().dot(camDir);
+      if(facing<0.35 || dist>62 || dist<3.5){
+        vol.el.style.display='none';
+        continue;
+      }
+      prj.copy(vol.w).project(camera);
+      if(prj.z>1){ vol.el.style.display='none'; continue; }
+      var x=( prj.x*0.5+0.5)*w;
+      var y=(-prj.y*0.5+0.5)*h;
+      // emergence from depth
+      var visIn = clamp((55-dist)/17,0,1);
+      var visOut= clamp((dist-4)/6,0,1);
+      var vis=visIn*visOut*clamp((facing-0.35)/0.25,0,1);
+      if(vis<=0.015){ vol.el.style.display='none'; continue; }
+      var scale=clamp(26/dist,0.55,1.25);
+      vol.el.style.display='block';
+      vol.el.style.opacity=vis.toFixed(3);
+      vol.el.style.zIndex=String(1000-Math.round(dist*10));
+      vol.el.style.filter=vis<0.96?('blur('+((1-vis)*5).toFixed(2)+'px)'):'none';
+      vol.el.style.transform='translate(-50%,-50%) translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px) rotate('+screenRoll.toFixed(4)+'rad) scale('+scale.toFixed(3)+')';
+      // dimensional unfolding: the body resolves with proximity
+      var p=clamp((40-dist)/22,0,1);
+      vol.pEl.style.opacity=Math.pow(p,1.6).toFixed(3);
+      vol.pEl.style.transform='translateY('+((1-p)*9).toFixed(1)+'px)';
+    }
+  }
+
+  /* ---------------- main loop ---------------- */
+  var clock=new THREE.Clock();
+  var frame=0;
+
+  function animate(){
+    requestAnimationFrame(animate);
+    var dt=Math.min(clock.getDelta(),0.05);
+    var time=clock.elapsedTime;
+
+    // travel: long jumps tunnel fast, settle slow
+    var gap=Math.abs(tTarget-tCur);
+    tCur+=(tTarget-tCur)*(1-Math.exp(-dt*(2.4+gap*7)));
+
+    // attention smoothing
+    mouseS.x+=(mouse.x-mouseS.x)*0.045;
+    mouseS.y+=(mouse.y-mouseS.y)*0.045;
+
+    updateCamera();
+
+    // the structure breathes
+    scene.fog.density=0.0105+Math.sin(time*0.18)*0.0008;
+
+    // dwell: chambers bloom for patient visitors
+    for(var i=0;i<chambers.length;i++){
+      var c=chambers[i];
+      if(Math.abs(tCur-c.t)<0.045) c.dwell+=dt;
+      var bloom=1+Math.min(c.dwell/40,1)*0.07;
+      c.group.scale.setScalar(bloom);
+    }
+
+    for(var i=0;i<animators.length;i++) animators[i](time);
+
+    updateVolumes();
+
+    // HUD
+    introEl.style.opacity=String(Math.max(0,1-tCur/0.045));
+    hintEl.style.opacity=tCur>0.12?'0':'1';
+    tracer.style.top=(tCur*100)+'%';
+
+    if((frame++%6)===0){
+      var ci=nearestChamber();
+      for(var i=0;i<chambers.length;i++){
+        chambers[i].node.classList.toggle('active', i===ci && Math.abs(tCur-chambers[i].t)<0.05);
+      }
+      var pos=camera.position;
+      var rollDeg=Math.round(rollAt(clamp(tCur,0,1))*180/PI)%360;
+      roCh.textContent='CH. '+ROMAN[ci]+' — '+chambers[ci].name;
+      roPos.textContent='DEPTH '+Math.abs(pos.z-60).toFixed(1)+' M · ROLL '+rollDeg+'° · T '+tCur.toFixed(3);
+    }
+
+    renderer.render(scene,camera);
+  }
+
+  window.addEventListener('resize',function(){
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+  });
+
+  animate();
+})();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(176,138,79,.5);color:#e8a85a;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#e8a85a;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the museum"><span class="k">&#9666;</span><span class="t">the museum</span></a></nav>
+</body>
+</html>

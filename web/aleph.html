@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ℵ — Recovered Observation Record</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=JetBrains+Mono:wght@200;300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0a0908;
+    --bone:#cfc9bd;
+    --ash:#6e675e;
+    --old:#b89868;
+    --future:#9fb8c8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    height:100%;overflow:hidden;overscroll-behavior:none;
+    background:var(--void);color:var(--bone);
+    font-family:'JetBrains Mono',monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:rgba(184,152,104,.25)}
+  canvas#scene{position:fixed;inset:0;display:block;cursor:default}
+
+  .hud{position:fixed;z-index:40;pointer-events:none;user-select:none}
+  #hud-rec{top:30px;left:36px;font-size:8.5px;font-weight:300;
+    letter-spacing:.32em;color:var(--ash);text-transform:uppercase;line-height:2.3}
+  #hud-rec b{color:var(--bone);font-weight:400}
+  #hud-time{top:32px;right:36px;text-align:right;font-size:8.5px;font-weight:300;
+    letter-spacing:.32em;color:var(--ash);text-transform:uppercase;line-height:2.3}
+
+  /* ---------- the aspect word ---------- */
+  #aspects{
+    position:fixed;left:50%;bottom:15vh;transform:translateX(-50%);
+    z-index:40;pointer-events:none;text-align:center;width:90vw;
+  }
+  .aspect{
+    position:absolute;left:0;right:0;bottom:0;
+    opacity:0;transition:opacity 1.6s ease,letter-spacing 1.6s ease;
+    letter-spacing:.18em;
+  }
+  .aspect.on{opacity:1;letter-spacing:.04em}
+  .aspect .w{
+    font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;
+    font-size:clamp(30px,4.4vw,52px);color:var(--bone);
+  }
+  .aspect .s{
+    margin-top:10px;font-size:9px;font-weight:300;letter-spacing:.26em;
+    color:var(--ash);text-transform:lowercase;
+  }
+
+  /* ---------- observation log ---------- */
+  #log{
+    position:fixed;left:36px;bottom:34px;z-index:40;
+    width:min(420px,70vw);pointer-events:none;
+    font-size:9px;font-weight:300;letter-spacing:.08em;
+    line-height:2.05;color:var(--ash);
+  }
+  #log .ln{opacity:0;animation:lnin 1.8s ease forwards}
+  #log .ln b{color:var(--bone);font-weight:400}
+  #log .ln i{color:var(--old);font-style:normal}
+  @keyframes lnin{to{opacity:1}}
+
+  /* ---------- conceptual map (not a menu — a chart of similarity) ---------- */
+  #map{position:fixed;right:36px;bottom:34px;z-index:50;width:158px;height:118px}
+  #map svg{position:absolute;inset:0;overflow:visible}
+  #map .m-dot{
+    position:absolute;width:9px;height:9px;border-radius:50%;
+    border:1px solid rgba(110,103,94,.8);background:var(--void);
+    transform:translate(-50%,-50%);cursor:pointer;
+    transition:all .5s;
+  }
+  #map .m-dot:hover{border-color:var(--bone)}
+  #map .m-dot.active{
+    background:var(--bone);border-color:var(--bone);
+    box-shadow:0 0 12px rgba(207,201,189,.6);
+  }
+  #map .m-dot::after{
+    content:attr(data-w);position:absolute;left:50%;bottom:14px;
+    transform:translateX(-50%);font-size:7.5px;letter-spacing:.22em;
+    color:var(--bone);white-space:nowrap;opacity:0;transition:opacity .35s;
+  }
+  #map .m-dot:hover::after{opacity:.9}
+  #map .m-cap{
+    position:absolute;left:0;bottom:-18px;width:100%;text-align:right;
+    font-size:7.5px;letter-spacing:.26em;color:var(--ash);text-transform:uppercase;
+  }
+
+  /* ---------- arrival ---------- */
+  #splash{
+    position:fixed;inset:0;z-index:70;pointer-events:none;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;transition:opacity 3s ease;
+  }
+  #splash .aleph{
+    font-family:'Cormorant Garamond',serif;font-weight:300;
+    font-size:clamp(90px,16vh,170px);line-height:1;color:var(--bone);
+    opacity:.92;
+  }
+  #splash .t1{
+    margin-top:22px;font-size:10px;letter-spacing:.55em;text-indent:.55em;
+    color:var(--ash);text-transform:uppercase;
+  }
+  #splash .t2{
+    margin-top:10px;font-size:8.5px;letter-spacing:.4em;text-indent:.4em;
+    color:var(--ash);opacity:.7;text-transform:uppercase;
+  }
+  #splash.gone{opacity:0}
+
+  #veilgrain{position:fixed;inset:0;z-index:30;pointer-events:none}
+  #veilgrain::before{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(4,3,3,.5) 100%);
+  }
+  #veilgrain::after{
+    content:"";position:absolute;inset:0;opacity:.04;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+  }
+
+  #fallback{position:fixed;inset:0;display:none;z-index:100;align-items:center;justify-content:center;
+    background:var(--void);color:var(--ash);font-size:10px;letter-spacing:.3em;
+    text-transform:uppercase;text-align:center;line-height:2.4;padding:40px}
+
+  @media (max-width:760px){
+    #hud-time{display:none}
+    #log{width:80vw;font-size:8px}
+    #map{right:18px;transform:scale(.85);transform-origin:bottom right}
+    #hud-rec{left:18px}
+    #log{left:18px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div class="hud" id="hud-rec">
+  <b>OBJECT ℵ</b> — WITHOUT CATEGORY<br>
+  RECOVERED 2529 · SITE Θ · STATUS: ONGOING<br>
+  EXHIBITED 2090 — AS ANTICIPATED
+</div>
+<div class="hud" id="hud-time">
+  OBSERVATION <span id="obs-t">T+00:00:00</span><br>
+  SUBJECT: <span id="obs-s">PRESENT</span>
+</div>
+
+<div id="aspects"></div>
+<div id="log"></div>
+
+<div id="map">
+  <svg viewBox="0 0 158 118" xmlns="http://www.w3.org/2000/svg">
+    <path id="m-path" fill="none" stroke="rgba(110,103,94,.35)" stroke-width="0.7"/>
+  </svg>
+  <div class="m-cap">distances are similarities</div>
+</div>
+
+<div id="splash">
+  <div class="aleph">ℵ</div>
+  <div class="t1">Object Without Category</div>
+  <div class="t2">recovered observation record — scroll changes what it is</div>
+</div>
+
+<div id="veilgrain"></div>
+<div id="fallback">The record requires WebGL to stabilize.<br>The object will wait. It is good at that.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  /* ================================================================
+     OBJECT ℵ
+     Not a building, machine, organism, or sculpture.
+     A stabilized event. 22,000 points of light used as material.
+     Scroll does not move you — it moves the object between
+     what it is. Distance here is conceptual similarity.
+     ================================================================ */
+
+  var W=window.innerWidth,H=window.innerHeight;
+  var canvas=document.getElementById('scene');
+  var renderer;
+  try{
+    renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,powerPreference:'high-performance'});
+  }catch(e){
+    document.getElementById('fallback').style.display='flex';
+    return;
+  }
+  var PR=Math.min(window.devicePixelRatio,2);
+  renderer.setPixelRatio(PR);
+  renderer.setSize(W,H);
+  renderer.setClearColor(0x0a0908,1);
+
+  var scene=new THREE.Scene();
+  scene.fog=new THREE.FogExp2(0x0a0908,0.011);
+  var camera=new THREE.PerspectiveCamera(55,W/H,0.1,800);
+
+  var PI=Math.PI;
+  function clamp(x,a,b){return x<a?a:(x>b?b:x);}
+  function rand(a,b){return a+Math.random()*(b-a);}
+
+  /* ================================================================
+     SEVEN CONFIGURATIONS — what the object is, by turns.
+     The same matter. Different arguments.
+     ================================================================ */
+  var N=22000;
+
+  function cfgThinks(){ // a Thomas attractor: filaments that are conclusions
+    var a=new Float32Array(N*3);
+    var b=0.208186,x=1.1,y=1.3,z=-0.01,dt=0.05;
+    for(var i=0;i<2500;i++){
+      var dx=Math.sin(y)-b*x, dy=Math.sin(z)-b*y, dz=Math.sin(x)-b*z;
+      x+=dx*dt;y+=dy*dt;z+=dz*dt;
+    }
+    for(var i=0;i<N;i++){
+      var dx=Math.sin(y)-b*x, dy=Math.sin(z)-b*y, dz=Math.sin(x)-b*z;
+      x+=dx*dt;y+=dy*dt;z+=dz*dt;
+      a[i*3]=x*3.3;a[i*3+1]=y*3.3;a[i*3+2]=z*3.3;
+    }
+    return a;
+  }
+
+  function cfgRemembers(){ // strata older than the universe around them
+    var a=new Float32Array(N*3);
+    for(var i=0;i<N;i++){
+      var u=Math.random()*2-1, th=Math.random()*PI*2;
+      var s=Math.sqrt(1-u*u);
+      var dx=s*Math.cos(th), dy=u, dz=s*Math.sin(th);
+      var shell=i%9;
+      var base=3.4+shell*1.18;
+      var r=base
+        +0.85*Math.sin(5*dy*(shell+1)+shell*2.1)
+        +0.55*Math.sin(7*(dx+dz)+shell*1.3)
+        +rand(-0.12,0.12);
+      a[i*3]=dx*r;a[i*3+1]=dy*r*0.92;a[i*3+2]=dz*r;
+    }
+    return a;
+  }
+
+  function cfgTeaches(){ // each branch ends where a question begins
+    var a=new Float32Array(N*3);
+    var B=170,per=Math.floor(N/B),idx=0;
+    for(var b=0;b<B;b++){
+      var u=Math.random()*2-1,th=Math.random()*PI*2,s=Math.sqrt(1-u*u);
+      var ex=s*Math.cos(th),ey=u,ez=s*Math.sin(th);
+      var L=rand(11.5,16.5);
+      var p0x=rand(-1.6,1.6),p0y=rand(-1.6,1.6),p0z=rand(-1.6,1.6);
+      var p2x=ex*L,p2y=ey*L*0.9,p2z=ez*L;
+      var p1x=(p0x+p2x)/2+rand(-4,4),p1y=(p0y+p2y)/2+rand(-4,4),p1z=(p0z+p2z)/2+rand(-4,4);
+      for(var k=0;k<per&&idx<N;k++,idx++){
+        var t=k/(per-1);
+        if(t>0.88)t=0.88+ (t-0.88)*0.5 + rand(0,0.05); // points crowd at the tip
+        var it=1-t;
+        var px=it*it*p0x+2*it*t*p1x+t*t*p2x;
+        var py=it*it*p0y+2*it*t*p1y+t*t*p2y;
+        var pz=it*it*p0z+2*it*t*p1z+t*t*p2z;
+        var j=0.22+t*0.18;
+        a[idx*3]=px+rand(-j,j);a[idx*3+1]=py+rand(-j,j);a[idx*3+2]=pz+rand(-j,j);
+      }
+    }
+    while(idx<N){a[idx*3]=rand(-1,1);a[idx*3+1]=rand(-1,1);a[idx*3+2]=rand(-1,1);idx++;}
+    return a;
+  }
+
+  function cfgCommunicates(){ // standing waves in an undiscovered medium
+    var a=new Float32Array(N*3);
+    var i=0,guard=0;
+    while(i<N&&guard<900000){
+      guard++;
+      var x=rand(-13,13),y=rand(-11,11),z=rand(-13,13);
+      var v=Math.sin(0.55*x)+Math.sin(0.62*y+1.3)+Math.sin(0.48*z+2.6);
+      if(Math.abs(v)<0.165){
+        a[i*3]=x;a[i*3+1]=y;a[i*3+2]=z;i++;
+      }
+    }
+    while(i<N){a[i*3]=rand(-13,13);a[i*3+1]=rand(-11,11);a[i*3+2]=rand(-13,13);i++;}
+    return a;
+  }
+
+  function cfgGenerates(){ // quasicrystal: order without symmetry
+    var a=new Float32Array(N*3);
+    var phi=(1+Math.sqrt(5))/2;
+    var ks=[[1,phi,0],[1,-phi,0],[0,1,phi],[0,1,-phi],[phi,0,1],[-phi,0,1]];
+    for(var k=0;k<6;k++){
+      var l=Math.hypot(ks[k][0],ks[k][1],ks[k][2]);
+      ks[k][0]*=1.05/l;ks[k][1]*=1.05/l;ks[k][2]*=1.05/l;
+    }
+    var i=0,guard=0;
+    while(i<N&&guard<3000000){
+      guard++;
+      var x=rand(-12,12),y=rand(-12,12),z=rand(-12,12);
+      var v=0;
+      for(var k=0;k<6;k++)v+=Math.cos(ks[k][0]*x+ks[k][1]*y+ks[k][2]*z);
+      if(v>3.55){
+        a[i*3]=x;a[i*3+1]=y;a[i*3+2]=z;i++;
+      }
+    }
+    while(i<N){a[i*3]=rand(-12,12);a[i*3+1]=rand(-12,12);a[i*3+2]=rand(-12,12);i++;}
+    return a;
+  }
+
+  function cfgEvolves(){ // the shell records its own next chamber
+    var a=new Float32Array(N*3);
+    var GA=2.39996323;
+    for(var i=0;i<N;i++){
+      var f=i/N;
+      var ang=i*GA;
+      var r=1.6+11.8*Math.pow(f,0.72)+0.8*Math.sin(ang*0.13);
+      var y=-10.5+20.5*f+Math.sin(ang*0.5)*0.35;
+      var jx=rand(-0.45,0.45),jy=rand(-0.45,0.45),jz=rand(-0.45,0.45);
+      a[i*3]=Math.cos(ang)*r+jx;
+      a[i*3+1]=y+jy;
+      a[i*3+2]=Math.sin(ang)*r+jz;
+    }
+    return a;
+  }
+
+  function cfgObserves(){ // an iris. it watches. local +z faces the watcher.
+    var a=new Float32Array(N*3);
+    for(var i=0;i<N;i++){
+      var ring=i%14;
+      var rr=3.7+ring*0.56+rand(-0.1,0.1);
+      var an=Math.random()*PI*2;
+      var z=2.4-rr*rr*0.013+rand(-0.12,0.12);
+      a[i*3]=Math.cos(an)*rr;
+      a[i*3+1]=Math.sin(an)*rr;
+      a[i*3+2]=z;
+    }
+    return a;
+  }
+
+  var ASPECTS=[
+    {w:'it thinks',       s:'the filaments are not connections. they are conclusions.', cfg:cfgThinks,       dolly:36, mx:24, my:34},
+    {w:'it remembers',    s:'strata older than the universe that contains them.',       cfg:cfgRemembers,    dolly:34, mx:52, my:14},
+    {w:'it teaches',      s:'each branch ends precisely where a question begins.',      cfg:cfgTeaches,      dolly:40, mx:88, my:24},
+    {w:'it communicates', s:'standing waves in a medium not yet discovered.',           cfg:cfgCommunicates, dolly:36, mx:120,my:44},
+    {w:'it generates meaning', s:'order without symmetry. grammar without language.',   cfg:cfgGenerates,    dolly:34, mx:132,my:82},
+    {w:'it evolves',      s:'the shell records its own next chamber.',                  cfg:cfgEvolves,      dolly:37, mx:88, my:96},
+    {w:'it observes',     s:'you have been part of the record since you arrived.',      cfg:cfgObserves,     dolly:27, mx:34, my:84}
+  ];
+  var configs=ASPECTS.map(function(a){return a.cfg();});
+
+  /* ---------------- the particle body ---------------- */
+  var geo=new THREE.BufferGeometry();
+  var posArr=new Float32Array(N*3);
+  var colArr=new Float32Array(N*3);
+  var scatter=new Float32Array(N*3);
+  var band=new Uint8Array(N);       // 0 ancient · 1 present · 2 future
+  var ph=new Float32Array(N),spd=new Float32Array(N),amp=new Float32Array(N);
+
+  var C_OLD=[0.62,0.50,0.34], C_NOW=[0.66,0.63,0.57], C_FUT=[0.48,0.58,0.68];
+  for(var i=0;i<N;i++){
+    var r=Math.random();
+    band[i]=r<0.18?0:(r>0.82?2:1);
+    var c=band[i]===0?C_OLD:(band[i]===2?C_FUT:C_NOW);
+    var dim=rand(0.55,1.0);
+    colArr[i*3]=c[0]*dim;colArr[i*3+1]=c[1]*dim;colArr[i*3+2]=c[2]*dim;
+    var u=Math.random()*2-1,th=Math.random()*PI*2,s=Math.sqrt(1-u*u),rr=rand(40,85);
+    scatter[i*3]=s*Math.cos(th)*rr;scatter[i*3+1]=u*rr;scatter[i*3+2]=s*Math.sin(th)*rr;
+    ph[i]=Math.random()*PI*2;
+    spd[i]=rand(0.3,1.1);
+    amp[i]=rand(0.06,0.3);
+    posArr[i*3]=scatter[i*3];posArr[i*3+1]=scatter[i*3+1];posArr[i*3+2]=scatter[i*3+2];
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(posArr,3).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('color',new THREE.BufferAttribute(colArr,3));
+  var pmat=new THREE.PointsMaterial({
+    size:0.085,vertexColors:true,transparent:true,opacity:0.85,
+    blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true
+  });
+  var artifact=new THREE.Points(geo,pmat);
+  scene.add(artifact);
+
+  var animators=[];
+
+  /* ---------------- the shadow, which disagrees ---------------- */
+  (function(){
+    var dust=new THREE.Mesh(new THREE.CircleGeometry(26,48),
+      new THREE.MeshBasicMaterial({color:0x100e0c}));
+    dust.geometry.rotateX(-PI/2);
+    dust.position.y=-14.2;
+    scene.add(dust);
+    var kGeo=new THREE.TorusKnotGeometry(5.6,1.5,160,10,2,3);
+    kGeo.rotateX(PI/2);
+    var knot=new THREE.Mesh(kGeo,new THREE.MeshBasicMaterial({color:0x030302}));
+    knot.scale.y=0.012;
+    knot.position.y=-14.0;
+    scene.add(knot);
+    animators.push(function(t){
+      knot.rotation.y=t*0.05;
+      knot.position.x=Math.sin(t*0.043)*2.4;   // it wanders. the object does not.
+      var s=1+0.06*Math.sin(t*0.21);
+      knot.scale.x=s;knot.scale.z=s;
+    });
+  })();
+
+  /* ---------------- structures visible only indirectly ---------------- */
+  var veils=[];
+  (function(){
+    var centers=[v(-17,9,7),v(15,-6,-12),v(3,16,-15)];
+    function v(x,y,z){return new THREE.Vector3(x,y,z);}
+    centers.forEach(function(c,vi){
+      var pts=[];
+      for(var k=0;k<7;k++){
+        var a=(k/7)*PI*2;
+        pts.push(new THREE.Vector3(
+          c.x+Math.cos(a)*rand(5,9),
+          c.y+rand(-4,4),
+          c.z+Math.sin(a)*rand(5,9)));
+      }
+      var curve=new THREE.CatmullRomCurve3(pts,true);
+      var tube=new THREE.Mesh(
+        new THREE.TubeGeometry(curve,140,0.32,5,true),
+        new THREE.MeshBasicMaterial({color:0x8fa4b4,transparent:true,opacity:0,depthWrite:false})
+      );
+      scene.add(tube);
+      veils.push({mesh:tube,center:c});
+    });
+  })();
+
+  /* ---------------- the cavity that is larger inside ---------------- */
+  var interiorScene=new THREE.Scene();
+  interiorScene.fog=new THREE.FogExp2(0x060708,0.0045);
+  var interiorCam=new THREE.PerspectiveCamera(72,1,0.1,1200);
+  var interiorPts=new THREE.Points(geo,new THREE.PointsMaterial({
+    size:0.5,vertexColors:true,transparent:true,opacity:0.9,
+    blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true
+  }));
+  interiorPts.scale.setScalar(6);
+  interiorScene.add(interiorPts);
+  var rt2=new THREE.WebGLRenderTarget(1024,1024,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});
+  var portal=new THREE.Mesh(
+    new THREE.CircleGeometry(2.5,48),
+    new THREE.MeshBasicMaterial({map:rt2.texture,fog:false})
+  );
+  portal.position.set(11.5,4.5,1);
+  scene.add(portal);
+  var rim=new THREE.Mesh(
+    new THREE.RingGeometry(2.5,2.56,48),
+    new THREE.MeshBasicMaterial({color:0xcfc9bd,transparent:true,opacity:0.3,side:THREE.DoubleSide})
+  );
+  rim.position.copy(portal.position);
+  scene.add(rim);
+
+  /* ---------------- unresolved background structure ---------------- */
+  (function(){
+    var n=550,p=new Float32Array(n*3);
+    for(var i=0;i<n;i++){
+      var u=Math.random()*2-1,th=Math.random()*PI*2,s=Math.sqrt(1-u*u),r=rand(120,320);
+      p[i*3]=s*Math.cos(th)*r;p[i*3+1]=u*r*0.7;p[i*3+2]=s*Math.sin(th)*r;
+    }
+    var g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(p,3));
+    var m=new THREE.PointsMaterial({color:0x3a3833,size:0.8,transparent:true,opacity:0.5,fog:false,sizeAttenuation:true});
+    scene.add(new THREE.Points(g,m));
+  })();
+
+  /* ---------------- DOM: aspects, map, log ---------------- */
+  var aspectsEl=document.getElementById('aspects');
+  ASPECTS.forEach(function(a){
+    var d=document.createElement('div');
+    d.className='aspect';
+    d.innerHTML='<div class="w">'+a.w+'</div><div class="s">'+a.s+'</div>';
+    aspectsEl.appendChild(d);
+    a.el=d;
+  });
+
+  var mapEl=document.getElementById('map');
+  var pathEl=document.getElementById('m-path');
+  var dpath='';
+  ASPECTS.forEach(function(a,i){
+    dpath+=(i===0?'M':'L')+a.mx+' '+a.my+' ';
+    var dot=document.createElement('div');
+    dot.className='m-dot';
+    dot.style.left=a.mx+'px';dot.style.top=a.my+'px';
+    dot.setAttribute('data-w',a.w);
+    dot.addEventListener('click',function(){flyToAspect(i);});
+    mapEl.appendChild(dot);
+    a.dot=dot;
+  });
+  pathEl.setAttribute('d',dpath+'Z');
+
+  var logEl=document.getElementById('log');
+  var obsStart=performance.now();
+  function stamp(){
+    var s=Math.floor((performance.now()-obsStart)/1000);
+    var m=Math.floor(s/60);s=s%60;
+    var h=Math.floor(m/60);m=m%60;
+    function z(x){return (x<10?'0':'')+x;}
+    return 'T+'+z(h)+':'+z(m)+':'+z(s);
+  }
+  function log(html){
+    var d=document.createElement('div');
+    d.className='ln';
+    d.innerHTML='<b>'+stamp()+'</b> — '+html;
+    logEl.appendChild(d);
+    while(logEl.children.length>6)logEl.removeChild(logEl.firstChild);
+  }
+
+  /* ---------------- conceptual navigation ---------------- */
+  var cCur=0,cTarget=0,userActed=false;
+  function mod7(x){return ((x%7)+7)%7;}
+  function flyToAspect(i){
+    var base=Math.round((cTarget-i)/7)*7+i;
+    var cands=[base,base-7,base+7],best=cands[0];
+    for(var k=1;k<3;k++)if(Math.abs(cands[k]-cTarget)<Math.abs(best-cTarget))best=cands[k];
+    cTarget=best;userActed=true;
+  }
+  window.addEventListener('wheel',function(e){
+    e.preventDefault();
+    cTarget+=e.deltaY*0.00145;
+    userActed=true;
+  },{passive:false});
+  window.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key===' '){cTarget+=1;userActed=true;}
+    else if(e.key==='ArrowUp'||e.key==='ArrowLeft'){cTarget-=1;userActed=true;}
+    else if(e.key>='1'&&e.key<='7')flyToAspect(parseInt(e.key,10)-1);
+  });
+
+  /* ---------------- orbit + attention ---------------- */
+  var az=0.6,el=0.18,azT=az,elT=el;
+  var dragging=false,lx=0,ly=0;
+  var mouse={x:0,y:0},mouseS={x:0,y:0};
+  var lastMove=performance.now(),startle=0,glance=0,glanceCooldown=0;
+  var mouseSpeed=0,lastMX=0,lastMY=0,lastMT=performance.now();
+
+  window.addEventListener('mousedown',function(e){dragging=true;lx=e.clientX;ly=e.clientY;});
+  window.addEventListener('mouseup',function(){dragging=false;});
+  window.addEventListener('mousemove',function(e){
+    mouse.x=(e.clientX/W)*2-1;mouse.y=(e.clientY/H)*2-1;
+    var now=performance.now();
+    var dmx=e.clientX-lastMX,dmy=e.clientY-lastMY,dms=Math.max(1,now-lastMT);
+    mouseSpeed=mouseSpeed*0.85+(Math.hypot(dmx,dmy)/dms)*0.15;
+    lastMX=e.clientX;lastMY=e.clientY;lastMT=now;
+    if(mouseSpeed>2.2&&startle<0.2){
+      startle=1;
+      if(Math.random()<0.3)log('sudden movement. already incorporated.');
+    }
+    if(dragging){
+      azT-=(e.clientX-lx)*0.0042;
+      elT=clamp(elT+(e.clientY-ly)*0.003,-1.25,1.25);
+      lx=e.clientX;ly=e.clientY;
+      userActed=true;
+    }
+    lastMove=now;
+  });
+  var tY=null;
+  window.addEventListener('touchstart',function(e){tY=e.touches[0].clientY;},{passive:true});
+  window.addEventListener('touchmove',function(e){
+    if(tY!==null){cTarget+=(tY-e.touches[0].clientY)*0.004;userActed=true;}
+    tY=e.touches[0].clientY;lastMove=performance.now();
+  },{passive:true});
+
+  /* ---------------- scripted observations ---------------- */
+  var timeline=[
+    [4,'condensation complete. the object has agreed to be visible.'],
+    [13,'parts of it are not objects. they are <i>stabilized events</i>.'],
+    [26,'light is load-bearing here.'],
+    [44,'the shadow disagrees with the object. both are correct.'],
+    [70,'note the pale regions: they arrive at each new form <i>before</i> the rest. they are early. or we are late.'],
+    [100,'the amber regions persist in forms the object has already abandoned. they are older than their surroundings.'],
+    [140,'categorisation attempts: 7. successes: 0.'],
+    [200,'this record is also being read by the object.']
+  ];
+  var tlIdx=0;
+  var visited={};
+  var portalSeen=false,veilSeen=false,stared=false;
+
+  /* ---------------- camera ---------------- */
+  var dolly=36,dollyT=36;
+  function updateCamera(){
+    az+=(azT-az)*0.06;
+    el+=(elT-el)*0.06;
+    mouseS.x+=(mouse.x-mouseS.x)*0.04;
+    mouseS.y+=(mouse.y-mouseS.y)*0.04;
+    dolly+=(dollyT-dolly)*0.03;
+    var ce=Math.cos(el),se=Math.sin(el);
+    camera.position.set(
+      Math.cos(az)*ce*dolly,
+      se*dolly*0.8+2,
+      Math.sin(az)*ce*dolly);
+    camera.lookAt(0,1,0);
+    camera.rotateY(-mouseS.x*0.05);
+    camera.rotateX(-mouseS.y*0.035);
+  }
+
+  /* ---------------- aspect bookkeeping ---------------- */
+  var curAspect=-1;
+  function setAspect(i){
+    if(i===curAspect)return;
+    curAspect=i;
+    ASPECTS.forEach(function(a,k){
+      a.el.classList.toggle('on',k===i);
+      a.dot.classList.toggle('active',k===i);
+    });
+    dollyT=ASPECTS[i].dolly;
+    if(!visited[i]){
+      visited[i]=true;
+      log('aspect stabilized: <b>'+ASPECTS[i].w+'</b>.');
+      if(i===6)log('it has been doing this the whole time.');
+    }
+  }
+
+  /* ---------------- main loop ---------------- */
+  var splashEl=document.getElementById('splash');
+  var obsTEl=document.getElementById('obs-t');
+  var obsSEl=document.getElementById('obs-s');
+  var clock=new THREE.Clock();
+  var frame=0,splashGone=false;
+  var idleAz=0;
+  var tmpObj=new THREE.Object3D();
+  var camDir=new THREE.Vector3(),toC=new THREE.Vector3();
+
+  function bell(x,c){ // proximity of conceptual position x to aspect c, on the ring
+    var d=Math.abs(mod7(x)-c);
+    d=Math.min(d,7-d);
+    return clamp(1-d*1.6,0,1);
+  }
+
+  function animate(){
+    requestAnimationFrame(animate);
+    var dt=Math.min(clock.getDelta(),0.05);
+    var t=clock.elapsedTime;
+
+    // conceptual travel — long distances take longer. similarity is distance.
+    var gap=Math.abs(cTarget-cCur);
+    cCur+=(cTarget-cCur)*(1-Math.exp(-dt*(1.9+gap*0.6)));
+
+    startle*=Math.exp(-dt*1.6);
+    glance=Math.max(0,glance-dt);
+
+    // it notices stillness
+    var now=performance.now();
+    if(now-lastMove>9000&&now>glanceCooldown){
+      glanceCooldown=now+45000;
+      glance=4.5;
+      if(!stared){stared=true;log('stillness detected. <b>it is looking back.</b>');}
+      else log('it checks on you, periodically.');
+    }
+
+    // condensation on arrival
+    var gInit=clamp((t-0.8)/5.2,0,1);
+    gInit=gInit*gInit*(3-2*gInit);
+    if(!splashGone&&(gInit>=1||userActed)){
+      splashGone=true;splashEl.classList.add('gone');
+    }
+
+    // morph: present, with the future early and the past late
+    var cm=mod7(cCur);
+    var i0=Math.floor(cm)%7,i1=(i0+1)%7;
+    var f=cm-Math.floor(cm);
+    var fe=f*f*(3-2*f);
+    var A0=configs[i0],A1=configs[i1];
+    var obsW=bell(cCur,6);
+    var startleK=1+startle*0.32*obsW;
+    var pa=geo.attributes.position.array;
+    for(var i=0;i<N;i++){
+      var fl=fe;
+      if(band[i]===2)fl=Math.min(1,fe+0.20);
+      else if(band[i]===0)fl=Math.max(0,fe-0.20);
+      var i3=i*3;
+      var px=A0[i3]*(1-fl)+A1[i3]*fl;
+      var py=A0[i3+1]*(1-fl)+A1[i3+1]*fl;
+      var pz=A0[i3+2]*(1-fl)+A1[i3+2]*fl;
+      var wt=band[i]===2?-t:t; // the future moves through time the other way
+      var s1=Math.sin(wt*spd[i]+ph[i])*amp[i];
+      var s2=Math.sin(wt*spd[i]*1.31+ph[i]*1.7)*amp[i];
+      px+=s1;py+=s2;pz+=Math.sin(wt*spd[i]*0.77+ph[i]*0.6)*amp[i];
+      if(obsW>0.01){px*=startleK;py*=startleK;}
+      if(gInit<1){
+        var gi=1-gInit;
+        px=px*gInit+scatter[i3]*gi;
+        py=py*gInit+scatter[i3+1]*gi;
+        pz=pz*gInit+scatter[i3+2]*gi;
+      }
+      pa[i3]=px;pa[i3+1]=py;pa[i3+2]=pz;
+    }
+    geo.attributes.position.needsUpdate=true;
+
+    // orientation: slow tumble, except when it watches
+    var faceAmt=Math.max(obsW,clamp(glance/1.5,0,1));
+    tmpObj.position.set(0,0,0);
+    tmpObj.lookAt(camera.position);
+    var idleQ=new THREE.Quaternion().setFromEuler(new THREE.Euler(t*0.04,t*0.067,0));
+    artifact.quaternion.copy(idleQ).slerp(tmpObj.quaternion,faceAmt);
+    interiorPts.quaternion.copy(artifact.quaternion);
+
+    // idle drift of the observer
+    if(!dragging)azT+=dt*0.022;
+
+    updateCamera();
+
+    // veils: visible only when not looked at
+    camera.getWorldDirection(camDir);
+    for(var k=0;k<veils.length;k++){
+      var vl=veils[k];
+      toC.copy(vl.center).sub(camera.position).normalize();
+      var align=toC.dot(camDir);
+      var op=clamp((0.93-align)*1.6,0,1)*0.13*gInit;
+      vl.mesh.material.opacity=op;
+      if(!veilSeen&&align>0.45&&align<0.8&&t>20){
+        veilSeen=true;
+        log('peripheral structures confirmed. they prefer not to be looked at.');
+      }
+    }
+
+    // portal: the cavity, regarded
+    portal.lookAt(camera.position);
+    rim.lookAt(camera.position);
+    toC.copy(portal.position).sub(camera.position).normalize();
+    if(!portalSeen&&toC.dot(camDir)>0.965&&t>12){
+      portalSeen=true;
+      log('the cavity contains more space than the object enclosing it. <i>measurement declined.</i>');
+    }
+
+    // shadow + misc animators
+    for(var k=0;k<animators.length;k++)animators[k](t);
+
+    // scripted record
+    if(tlIdx<timeline.length&&t>timeline[tlIdx][0]){
+      log(timeline[tlIdx][1]);tlIdx++;
+    }
+
+    if((frame++%8)===0){
+      setAspect(Math.floor(cm+0.5)%7);
+      obsTEl.textContent=stamp();
+      obsSEl.textContent=(now-lastMove>9000)?'STILL · OBSERVED':'PRESENT';
+    }
+
+    // interior of the cavity: vaster than outside
+    interiorCam.aspect=1;
+    var ia=az*0.35+t*0.012;
+    interiorCam.position.set(Math.cos(ia)*150,30,Math.sin(ia)*150);
+    interiorCam.lookAt(0,0,0);
+    interiorCam.updateProjectionMatrix();
+    renderer.setRenderTarget(rt2);
+    renderer.render(interiorScene,interiorCam);
+    renderer.setRenderTarget(null);
+
+    renderer.render(scene,camera);
+  }
+
+  window.addEventListener('resize',function(){
+    W=window.innerWidth;H=window.innerHeight;
+    camera.aspect=W/H;
+    camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+  });
+
+  setAspect(0);
+  animate();
+})();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(176,138,79,.5);color:#e8a85a;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#e8a85a;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the museum"><span class="k">&#9666;</span><span class="t">the museum</span></a></nav>
+</body>
+</html>

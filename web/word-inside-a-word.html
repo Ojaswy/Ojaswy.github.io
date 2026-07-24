@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>a word inside a word</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    height:100%;overflow:hidden;overscroll-behavior:none;
+    background:#ebe3d3;
+    font-family:'Fraunces',serif;
+    -webkit-user-select:none;user-select:none;
+    transition:background 3s ease;
+  }
+  #sway{position:fixed;inset:-6vmax;transition:none}
+  canvas#ink{position:absolute;inset:0;display:block}
+  #world{position:absolute;left:0;top:0;width:100%;height:100%;z-index:2}
+
+  .organism{position:absolute;left:0;top:0;width:0;height:0;will-change:transform,opacity}
+  .w{
+    position:absolute;white-space:nowrap;
+    transform-origin:center;
+    color:#2a2419;
+    line-height:1;
+  }
+  .w.portal{cursor:zoom-in}
+  .w.portal:hover{color:#7a3c22}
+  .w.conn{color:#6f6452}
+
+  /* marginalia — records, not navigation */
+  .marg{position:fixed;z-index:6;pointer-events:none;
+    font-size:11px;font-style:italic;color:#7d7260;
+    font-variation-settings:'opsz' 12,'wght' 420,'SOFT' 60,'WONK' 0;
+    letter-spacing:.04em;line-height:1.9}
+  #folio{top:24px;left:30px}
+  #fleuron{top:22px;right:30px;font-size:18px;font-style:normal;opacity:.5;transition:opacity 2s}
+  #lineage{bottom:24px;left:30px;max-width:46vw}
+  #coastline{bottom:24px;right:30px;text-align:right}
+  #hint{
+    position:fixed;left:50%;bottom:9vh;transform:translateX(-50%);
+    z-index:6;pointer-events:none;text-align:center;
+    font-size:12px;font-style:italic;color:#8a7d68;
+    letter-spacing:.06em;transition:opacity 2.5s;
+  }
+
+  #grainveil{position:fixed;inset:0;z-index:5;pointer-events:none}
+  #grainveil::before{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse at 50% 42%,transparent 55%,rgba(94,80,58,.14) 100%);
+  }
+  #grainveil::after{
+    content:"";position:absolute;inset:0;opacity:.05;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>");
+  }
+</style>
+</head>
+<body>
+
+<div id="sway">
+  <canvas id="ink"></canvas>
+  <div id="world"></div>
+</div>
+
+<div class="marg" id="folio">fol. 0</div>
+<div class="marg" id="fleuron">❦</div>
+<div class="marg" id="lineage"></div>
+<div class="marg" id="coastline"></div>
+<div id="hint">approach any word — scrolling is approaching · drag to drift</div>
+<div id="grainveil"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ================================================================
+     a word inside a word
+     The fractal was discovered before the page. So there are no
+     pages — only an infinite sentence. Every word opens into a
+     sentence; every sentence is a word in a larger one. Migration
+     replaces navigation. The grammar is closed; the text is not.
+     ================================================================ */
+
+  var W=window.innerWidth,H=window.innerHeight;
+  var S=16;                 // scale ratio between generations
+  var BOX_W=1200;           // logical extent of one organism
+
+  /* ---------------- seeded chance ---------------- */
+  function xmur3(str){
+    var h=1779033703^str.length;
+    for(var i=0;i<str.length;i++){
+      h=Math.imul(h^str.charCodeAt(i),3432918353);
+      h=(h<<13)|(h>>>19);
+    }
+    return function(){
+      h=Math.imul(h^(h>>>16),2246822507);
+      h=Math.imul(h^(h>>>13),3266489909);
+      return (h^=h>>>16)>>>0;
+    };
+  }
+  function mulberry32(a){
+    return function(){
+      a|=0;a=(a+0x6D2B79F5)|0;
+      var t=Math.imul(a^(a>>>15),1|a);
+      t=(t+Math.imul(t^(t>>>7),61|t))^t;
+      return ((t^(t>>>14))>>>0)/4294967296;
+    };
+  }
+  function rngFor(seed){return mulberry32(xmur3(seed)());}
+
+  /* ---------------- the closed lexicon ---------------- */
+  var KIN={
+    tide:['moon','salt','harbor','coast','bell'],
+    moon:['tide','clock','sleep','ash','lantern'],
+    salt:['tide','coast','bone','winter','archive'],
+    harbor:['lantern','tide','map','letter','sleep'],
+    lantern:['moth','harbor','ember','sleep','door'],
+    letter:['archive','word','hand','harbor','thread'],
+    archive:['dust','letter','vault','winter','map'],
+    dust:['archive','ash','moth','shell','silence'],
+    winter:['seed','salt','clock','breath','sleep'],
+    seed:['winter','orchard','shell','word','garden'],
+    orchard:['seed','branch','season','garden','bell'],
+    root:['branch','vein','door','stone','dream'],
+    branch:['root','leaf','vein','orchard','thread'],
+    leaf:['branch','vein','weather','dust','letter'],
+    vein:['branch','river','leaf','bone','thread'],
+    river:['delta','stone','vein','fog','bell'],
+    delta:['river','map','branch','coast','thread'],
+    stone:['river','bone','vault','silence','door'],
+    map:['coast','archive','delta','harbor','eye'],
+    coast:['salt','map','fog','tide','thread'],
+    fog:['coast','breath','river','sleep','eye'],
+    bell:['choir','echo','harbor','clock','stone'],
+    choir:['bell','breath','vault','echo','wind'],
+    echo:['bell','choir','shell','silence','word'],
+    vault:['archive','stone','choir','door','bone'],
+    breath:['choir','fog','winter','wind','silence'],
+    grammar:['sentence','word','silence','thread','loom'],
+    sentence:['word','grammar','breath','river','thread'],
+    word:['sentence','letter','seed','echo','silence'],
+    silence:['word','breath','stone','dust','vault'],
+    clock:['pendulum','winter','moon','rust','bell'],
+    pendulum:['clock','breath','thread','bone','moon'],
+    rust:['clock','ember','ash','salt','door'],
+    ash:['ember','dust','moon','rust','winter'],
+    ember:['ash','lantern','rust','moth','dream'],
+    sleep:['dream','moon','winter','fog','harbor'],
+    dream:['sleep','door','root','ember','eye'],
+    door:['threshold','lantern','dream','stone','rust'],
+    threshold:['door','garden','silence','weather','hand'],
+    garden:['orchard','seed','threshold','moth','weather'],
+    moth:['lantern','dust','ember','eye','garden'],
+    eye:['moth','map','dream','fog','hand'],
+    hand:['letter','eye','thread','threshold','bone'],
+    bone:['salt','stone','vein','hand','shell'],
+    shell:['echo','seed','bone','dust','coast'],
+    season:['weather','orchard','winter','wind','leaf'],
+    weather:['season','wind','fog','leaf','threshold'],
+    wind:['weather','choir','breath','season','thread'],
+    thread:['loom','vein','hand','wind','sentence'],
+    loom:['thread','grammar','weather','hand','branch']
+  };
+  var LEXKEYS=Object.keys(KIN);
+
+  /* ---------------- rhyming templates (slots marked *X) ---------------- */
+  var TPL=[
+    'the *A keeps a smaller *A inside its *B',
+    'every *A is a *B that forgot its scale',
+    'ask the *A · it answers as *B',
+    'a *A of *B · a *B of *A',
+    'what the *A does to the *B · the *B does to the whole',
+    'the *A remembers being a *C of the *B',
+    'inside this *A · another *B · inside that *B · weather',
+    '*A rhymes with *A and never repeats',
+    'measure the *A twice and get two *B',
+    'the *B is a map of the *A drawn by the *A',
+    'zoom · the *A was never small',
+    'an *A grown from the margin of a *B',
+    'the *A at this depth is the *B of another',
+    'do not finish the *A · it ends inside the *B',
+    'old *A · newborn *B · same coastline',
+    'the *B borrowed its shape from a sleeping *A',
+    'count the *A · the count becomes a *B',
+    'this *B is the footnote of a larger *B',
+    'somewhere a *A is reading this *B',
+    'the whole fits in the *A · the *A fits in the whole'
+  ];
+
+  var visitedTexts=[];
+  var usedTexts={};
+
+  /* ---------------- phrase construction ---------------- */
+  function buildTokens(seed,aboutWord){
+    var rng=rngFor(seed);
+    var pick=function(arr){return arr[Math.floor(rng()*arr.length)];};
+    var tpl;
+    if(visitedTexts.length>2&&rng()<0.10){
+      // a large structure resembling a detail from elsewhere
+      tpl=pick(visitedTexts);
+    }else{
+      tpl=TPL[Math.floor(rng()*TPL.length)];
+    }
+    // fill slots: A from kin of the word this grew inside
+    var slots={};
+    function fillSlot(id){
+      if(slots[id])return slots[id];
+      var w;
+      if(id==='A'){
+        var pool=aboutWord&&KIN[aboutWord]?KIN[aboutWord].concat([aboutWord]):LEXKEYS;
+        w=pick(pool);
+      }else{
+        var prev=slots.A||pick(LEXKEYS);
+        w=pick(KIN[prev]||LEXKEYS);
+      }
+      slots[id]=w;
+      return w;
+    }
+    var raw=tpl.split(' ');
+    var tokens=[];
+    for(var i=0;i<raw.length;i++){
+      var t=raw[i];
+      if(t.charAt(0)==='*'){
+        var id=t.slice(1);
+        var w=KIN[id]?id:fillSlot(id);  // reused visited phrases carry words directly
+        tokens.push({text:w,portal:true});
+      }else{
+        tokens.push({text:t,portal:false});
+      }
+    }
+    // reused phrases carry no slot marks — any lexicon word is a door
+    tokens.forEach(function(t){if(!t.portal&&KIN[t.text])t.portal=true;});
+    if(!tokens.some(function(t){return t.portal;})){
+      tokens[0].portal=true;
+      if(!KIN[tokens[0].text])tokens[0].text=LEXKEYS[Math.floor(rng()*LEXKEYS.length)];
+    }
+    var text=tokens.map(function(t){return t.text;}).join(' ');
+    if(usedTexts[text]){
+      // nothing repeats: mutate one portal into a kin word
+      var pi=[];
+      tokens.forEach(function(t,i){if(t.portal)pi.push(i);});
+      if(pi.length){
+        var mi=pi[Math.floor(rng()*pi.length)];
+        var old=tokens[mi].text;
+        tokens[mi].text=pick(KIN[old]||LEXKEYS);
+      }
+      text=tokens.map(function(t){return t.text;}).join(' ');
+    }
+    usedTexts[text]=true;
+    return {tokens:tokens,text:text,rng:rng};
+  }
+
+  /* ---------------- layout: weather ---------------- */
+  function layoutNode(node){
+    var rng=node.rng;
+    var sag=(rng()-0.5)*240,lift=(rng()-0.5)*200;
+    var y0=(rng()-0.5)*120,y3=(rng()-0.5)*120;
+    var P=[[-520,y0],[-180,y0+lift],[180,y3+sag],[520,y3]];
+    function bez(t){
+      var it=1-t;
+      var x=it*it*it*P[0][0]+3*it*it*t*P[1][0]+3*it*t*t*P[2][0]+t*t*t*P[3][0];
+      var y=it*it*it*P[0][1]+3*it*it*t*P[1][1]+3*it*t*t*P[2][1]+t*t*t*P[3][1];
+      return [x,y];
+    }
+    node.stem=[];
+    for(var i=0;i<=32;i++)node.stem.push(bez(i/32));
+
+    var fsP=78+rng()*26;     // portal size
+    var fsC=fsP*0.42;        // connective size
+    node.fsP=fsP;node.fsC=fsC;
+    // distribute words along the stem by estimated width
+    var widths=node.tokens.map(function(t){
+      return t.text.length*(t.portal?fsP:fsC)*0.54+(t.portal?26:16);
+    });
+    var total=0;widths.forEach(function(w){total+=w;});
+    var tcur=0.05,span=0.90;
+    node.tokens.forEach(function(t,i){
+      var frac=widths[i]/total;
+      var tm=tcur+frac*span/2;
+      var p=bez(Math.min(tm,0.97));
+      var p2=bez(Math.min(tm+0.02,0.99));
+      var ang=Math.atan2(p2[1]-p[1],p2[0]-p[0]);
+      t.x=p[0];t.y=p[1]+(i%2?-1:1)*(6+rng()*14);
+      t.rot=ang*0.5;
+      tcur+=frac*span;
+    });
+    // anchors for the children of each portal: marginalia positions
+    node.portals=[];
+    node.tokens.forEach(function(t,i){
+      if(!t.portal)return;
+      node.portals.push(i);
+      var side=rng()<0.5?-1:1;
+      var dist=110+rng()*90;
+      var ang=t.rot+side*(Math.PI/2)+(rng()-0.5)*0.7;
+      t.ax=t.x+Math.cos(ang)*dist;
+      t.ay=t.y+Math.sin(ang)*dist*0.9;
+    });
+    // a coastline around the thought (midpoint displacement)
+    var pts=[];
+    var R=480;
+    for(var k=0;k<8;k++){
+      var a=k/8*Math.PI*2;
+      pts.push([Math.cos(a)*R*1.25,Math.sin(a)*R*0.62]);
+    }
+    for(var d=0;d<5;d++){
+      var npts=[];
+      var mag=R*0.22/Math.pow(1.9,d);
+      for(var k=0;k<pts.length;k++){
+        var p1=pts[k],p2=pts[(k+1)%pts.length];
+        var mx=(p1[0]+p2[0])/2,my=(p1[1]+p2[1])/2;
+        var nx=-(p2[1]-p1[1]),ny=p2[0]-p1[0];
+        var nl=Math.hypot(nx,ny)||1;
+        var off=(rng()-0.5)*2*mag;
+        npts.push(p1,[mx+nx/nl*off,my+ny/nl*off]);
+      }
+      pts=npts;
+    }
+    node.coast=pts;
+  }
+
+  /* ---------------- node creation ---------------- */
+  var nodeCount=0;
+  function makeNode(seed,aboutWord,depth){
+    var built=buildTokens(seed,aboutWord);
+    var node={
+      id:nodeCount++,
+      seed:seed,
+      word:aboutWord||null,
+      depth:depth,
+      tokens:built.tokens,
+      text:built.text,
+      rng:built.rng,
+      parent:null,L:null,
+      children:{},
+      el:null
+    };
+    layoutNode(node);
+    return node;
+  }
+
+  function ensureChild(node,ti){
+    if(node.children[ti])return node.children[ti];
+    var t=node.tokens[ti];
+    var child=makeNode(node.seed+'/'+ti,t.text,node.depth+1);
+    child.parent=node;
+    child.L={s:1/S,x:t.ax,y:t.ay};
+    node.children[ti]=child;
+    return child;
+  }
+  function ensureChildren(node){
+    node.portals.forEach(function(ti){ensureChild(node,ti);});
+  }
+  function ensureParent(node){
+    if(node.parent)return node.parent;
+    var parent=makeNode(node.seed+'^',node.word,node.depth-1);
+    var h=xmur3(node.seed+'~k')();
+    var k=parent.portals[h%parent.portals.length];
+    // the parent's word at slot k IS this world — coherence across scales
+    if(node.word)parent.tokens[k].text=node.word;
+    else node.word=parent.tokens[k].text;
+    parent.children[k]=node;
+    node.parent=parent;
+    node.L={s:1/S,x:parent.tokens[k].ax,y:parent.tokens[k].ay};
+    return parent;
+  }
+
+  /* ---------------- transforms: {s,x,y}, p' = s·p + (x,y) ---------------- */
+  function compose(A,B){return {s:A.s*B.s,x:A.x+A.s*B.x,y:A.y+A.s*B.y};}
+  function invert(A){return {s:1/A.s,x:-A.x/A.s,y:-A.y/A.s};}
+  var I={s:1,x:0,y:0};
+
+  var base;           // the node whose coords are world coords
+  function isAncestorOfBase(n){
+    var a=base.parent;
+    var L=null;
+    while(a){if(a===n)return true;a=a.parent;}
+    return false;
+  }
+  function absT(n){
+    if(n===base)return I;
+    if(isAncestorOfBase(n)){
+      var T=I,cur=base;
+      while(cur!==n){
+        T=compose(T,invert(cur.L));
+        cur=cur.parent;
+      }
+      return T;
+    }
+    // descendant of base (or of an ancestor — general: walk up to something known)
+    var chain=[];
+    var cur=n;
+    while(cur!==base&&!isAncestorOfBase(cur)&&cur.parent){
+      chain.push(cur);cur=cur.parent;
+    }
+    var T=absT(cur);
+    for(var i=chain.length-1;i>=0;i--)T=compose(T,chain[i].L);
+    return T;
+  }
+
+  /* ---------------- camera ---------------- */
+  var cam={x:0,y:0},zoom=0.9;
+  var anim=null;
+  function screenOf(p,T){
+    var wx=T.s*p[0]+T.x,wy=T.s*p[1]+T.y;
+    return [W/2+(wx-cam.x)*zoom,H/2+(wy-cam.y)*zoom];
+  }
+
+  /* ---------------- DOM ---------------- */
+  var worldEl=document.getElementById('world');
+  function typeParams(depth){
+    return {
+      wght:Math.round(420+200*Math.sin(depth*0.8+0.6)),
+      soft:Math.round(50+50*Math.sin(depth*0.53+2.0)),
+      wonk:Math.sin(depth*1.7)>0.25?1:0,
+      ital:Math.sin(depth*1.13)>0.55,
+      ls:(0.5+1.4*Math.sin(depth*0.4)).toFixed(1)
+    };
+  }
+  function buildEl(node){
+    if(node.el)return node.el;
+    var el=document.createElement('div');
+    el.className='organism';
+    var tp=typeParams(node.depth);
+    node.tokens.forEach(function(t,i){
+      var s=document.createElement('span');
+      s.className='w '+(t.portal?'portal':'conn');
+      s.textContent=t.text;
+      var fs=t.portal?node.fsP:node.fsC;
+      s.style.fontSize=fs+'px';
+      s.style.letterSpacing=tp.ls+'px';
+      s.style.fontStyle=(t.portal?(tp.ital?'italic':'normal'):'italic');
+      s.style.fontVariationSettings="'opsz' 80,'wght' "+(t.portal?tp.wght:Math.max(300,tp.wght-100))+",'SOFT' "+tp.soft+",'WONK' "+tp.wonk;
+      s.style.transform='translate(-50%,-50%) translate('+t.x+'px,'+t.y+'px) rotate('+t.rot+'rad)';
+      s.style.left='0';s.style.top='0';
+      if(t.portal){
+        (function(i){
+          s.addEventListener('click',function(e){
+            e.stopPropagation();
+            flyToChild(node,i);
+          });
+        })(i);
+      }
+      el.appendChild(s);
+    });
+    worldEl.appendChild(el);
+    node.el=el;
+    return el;
+  }
+  function dropEl(node){
+    if(node.el){worldEl.removeChild(node.el);node.el=null;}
+  }
+
+  /* ---------------- focus & pruning ---------------- */
+  var focus,gen=0,migrations=0;
+  var folioEl=document.getElementById('folio');
+  var lineageEl=document.getElementById('lineage');
+  var coastEl=document.getElementById('coastline');
+  var hintEl=document.getElementById('hint');
+  var fleuronEl=document.getElementById('fleuron');
+
+  function aliveSet(){
+    var set=[];
+    var p=focus.parent;
+    if(p){
+      set.push(p);
+      p.portals.forEach(function(ti){if(p.children[ti])set.push(p.children[ti]);});
+    }
+    if(set.indexOf(focus)<0)set.push(focus);
+    focus.portals.forEach(function(ti){
+      var c=focus.children[ti];
+      if(c){
+        set.push(c);
+        c.portals.forEach(function(tj){if(c.children[tj])set.push(c.children[tj]);});
+      }
+    });
+    return set;
+  }
+
+  function setFocus(node){
+    if(node===focus)return;
+    var dir=node.depth>focus.depth?1:-1;
+    focus=node;
+    migrations++;
+    if(visitedTexts.indexOf(node.text)<0)visitedTexts.push(node.text);
+    if(visitedTexts.length>30)visitedTexts.shift();
+    ensureParent(focus);
+    ensureChildren(focus);
+    ensureChildren(focus.parent);
+    base=focusRebase(base,focus);
+    // prune the distant
+    var keep=aliveSet();
+    allNodes().forEach(function(n){
+      if(keep.indexOf(n)<0)dropEl(n);
+    });
+    keep.forEach(buildEl);
+    // marginalia
+    folioEl.textContent='fol. '+focus.depth+(focus.word?' · inside “'+focus.word+'”':'');
+    var lin=[],a=focus;
+    while(a&&a.word&&lin.length<3){lin.push(a.word);a=a.parent;}
+    lineageEl.textContent=lin.length?('this thought grew inside '+lin.map(function(w){return '“'+w+'”';}).join(' · inside ')+' · ⋯'):'';
+    if(migrations===1)hintEl.style.opacity='0';
+    document.body.style.background='hsl('+(42+16*Math.sin(focus.depth*0.23))+','+(26+5*Math.sin(focus.depth*0.31))+'%,'+(87+2*Math.sin(focus.depth*0.5))+'%)';
+  }
+  function allNodes(){
+    var out=[],seen={};
+    function walk(n){
+      if(!n||seen[n.id])return;
+      seen[n.id]=true;
+      if(n.el)out.push(n);
+      Object.keys(n.children).forEach(function(k){walk(n.children[k]);});
+      if(n.parent)walk(n.parent);
+    }
+    var r=focus;
+    while(r.parent)r=r.parent;
+    walk(r);
+    return out;
+  }
+  function focusRebase(oldBase,newBase){
+    if(oldBase===newBase)return oldBase;
+    var T=absT(newBase); // in old base coords
+    var nc={x:(cam.x-T.x)/T.s,y:(cam.y-T.y)/T.s};
+    cam=nc;zoom=zoom*T.s;
+    if(anim){
+      anim.from={x:(anim.from.x-T.x)/T.s,y:(anim.from.y-T.y)/T.s,z:anim.from.z*T.s};
+      anim.to={x:(anim.to.x-T.x)/T.s,y:(anim.to.y-T.y)/T.s,z:anim.to.z*T.s};
+    }
+    return newBase;
+  }
+
+  /* ---------------- migration by approach ---------------- */
+  function maybeMigrate(){
+    // dive: a child fills the view
+    var best=null,bestD=1e9;
+    focus.portals.forEach(function(ti){
+      var c=focus.children[ti];
+      if(!c)return;
+      var T=absT(c);
+      var ss=T.s*zoom;
+      if(ss>0.55){
+        var sc=screenOf([0,0],T);
+        var d=Math.hypot(sc[0]-W/2,sc[1]-H/2);
+        if(d<bestD){bestD=d;best=c;}
+      }
+    });
+    if(best){setFocus(best);return;}
+    // surface: the world shrinks to a word
+    var Tf=absT(focus);
+    if(Tf.s*zoom<1/(S*0.62)&&focus.parent){
+      setFocus(focus.parent);
+    }
+  }
+
+  /* ---------------- flight ---------------- */
+  function flyToChild(node,ti){
+    var c=ensureChild(node,ti);
+    buildEl(c);
+    var T=absT(c);
+    var targetZoom=1.05/T.s;
+    anim={
+      t:0,dur:1.7,
+      from:{x:cam.x,y:cam.y,z:zoom},
+      to:{x:T.x,y:T.y,z:targetZoom}
+    };
+  }
+
+  /* ---------------- input ---------------- */
+  var dragging=false,lx=0,ly=0,moved=0;
+  window.addEventListener('mousedown',function(e){dragging=true;lx=e.clientX;ly=e.clientY;moved=0;});
+  window.addEventListener('mouseup',function(){dragging=false;});
+  window.addEventListener('mousemove',function(e){
+    if(dragging){
+      var dx=e.clientX-lx,dy=e.clientY-ly;
+      moved+=Math.abs(dx)+Math.abs(dy);
+      cam.x-=dx/zoom;cam.y-=dy/zoom;
+      lx=e.clientX;ly=e.clientY;
+      anim=null;
+    }
+  });
+  window.addEventListener('wheel',function(e){
+    e.preventDefault();
+    anim=null;
+    var k=Math.exp(-e.deltaY*0.0014);
+    var px=cam.x+(e.clientX-W/2)/zoom;
+    var py=cam.y+(e.clientY-H/2)/zoom;
+    zoom*=k;
+    cam.x=px-(e.clientX-W/2)/zoom;
+    cam.y=py-(e.clientY-H/2)/zoom;
+  },{passive:false});
+
+  /* touch: drag + pinch */
+  var touches={};
+  window.addEventListener('touchstart',function(e){
+    for(var i=0;i<e.changedTouches.length;i++){
+      var t=e.changedTouches[i];
+      touches[t.identifier]=[t.clientX,t.clientY];
+    }
+  },{passive:true});
+  window.addEventListener('touchend',function(e){
+    for(var i=0;i<e.changedTouches.length;i++)delete touches[e.changedTouches[i].identifier];
+  },{passive:true});
+  window.addEventListener('touchmove',function(e){
+    e.preventDefault();
+    var ids=Object.keys(touches);
+    if(ids.length===1){
+      var t=e.touches[0];
+      var o=touches[t.identifier];
+      if(o){
+        cam.x-=(t.clientX-o[0])/zoom;
+        cam.y-=(t.clientY-o[1])/zoom;
+        touches[t.identifier]=[t.clientX,t.clientY];
+      }
+    }else if(ids.length>=2&&e.touches.length>=2){
+      var a=e.touches[0],b=e.touches[1];
+      var oa=touches[a.identifier],ob=touches[b.identifier];
+      if(oa&&ob){
+        var d0=Math.hypot(oa[0]-ob[0],oa[1]-ob[1]);
+        var d1=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+        var mx=(a.clientX+b.clientX)/2,my=(a.clientY+b.clientY)/2;
+        var k=d1/Math.max(1,d0);
+        var px=cam.x+(mx-W/2)/zoom,py=cam.y+(my-H/2)/zoom;
+        zoom*=k;
+        cam.x=px-(mx-W/2)/zoom;cam.y=py-(my-H/2)/zoom;
+        touches[a.identifier]=[a.clientX,a.clientY];
+        touches[b.identifier]=[b.clientX,b.clientY];
+      }
+    }
+    anim=null;
+  },{passive:false});
+
+  window.addEventListener('keydown',function(e){
+    if(e.key==='+'||e.key==='='){zoom*=1.25;}
+    else if(e.key==='-'){zoom/=1.25;}
+  });
+
+  /* ---------------- ink (canvas beneath the text) ---------------- */
+  var cv=document.getElementById('ink');
+  var ctx=cv.getContext('2d');
+  function sizeCanvas(){
+    cv.width=cv.parentElement.clientWidth;
+    cv.height=cv.parentElement.clientHeight;
+  }
+  var motes=[];
+  for(var i=0;i<26;i++)motes.push({x:Math.random(),y:Math.random(),s:Math.random()*Math.PI*2,r:0.6+Math.random()*1.4});
+
+  function drawInk(time,nodes){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var offX=(cv.width-W)/2,offY=(cv.height-H)/2;
+    ctx.save();
+    ctx.translate(offX,offY);
+    nodes.forEach(function(n){
+      var T=absT(n);
+      var ss=T.s*zoom;
+      if(ss<0.004||ss>40)return;
+      var o=Math.max(0,Math.min(1,1.15-Math.abs(Math.log(ss))*0.30));
+      if(o<=0.02)return;
+      // stem
+      ctx.strokeStyle='rgba(58,48,34,'+(o*0.30).toFixed(3)+')';
+      ctx.lineWidth=Math.max(0.4,1.4*ss);
+      ctx.beginPath();
+      for(var i=0;i<n.stem.length;i++){
+        var p=screenOf(n.stem[i],T);
+        if(i===0)ctx.moveTo(p[0],p[1]);else ctx.lineTo(p[0],p[1]);
+      }
+      ctx.stroke();
+      // veins to marginal children
+      ctx.strokeStyle='rgba(98,74,46,'+(o*0.34).toFixed(3)+')';
+      ctx.lineWidth=Math.max(0.3,0.9*ss);
+      n.portals.forEach(function(ti){
+        var t=n.tokens[ti];
+        var p1=screenOf([t.x,t.y],T);
+        var p2=screenOf([t.ax,t.ay],T);
+        var mx=(p1[0]+p2[0])/2+(p2[1]-p1[1])*0.18;
+        var my=(p1[1]+p2[1])/2-(p2[0]-p1[0])*0.18;
+        ctx.beginPath();
+        ctx.moveTo(p1[0],p1[1]);
+        ctx.quadraticCurveTo(mx,my,p2[0],p2[1]);
+        ctx.stroke();
+        // a small node-bud at the anchor
+        ctx.fillStyle='rgba(98,74,46,'+(o*0.4).toFixed(3)+')';
+        ctx.beginPath();
+        ctx.arc(p2[0],p2[1],Math.max(0.6,2.2*ss),0,Math.PI*2);
+        ctx.fill();
+      });
+      // coastline around the focused thought
+      if(n===focus){
+        ctx.strokeStyle='rgba(80,90,70,'+(0.16*o).toFixed(3)+')';
+        ctx.lineWidth=1;
+        ctx.beginPath();
+        for(var i=0;i<n.coast.length;i++){
+          var p=screenOf(n.coast[i],T);
+          if(i===0)ctx.moveTo(p[0],p[1]);else ctx.lineTo(p[0],p[1]);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    });
+    // dust
+    ctx.fillStyle='rgba(110,96,72,0.25)';
+    motes.forEach(function(m){
+      var x=(m.x+Math.sin(time*0.03+m.s)*0.01)*cv.width;
+      var y=(m.y+Math.cos(time*0.022+m.s)*0.012)*cv.height;
+      ctx.beginPath();ctx.arc(x,y,m.r,0,Math.PI*2);ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  /* ---------------- coastline measurement (the paradox, live) ---------------- */
+  function measureCoast(){
+    var T=absT(focus);
+    var ss=T.s*zoom;
+    var ruler=10/Math.max(0.0001,ss);     // logical units per screen-ruler
+    var pts=focus.coast,len=0,last=pts[0];
+    for(var i=1;i<=pts.length;i++){
+      var p=pts[i%pts.length];
+      var d=Math.hypot(p[0]-last[0],p[1]-last[1]);
+      if(d>=ruler){len+=d;last=p;}
+    }
+    return {len:len,ruler:ruler};
+  }
+
+  /* ---------------- render ---------------- */
+  var swayEl=document.getElementById('sway');
+  var t0=performance.now();
+  var frameI=0;
+
+  function render(){
+    requestAnimationFrame(render);
+    var time=(performance.now()-t0)/1000;
+
+    if(anim){
+      anim.t+=1/60;
+      var f=Math.min(1,anim.t/anim.dur);
+      f=f*f*f*(f*(f*6-15)+10);
+      cam.x=anim.from.x+(anim.to.x-anim.from.x)*f;
+      cam.y=anim.from.y+(anim.to.y-anim.from.y)*f;
+      zoom=Math.exp(Math.log(anim.from.z)+(Math.log(anim.to.z)-Math.log(anim.from.z))*f);
+      if(f>=1)anim=null;
+    }
+
+    maybeMigrate();
+
+    // adaptive depth: the child you approach grows grandchildren
+    focus.portals.forEach(function(ti){
+      var c=focus.children[ti];
+      if(!c)return;
+      var ss=absT(c).s*zoom;
+      if(ss>0.22){ensureChildren(c);c.portals.forEach(function(tj){buildEl(c.children[tj]);});}
+    });
+
+    var nodes=aliveSet();
+    nodes.forEach(function(n){
+      if(!n.el)return;
+      var T=absT(n);
+      var ss=T.s*zoom;
+      if(ss<0.006||ss>60){n.el.style.visibility='hidden';return;}
+      n.el.style.visibility='visible';
+      var sx=W/2+(T.x-cam.x)*zoom;
+      var sy=H/2+(T.y-cam.y)*zoom;
+      n.el.style.transform='translate('+sx.toFixed(2)+'px,'+sy.toFixed(2)+'px) scale('+(ss).toFixed(5)+')';
+      var o=Math.max(0.04,Math.min(1,1.18-Math.abs(Math.log(ss))*0.30));
+      n.el.style.opacity=o.toFixed(3);
+      n.el.style.zIndex=String(Math.max(1,1000-Math.round(Math.log(ss)*120)));
+      n.el.style.pointerEvents=(ss>0.28&&ss<3.2)?'auto':'none';
+    });
+
+    drawInk(time,nodes);
+
+    // the page breathes like weather
+    swayEl.style.transform='rotate('+(Math.sin(time*0.05)*0.45)+'deg)';
+
+    if((frameI++%12)===0){
+      var m=measureCoast();
+      coastEl.textContent='this boundary measures ≈ '+Math.round(m.len)+' units · your ruler: '+(m.ruler>=1?m.ruler.toFixed(1):m.ruler.toFixed(3));
+      fleuronEl.style.opacity=String(0.3+0.25*Math.sin(time*0.4));
+    }
+  }
+
+  /* ---------------- genesis (which is also the middle) ---------------- */
+  function start(){
+    sizeCanvas();
+    var origin=makeNode('origin-'+Math.floor(Math.random()*1e9),'word',0);
+    // the first sentence states the law
+    origin.tokens=[
+      {text:'every',portal:false},
+      {text:'word',portal:true},
+      {text:'contains',portal:false},
+      {text:'the',portal:false},
+      {text:'sentence',portal:true},
+      {text:'that',portal:false},
+      {text:'contains',portal:false},
+      {text:'it',portal:false}
+    ];
+    origin.text='every word contains the sentence that contains it';
+    layoutNode(origin);
+    usedTexts[origin.text]=true;
+    visitedTexts.push(origin.text);
+    base=origin;
+    focus=origin;
+    ensureParent(origin);
+    ensureChildren(origin);
+    ensureChildren(origin.parent);
+    aliveSet().forEach(buildEl);
+    folioEl.textContent='fol. 0';
+    render();
+  }
+
+  window.addEventListener('resize',function(){
+    W=window.innerWidth;H=window.innerHeight;
+    sizeCanvas();
+  });
+
+  if(document.fonts&&document.fonts.ready){
+    var begun=false;
+    function begin(){if(begun)return;begun=true;start();}
+    document.fonts.ready.then(begin);
+    setTimeout(begin,1600);
+  }else start();
+})();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(176,138,79,.5);color:#e8a85a;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#e8a85a;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the museum"><span class="k">&#9666;</span><span class="t">the museum</span></a></nav>
+</body>
+</html>

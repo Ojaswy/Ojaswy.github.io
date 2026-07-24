@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>斬 ZAN — The Heaven-Cutting Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@300;400&family=Noto+Serif+JP:wght@900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#070407;
+    --blood:#d31a2b;
+    --ember:#ff3b30;
+    --darkred:#5c0e16;
+    --bone:#f0e8dc;
+    --ash:#6b5f63;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    height:100%;overflow:hidden;overscroll-behavior:none;
+    background:var(--ink);color:var(--bone);
+    font-family:'IBM Plex Mono',monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:rgba(211,26,43,.4)}
+  canvas#scene{position:fixed;inset:0;display:block;cursor:crosshair}
+  canvas#blade{position:fixed;inset:0;pointer-events:none;z-index:45}
+
+  /* ---------- environmental mega-typography ---------- */
+  #megakanji{
+    position:fixed;inset:0;z-index:5;
+    display:flex;align-items:center;justify-content:center;
+    pointer-events:none;
+  }
+  #megakanji span{
+    position:absolute;
+    font-family:'Noto Serif JP',serif;font-weight:900;
+    font-size:46vh;line-height:1;
+    color:var(--blood);opacity:0;
+    transform:scale(1.15);
+    transition:opacity 1.4s ease,transform 1.4s ease;
+  }
+  #megakanji span.on{opacity:.07;transform:scale(1)}
+
+  /* ---------- act titles ---------- */
+  #acts{position:fixed;left:40px;bottom:96px;z-index:40;pointer-events:none}
+  .act{
+    position:absolute;left:0;bottom:0;width:60vw;
+    opacity:0;transform:translateY(34px) skewY(1.5deg);
+    transition:opacity .9s cubic-bezier(.2,.9,.2,1),transform .9s cubic-bezier(.2,.9,.2,1);
+  }
+  .act.on{opacity:1;transform:none}
+  .act .a-idx{
+    font-size:10px;letter-spacing:.5em;color:var(--blood);
+    text-transform:uppercase;margin-bottom:10px;
+  }
+  .act h1{
+    font-family:'Anton',sans-serif;
+    font-size:clamp(40px,6.2vw,92px);
+    line-height:.95;letter-spacing:.02em;
+    color:transparent;
+    -webkit-text-stroke:1.5px var(--bone);
+    text-transform:uppercase;
+  }
+  .act h1 em{
+    font-style:normal;color:var(--blood);
+    -webkit-text-stroke:0;
+  }
+  .act .a-line{
+    margin-top:14px;font-size:11px;font-weight:300;
+    letter-spacing:.14em;color:var(--ash);max-width:480px;line-height:1.9;
+  }
+
+  /* ---------- vertical kanji column ---------- */
+  #vcol{
+    position:fixed;right:46px;top:50%;transform:translateY(-50%);
+    z-index:40;pointer-events:none;height:60vh;
+  }
+  .vphrase{
+    position:absolute;right:0;top:0;height:100%;
+    writing-mode:vertical-rl;
+    font-family:'Noto Serif JP',serif;font-weight:900;
+    font-size:clamp(18px,2.4vw,30px);letter-spacing:.35em;
+    color:var(--bone);opacity:0;
+    transition:opacity 1.2s ease;
+    text-shadow:0 0 30px rgba(211,26,43,.5);
+  }
+  .vphrase.on{opacity:.85}
+
+  /* ---------- HUD ---------- */
+  .hud{position:fixed;z-index:50;pointer-events:none;user-select:none}
+  #hud-sigil{top:32px;left:40px;display:flex;align-items:center;gap:16px}
+  #hud-sigil .glyph{
+    font-family:'Noto Serif JP',serif;font-weight:900;
+    font-size:42px;color:var(--blood);line-height:1;
+    text-shadow:0 0 24px rgba(211,26,43,.6);
+  }
+  #hud-sigil .name{font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.4em;color:var(--bone)}
+  #hud-sigil .sub{font-size:8.5px;letter-spacing:.34em;color:var(--ash);margin-top:5px;text-transform:uppercase}
+  #hud-state{top:38px;right:44px;text-align:right;font-size:9px;letter-spacing:.34em;
+    color:var(--ash);text-transform:uppercase;line-height:2.2}
+  #hud-state .blade-ok{color:var(--blood)}
+  #mute{pointer-events:auto;cursor:pointer;color:var(--bone);text-decoration:none;border-bottom:1px solid rgba(240,232,220,.3)}
+  #readout{bottom:34px;left:40px;font-size:9px;letter-spacing:.28em;
+    color:var(--ash);text-transform:uppercase;line-height:2.1}
+  #readout b{color:var(--blood);font-weight:400}
+  #hint{bottom:34px;right:44px;text-align:right;font-size:9px;letter-spacing:.3em;
+    color:var(--ash);text-transform:uppercase;line-height:2.2;transition:opacity 2s}
+
+  /* ---------- the saya rail (act selector) ---------- */
+  #rail{
+    position:fixed;bottom:40px;left:50%;transform:translateX(-50%);
+    z-index:50;display:flex;align-items:center;gap:0;
+  }
+  #rail .r-line{width:52px;height:1px;background:linear-gradient(90deg,transparent,rgba(211,26,43,.55))}
+  #rail .r-line.end{background:linear-gradient(90deg,rgba(211,26,43,.55),transparent)}
+  .r-notch{
+    width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+    font-family:'Noto Serif JP',serif;font-weight:900;font-size:15px;
+    color:var(--ash);cursor:pointer;pointer-events:auto;
+    border:1px solid transparent;transform:rotate(45deg);
+    transition:all .45s;margin:0 7px;
+  }
+  .r-notch span{transform:rotate(-45deg)}
+  .r-notch:hover{color:var(--bone);border-color:rgba(211,26,43,.5)}
+  .r-notch.active{
+    color:var(--bone);border-color:var(--blood);
+    box-shadow:0 0 18px rgba(211,26,43,.55);
+    background:rgba(211,26,43,.12);
+  }
+
+  /* ---------- bullet time glyph ---------- */
+  #tokiglyph{
+    position:fixed;inset:0;z-index:46;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;pointer-events:none;
+    opacity:0;transition:opacity .5s;
+  }
+  #tokiglyph.on{opacity:1}
+  #tokiglyph .k{
+    font-family:'Noto Serif JP',serif;font-weight:900;font-size:120px;
+    color:var(--blood);opacity:.5;text-shadow:0 0 60px rgba(211,26,43,.8);
+  }
+  #tokiglyph .t{font-size:9px;letter-spacing:.6em;color:var(--ash);text-transform:uppercase;margin-top:10px}
+
+  /* ---------- splash: the world arrives pre-cut ---------- */
+  #splash{position:fixed;inset:0;z-index:80;pointer-events:none}
+  #splash .half{
+    position:absolute;left:0;width:100%;height:50.2%;
+    background:var(--ink);overflow:hidden;
+    display:flex;justify-content:center;
+    transition:transform 1.4s cubic-bezier(.7,0,.2,1),opacity 1.2s;
+  }
+  #splash .top{top:0;align-items:flex-end}
+  #splash .bot{bottom:0;align-items:flex-start}
+  #splash .half .k{
+    font-family:'Noto Serif JP',serif;font-weight:900;
+    font-size:42vh;line-height:1;color:var(--blood);
+    text-shadow:0 0 80px rgba(211,26,43,.5);
+  }
+  #splash .top .k{transform:translateY(50%)}
+  #splash .bot .k{transform:translateY(-50%)}
+  #splash .seam{
+    position:absolute;top:50%;left:0;width:100%;height:1px;
+    background:var(--ember);box-shadow:0 0 24px 2px rgba(255,59,48,.9);
+    transition:opacity 1s;
+  }
+  #splash .word{
+    position:absolute;bottom:12%;width:100%;text-align:center;
+    font-size:10px;letter-spacing:.7em;text-indent:.7em;color:var(--ash);
+    text-transform:uppercase;animation:pulse 3s ease-in-out infinite;
+  }
+  #splash.cut .top{transform:translateX(-6%) translateY(-101%)}
+  #splash.cut .bot{transform:translateX(6%) translateY(101%)}
+  #splash.cut .seam{opacity:0}
+  #splash.cut .word{opacity:0}
+  @keyframes pulse{0%,100%{opacity:.25}50%{opacity:.95}}
+
+  #fallback{position:fixed;inset:0;display:none;z-index:100;align-items:center;justify-content:center;
+    background:var(--ink);color:var(--ash);font-size:11px;letter-spacing:.3em;
+    text-transform:uppercase;text-align:center;line-height:2.4;padding:40px}
+
+  @media (max-width:760px){
+    #acts{left:20px;bottom:120px}
+    .act h1{font-size:38px}
+    .act .a-line{max-width:74vw;font-size:10px}
+    #vcol{display:none}
+    #hud-state{display:none}
+    #readout{left:20px}
+    #hint{display:none}
+    .r-notch{width:32px;height:32px;font-size:12px;margin:0 4px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+<canvas id="blade"></canvas>
+
+<div id="megakanji"></div>
+
+<div id="acts"></div>
+<div id="vcol"></div>
+
+<div class="hud" id="hud-sigil">
+  <div class="glyph">斬</div>
+  <div>
+    <div class="name">ZAN</div>
+    <div class="sub">The Heaven-Cutting Engine · MMMXXV</div>
+  </div>
+</div>
+<div class="hud" id="hud-state">
+  <span id="cycle">CYCLE 001</span><br>
+  <span id="bladestate" class="blade-ok">BLADE DRAWN</span><br>
+  <a id="mute">音 SOUND ON</a>
+</div>
+<div class="hud" id="readout">
+  <span id="ro-act"><b>ACT I</b> — TEN THOUSAND GATES</span><br>
+  <span id="ro-data">ROT 0° · TIME 1.00× · CUTS 0</span>
+</div>
+<div class="hud" id="hint">
+  scroll — turn the engine<br>
+  a fast stroke — draw the blade<br>
+  hold still — time kneels
+</div>
+
+<div id="rail">
+  <div class="r-line"></div>
+  <div id="notches" style="display:flex"></div>
+  <div class="r-line end"></div>
+</div>
+
+<div id="tokiglyph"><div class="k">刻</div><div class="t">time kneels</div></div>
+
+<div id="splash">
+  <div class="half top"><div class="k">斬</div></div>
+  <div class="half bot"><div class="k">斬</div></div>
+  <div class="seam"></div>
+  <div class="word">scroll to turn the engine</div>
+</div>
+
+<div id="fallback">The engine requires WebGL.<br>Return with a sharper blade.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  /* ================================================================
+     斬 ZAN — a perpetual mechanism, not a website.
+     One closed camera loop. Five acts. No pages, no end.
+     The cursor is a blade. The render itself can be cut.
+     ================================================================ */
+
+  var W=window.innerWidth, H=window.innerHeight;
+  var canvas=document.getElementById('scene');
+  var renderer;
+  try{
+    renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,powerPreference:'high-performance'});
+  }catch(e){
+    document.getElementById('fallback').style.display='flex';
+    return;
+  }
+  var PR=Math.min(window.devicePixelRatio,2);
+  renderer.setPixelRatio(PR);
+  renderer.setSize(W,H);
+  renderer.setClearColor(0x070407,1);
+  renderer.outputEncoding=THREE.sRGBEncoding;
+
+  var scene=new THREE.Scene();
+  scene.fog=new THREE.FogExp2(0x070407,0.0062);
+
+  var camera=new THREE.PerspectiveCamera(58,W/H,0.1,600);
+  scene.add(camera);
+
+  var PI=Math.PI;
+  function clamp(x,a,b){return x<a?a:(x>b?b:x);}
+  function v3(x,y,z){return new THREE.Vector3(x,y,z);}
+
+  /* ---------------- light ---------------- */
+  scene.add(new THREE.AmbientLight(0x1c0e14,1.4));
+  var coreLight=new THREE.PointLight(0xff2233,2.2,160,2);
+  coreLight.position.set(0,16,0);
+  scene.add(coreLight);
+  var sunLight=new THREE.DirectionalLight(0xff4444,0.55);
+  sunLight.position.set(0,30,-100);
+  scene.add(sunLight);
+  var lantern=new THREE.PointLight(0xf0e8dc,0.5,60,2);
+  camera.add(lantern);
+
+  /* ---------------- textures (generated, no assets) ---------------- */
+  function radialTex(stops){
+    var c=document.createElement('canvas');c.width=c.height=128;
+    var x=c.getContext('2d');
+    var g=x.createRadialGradient(64,64,0,64,64,64);
+    stops.forEach(function(s){g.addColorStop(s[0],s[1]);});
+    x.fillStyle=g;x.fillRect(0,0,128,128);
+    return new THREE.CanvasTexture(c);
+  }
+  var glowTex=radialTex([[0,'rgba(255,60,60,0.9)'],[0.3,'rgba(211,26,43,0.35)'],[1,'rgba(211,26,43,0)']]);
+
+  /* ================================================================
+     THE ENGINE — a clockwork pagoda that contains itself.
+     ================================================================ */
+  var animators=[];
+  var blackMetal=new THREE.MeshStandardMaterial({color:0x14101a,metalness:0.85,roughness:0.35});
+  var redLacquer=new THREE.MeshStandardMaterial({color:0x8a1220,metalness:0.55,roughness:0.4,emissive:0x2a040a,emissiveIntensity:1});
+
+  function edgeLines(geo,color,opacity){
+    return new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({color:color,transparent:true,opacity:opacity}));
+  }
+
+  function buildEngine(scale,depth){
+    var g=new THREE.Group();
+    var tiers=[];
+    for(var k=0;k<7;k++){
+      var tier=new THREE.Group();
+      var r=16*(1-k/8.5);
+      var slabGeo=new THREE.CylinderGeometry(r*0.82,r,1.3,6);
+      var slab=new THREE.Mesh(slabGeo,blackMetal);
+      tier.add(slab);
+      tier.add(edgeLines(slabGeo,0xd31a2b,0.65));
+      var eaveGeo=new THREE.CylinderGeometry(r*1.05,r*1.45,0.4,6);
+      var eave=new THREE.Mesh(eaveGeo,redLacquer);
+      eave.position.y=1.0;
+      tier.add(eave);
+      var eaveEdges=edgeLines(eaveGeo,0xff3b30,0.5);
+      eaveEdges.position.y=1.0;
+      tier.add(eaveEdges);
+      tier.position.y=k*5.2;
+      g.add(tier);
+      tiers.push(tier);
+    }
+    // gear rings — they pass straight through the solid tiers. deliberately.
+    var gears=[];
+    for(var k=0;k<5;k++){
+      var gr=new THREE.Group();
+      var rad=20-(k*2.6);
+      var torGeo=new THREE.TorusGeometry(rad,0.28,4,7+k);
+      var tor=new THREE.Mesh(torGeo,blackMetal);
+      gr.add(tor);
+      gr.add(edgeLines(torGeo,0xd31a2b,0.8));
+      for(var s=0;s<4;s++){
+        var spoke=new THREE.Mesh(new THREE.BoxGeometry(rad*2,0.16,0.16),redLacquer);
+        spoke.rotation.z=s*PI/4;
+        gr.add(spoke);
+      }
+      gr.position.y=3+k*7;
+      gr.rotation.x=PI/2;
+      g.add(gr);
+      gears.push(gr);
+    }
+    // one ring rotates in the wrong plane entirely
+    var wrongGeo=new THREE.TorusGeometry(24,0.2,4,9);
+    var wrong=new THREE.Group();
+    wrong.add(new THREE.Mesh(wrongGeo,blackMetal));
+    wrong.add(edgeLines(wrongGeo,0xff3b30,0.9));
+    wrong.position.y=16;
+    g.add(wrong);
+    // the burning core
+    var core=new THREE.Mesh(new THREE.OctahedronGeometry(2.6,0),
+      new THREE.MeshStandardMaterial({color:0xff2233,metalness:0.3,roughness:0.2,emissive:0xd31a2b,emissiveIntensity:2.2}));
+    core.position.y=16;
+    g.add(core);
+    var coreGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,depthWrite:false}));
+    coreGlow.scale.set(18,18,1);
+    coreGlow.position.y=16;
+    g.add(coreGlow);
+    // spine
+    var spineGeo=new THREE.BoxGeometry(0.8,46,0.8);
+    var spine=new THREE.Mesh(spineGeo,blackMetal);
+    spine.position.y=18;
+    g.add(spine);
+    g.add((function(){var e=edgeLines(spineGeo,0xd31a2b,0.4);e.position.y=18;return e;})());
+
+    // RECURSION: the engine atop the engine
+    if(depth>0){
+      var child=buildEngine(scale,depth-1);
+      child.scale.setScalar(0.16);
+      child.position.y=38.5;
+      g.add(child);
+    }
+
+    // mechanical ratchet motion — the Game-of-Thrones clockwork turn
+    function ratchet(t,step){
+      var f=t-Math.floor(t);
+      var e=f<0.5?2*f*f:1-Math.pow(-2*f+2,2)/2;
+      return (Math.floor(t)+e)*step;
+    }
+    animators.push(function(wt){
+      for(var k=0;k<tiers.length;k++){
+        var dir=(k%2?1:-1);
+        tiers[k].rotation.y=ratchet(wt*0.22+k*0.6,PI/3)*dir;
+      }
+      for(var k=0;k<gears.length;k++){
+        gears[k].rotation.z=wt*(0.12+k*0.07)*(k%2?-1:1);
+      }
+      wrong.rotation.z=wt*0.2;
+      wrong.rotation.x=ratchet(wt*0.1,PI/2); // periodically flips into an impossible plane
+      core.rotation.y=wt*0.9;
+      core.rotation.x=wt*0.4;
+      var pulse=1+0.15*Math.sin(wt*2.1);
+      core.scale.setScalar(pulse);
+      coreGlow.material.opacity=0.55+0.3*Math.sin(wt*2.1);
+    });
+
+    g.scale.setScalar(scale);
+    return g;
+  }
+  var engine=buildEngine(1,2);
+  engine.position.y=-8;
+  scene.add(engine);
+  animators.push(function(wt){ engine.rotation.y=wt*0.018; });
+
+  /* ================================================================
+     TEN THOUSAND GATES — two rings of torii; every third gate
+     hangs from the sky upside-down. Gravity is a suggestion.
+     ================================================================ */
+  function torii(s){
+    var g=new THREE.Group();
+    var mat=new THREE.MeshStandardMaterial({color:0xc41e2a,metalness:0.4,roughness:0.5,emissive:0x33060c,emissiveIntensity:1});
+    var pL=new THREE.Mesh(new THREE.BoxGeometry(0.7,8,0.7),mat);
+    pL.position.set(-3.4,4,0);pL.rotation.z=0.05;
+    var pR=pL.clone();pR.position.x=3.4;pR.rotation.z=-0.05;
+    var kasagi=new THREE.Mesh(new THREE.BoxGeometry(10,0.75,1),mat);
+    kasagi.position.y=8.3;
+    var shimaki=new THREE.Mesh(new THREE.BoxGeometry(8.6,0.5,0.8),mat);
+    shimaki.position.y=7.3;
+    g.add(pL);g.add(pR);g.add(kasagi);g.add(shimaki);
+    g.scale.setScalar(s);
+    return g;
+  }
+  (function(){
+    var floats=[];
+    for(var i=0;i<24;i++){
+      var a=(i/24)*PI*2;
+      var t=torii(1);
+      var R=62;
+      t.position.set(Math.cos(a)*R,-8,Math.sin(a)*R);
+      t.lookAt(0,-8,0);
+      if(i%3===0){
+        t.position.y=14+(i%5)*3;
+        t.rotation.z=PI;            // upside down
+        floats.push({g:t,y0:t.position.y,ph:i});
+      }
+      scene.add(t);
+    }
+    for(var i=0;i<12;i++){
+      var a=(i/12)*PI*2+0.26;
+      var t=torii(2.1);
+      t.position.set(Math.cos(a)*125,-8,Math.sin(a)*125);
+      t.lookAt(0,-8,0);
+      if(i%4===0){ t.rotation.x=PI/2; t.position.y=26; } // lying on a wall of air
+      scene.add(t);
+    }
+    animators.push(function(wt){
+      for(var i=0;i<floats.length;i++){
+        var f=floats[i];
+        f.g.position.y=f.y0+Math.sin(wt*0.5+f.ph)*1.6;
+        f.g.rotation.y+= Math.sin(wt*0.1+f.ph)*0.0006;
+      }
+    });
+  })();
+
+  /* ---------------- the dead red sun ---------------- */
+  (function(){
+    var sun=new THREE.Mesh(new THREE.CircleGeometry(40,72),
+      new THREE.MeshBasicMaterial({color:0xd31a2b,fog:false}));
+    sun.position.set(0,30,-185);
+    scene.add(sun);
+    var ringGeo=new THREE.RingGeometry(43,43.5,72);
+    var ring=new THREE.Mesh(ringGeo,new THREE.MeshBasicMaterial({color:0xff3b30,transparent:true,opacity:0.5,side:THREE.DoubleSide,fog:false}));
+    ring.position.copy(sun.position);
+    scene.add(ring);
+    var glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+    glow.scale.set(260,260,1);
+    glow.position.copy(sun.position);
+    scene.add(glow);
+    animators.push(function(wt){
+      var s=1+0.012*Math.sin(wt*0.6);
+      sun.scale.setScalar(s);
+      ring.scale.setScalar(1+0.03*Math.sin(wt*0.6+1));
+    });
+  })();
+
+  /* ---------------- two grounds: floor below, floor above ---------------- */
+  var gridA=new THREE.GridHelper(420,84,0x4a0a12,0x230509);
+  gridA.position.y=-14;
+  scene.add(gridA);
+  var gridB=new THREE.GridHelper(420,84,0x4a0a12,0x1c0407);
+  gridB.position.y=44;
+  scene.add(gridB);
+
+  /* ---------------- petals — they obey, until the void ---------------- */
+  var PCOUNT=380;
+  var petalGeo=new THREE.PlaneGeometry(0.5,0.85);
+  var petalMat=new THREE.MeshBasicMaterial({color:0xc2202e,transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false});
+  var petals=new THREE.InstancedMesh(petalGeo,petalMat,PCOUNT);
+  petals.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene.add(petals);
+  var petalData=[];
+  for(var i=0;i<PCOUNT;i++){
+    var a=Math.random()*PI*2, r=18+Math.random()*120;
+    petalData.push({
+      x:Math.cos(a)*r, z:Math.sin(a)*r,
+      y:-16+Math.random()*64, sp:1.2+Math.random()*1.8,
+      ph:Math.random()*PI*2, sw:0.3+Math.random()*0.5,
+      rs:(Math.random()-0.5)*2
+    });
+  }
+  var dummy=new THREE.Object3D();
+
+  /* ---------------- rising embers ---------------- */
+  (function(){
+    var n=320,pos=new Float32Array(n*3);
+    for(var i=0;i<n;i++){
+      var a=Math.random()*PI*2,r=10+Math.random()*130;
+      pos[i*3]=Math.cos(a)*r;pos[i*3+1]=-14+Math.random()*60;pos[i*3+2]=Math.sin(a)*r;
+    }
+    var g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    var m=new THREE.PointsMaterial({color:0xff5a3c,size:0.35,transparent:true,opacity:0.55,
+      blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+    var pts=new THREE.Points(g,m);
+    scene.add(pts);
+    animators.push(function(wt){
+      pts.rotation.y=wt*0.012;
+      m.size=0.3+0.12*Math.sin(wt*1.3);
+    });
+  })();
+
+  /* ---------------- floating war-glyphs in space ---------------- */
+  var KANJI=['斬','無','道','影','鬼','永'];
+  function kanjiSprites(){
+    KANJI.forEach(function(ch,i){
+      var c=document.createElement('canvas');c.width=c.height=256;
+      var x=c.getContext('2d');
+      x.font='900 200px "Noto Serif JP","Yu Mincho","Hiragino Mincho ProN",serif';
+      x.textAlign='center';x.textBaseline='middle';
+      x.fillStyle=i%2?'#d31a2b':'#f0e8dc';
+      x.fillText(ch,128,140);
+      var spr=new THREE.Sprite(new THREE.SpriteMaterial({
+        map:new THREE.CanvasTexture(c),transparent:true,
+        opacity:i%2?0.22:0.13,depthWrite:false
+      }));
+      var a=(i/KANJI.length)*PI*2+0.8, r=78+(i%3)*26;
+      spr.position.set(Math.cos(a)*r,6+(i%4)*12,Math.sin(a)*r);
+      var s=14+(i%3)*8;
+      spr.scale.set(s,s,1);
+      scene.add(spr);
+      (function(spr,i){
+        animators.push(function(wt){
+          spr.position.y+=Math.sin(wt*0.4+i*2)*0.006;
+        });
+      })(spr,i);
+    });
+  }
+  if(document.fonts&&document.fonts.ready){
+    var done=false;
+    document.fonts.ready.then(function(){ if(!done){done=true;kanjiSprites();} });
+    setTimeout(function(){ if(!done){done=true;kanjiSprites();} },1800);
+  }else kanjiSprites();
+
+  /* ================================================================
+     THE LOOP — five acts on one closed orbit. No beginning. No end.
+     ================================================================ */
+  var ACTS=[
+    {k:'門',idx:'ACT I — 鳥居',title:'TEN THOUSAND <em>GATES</em>',
+     line:'Every gate is the same gate, crossed from a different direction. The ones overhead are not falling. They simply never agreed to land.',
+     v:'同じ門を何度もくぐる'},
+    {k:'機',idx:'ACT II — 機関',title:'THE ENGINE <em>OF HEAVEN</em>',
+     line:'Forged in 3025 from the clock-parts of dead empires. It does not tell time; it commands it. Note the ring turning through solid iron — the metal has stopped objecting.',
+     v:'天の機関は時を命ずる'},
+    {k:'斬',idx:'ACT III — 斬撃',title:'THE <em>CUT</em>',
+     line:'Your cursor is a blade. Draw it fast and the world itself splits along the stroke, bleeds light, and reseals. The horizon already carries old scars.',
+     v:'世界を斬れ'},
+    {k:'無',idx:'ACT IV — 虚無',title:'THE INVERTED <em>VOID</em>',
+     line:'Beneath the engine, gravity kneels. Petals fall upward to be reborn. There is a floor above you; there always was.',
+     v:'重力は跪く'},
+    {k:'永',idx:'ACT V — 永遠',title:'ETERNITY, <em>AGAIN</em>',
+     line:'Atop the engine stands a smaller engine, atop which stands a smaller engine. You have been standing inside one all along. Keep scrolling; the loop does not mind.',
+     v:'永遠は再び始まる'}
+  ];
+
+  var posCurve=new THREE.CatmullRomCurve3([
+    v3(  0,  3, 88),    // I   among the gates
+    v3( 54, 22, 16),    // II  close orbit of the mechanism
+    v3(  4,  8, 50),    // III facing the sun, blade ready
+    v3(-50,-30,-34),    // IV  beneath — the world overhead
+    v3( 10, 68,-78)     // V   the god view, spiralling home
+  ],true,'centripetal');
+  var tgtCurve=new THREE.CatmullRomCurve3([
+    v3(0, 8,0), v3(0,18,0), v3(0,24,-90), v3(0,10,0), v3(0,16,0)
+  ],true,'centripetal');
+
+  var rollKeys=[{p:0,r:0},{p:1,r:0.2},{p:2,r:-0.14},{p:3,r:PI},{p:4,r:PI*1.72},{p:5,r:PI*2}];
+  function rollAt(pm){
+    for(var i=0;i<rollKeys.length-1;i++){
+      var a=rollKeys[i],b=rollKeys[i+1];
+      if(pm>=a.p&&pm<=b.p){
+        var f=(pm-a.p)/Math.max(1e-6,b.p-a.p);
+        var e=0.5-0.5*Math.cos(f*PI);
+        return a.r+(b.r-a.r)*e;
+      }
+    }
+    return 0;
+  }
+
+  /* ---------------- DOM: acts, phrases, mega-kanji, rail ---------------- */
+  var actsEl=document.getElementById('acts');
+  var vcolEl=document.getElementById('vcol');
+  var megaEl=document.getElementById('megakanji');
+  var notchesEl=document.getElementById('notches');
+  ACTS.forEach(function(a,i){
+    var d=document.createElement('div');
+    d.className='act';
+    d.innerHTML='<div class="a-idx">'+a.idx+' / V</div><h1>'+a.title+'</h1><div class="a-line">'+a.line+'</div>';
+    actsEl.appendChild(d);a.el=d;
+    var p=document.createElement('div');
+    p.className='vphrase';p.textContent=a.v;
+    vcolEl.appendChild(p);a.vEl=p;
+    var m=document.createElement('span');
+    m.textContent=a.k;
+    megaEl.appendChild(m);a.mEl=m;
+    var n=document.createElement('div');
+    n.className='r-notch';n.innerHTML='<span>'+a.k+'</span>';
+    n.addEventListener('click',function(){flyToAct(i);});
+    notchesEl.appendChild(n);a.nEl=n;
+  });
+
+  /* ---------------- navigation state ---------------- */
+  var pCur=0,pTarget=0,userMoved=false,cycles=0,lastWrap=0;
+  function mod5(x){return ((x%5)+5)%5;}
+  function flyToAct(i){
+    var base=Math.round((pTarget-i)/5)*5+i;
+    var c=[base,base-5,base+5],best=c[0];
+    for(var k=1;k<3;k++) if(Math.abs(c[k]-pTarget)<Math.abs(best-pTarget)) best=c[k];
+    pTarget=best;userMoved=true;
+  }
+  window.addEventListener('wheel',function(e){
+    e.preventDefault();
+    pTarget+=e.deltaY*0.0011;
+    userMoved=true;
+  },{passive:false});
+  window.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key===' '){pTarget+=0.5;userMoved=true;}
+    else if(e.key==='ArrowUp'||e.key==='ArrowLeft'){pTarget-=0.5;userMoved=true;}
+    else if(e.key>='1'&&e.key<='5'){flyToAct(parseInt(e.key,10)-1);}
+    else if(e.key==='m'||e.key==='M'){toggleMute();}
+  });
+  var touchY=null,touchX=null,touchT=0;
+  window.addEventListener('touchstart',function(e){
+    touchY=e.touches[0].clientY;touchX=e.touches[0].clientX;touchT=performance.now();
+    holding=true;holdAt=performance.now();
+  },{passive:true});
+  window.addEventListener('touchmove',function(e){
+    var ty=e.touches[0].clientY,tx=e.touches[0].clientX;
+    if(touchY!==null){
+      pTarget+=(touchY-ty)*0.0028;userMoved=true;
+      var dx=tx-touchX,dms=performance.now()-touchT;
+      if(Math.abs(dx)>110&&dms<160){
+        doSlash({x:touchX,y:touchY},{x:tx,y:ty});
+        touchX=tx;touchT=performance.now();
+      }
+    }
+    touchY=ty;holdAt=performance.now(); // motion resets the stillness timer
+  },{passive:true});
+  window.addEventListener('touchend',function(){touchY=null;holding=false;});
+
+  setTimeout(function(){if(!userMoved)pTarget=0.22;},2200);
+
+  /* ---------------- the blade: slash detection ---------------- */
+  var mouse={x:0,y:0},mouseS={x:0,y:0};
+  var trail=[],visTrail=[];
+  var lastSlash=-1e9,cuts=0;
+  var holding=false,holdAt=0;
+
+  window.addEventListener('mousemove',function(e){
+    mouse.x=(e.clientX/W)*2-1;
+    mouse.y=(e.clientY/H)*2-1;
+    var now=performance.now();
+    trail.push({x:e.clientX,y:e.clientY,t:now});
+    visTrail.push({x:e.clientX,y:e.clientY,t:now});
+    while(trail.length&&now-trail[0].t>150)trail.shift();
+    while(visTrail.length&&now-visTrail[0].t>340)visTrail.shift();
+    if(now-lastSlash>420&&trail.length>=3){
+      var a=trail[0],b=trail[trail.length-1];
+      var d=Math.hypot(b.x-a.x,b.y-a.y);
+      if(d>140&&(b.t-a.t)<150){
+        doSlash(a,b);
+        trail.length=0;
+      }
+    }
+    holdAt=performance.now(); // motion resets the stillness timer
+  });
+  window.addEventListener('mousedown',function(){holding=true;holdAt=performance.now();initAudio();});
+  window.addEventListener('mouseup',function(){holding=false;});
+
+  /* ---------------- synthesized steel (no assets) ---------------- */
+  var AC=null,muted=false;
+  function initAudio(){
+    if(AC||muted)return;
+    try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  }
+  function whoosh(){
+    if(muted)return;
+    initAudio();
+    if(!AC)return;
+    try{
+      if(AC.state==='suspended')AC.resume();
+      var t0=AC.currentTime;
+      var len=AC.sampleRate*0.28;
+      var buf=AC.createBuffer(1,len,AC.sampleRate);
+      var ch=buf.getChannelData(0);
+      for(var i=0;i<len;i++)ch[i]=(Math.random()*2-1)*Math.pow(1-i/len,1.6);
+      var src=AC.createBufferSource();src.buffer=buf;
+      var bp=AC.createBiquadFilter();bp.type='bandpass';bp.Q.value=1.1;
+      bp.frequency.setValueAtTime(3400,t0);
+      bp.frequency.exponentialRampToValueAtTime(280,t0+0.26);
+      var g=AC.createGain();
+      g.gain.setValueAtTime(0.0001,t0);
+      g.gain.exponentialRampToValueAtTime(0.5,t0+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+0.28);
+      src.connect(bp);bp.connect(g);g.connect(AC.destination);
+      src.start(t0);
+      var osc=AC.createOscillator();osc.type='sine';
+      osc.frequency.setValueAtTime(82,t0);
+      osc.frequency.exponentialRampToValueAtTime(36,t0+0.3);
+      var g2=AC.createGain();
+      g2.gain.setValueAtTime(0.0001,t0);
+      g2.gain.exponentialRampToValueAtTime(0.35,t0+0.015);
+      g2.gain.exponentialRampToValueAtTime(0.0001,t0+0.34);
+      osc.connect(g2);g2.connect(AC.destination);
+      osc.start(t0);osc.stop(t0+0.36);
+    }catch(e){}
+  }
+  var muteEl=document.getElementById('mute');
+  function toggleMute(){
+    muted=!muted;
+    muteEl.textContent=muted?'音 SOUND OFF':'音 SOUND ON';
+  }
+  muteEl.addEventListener('click',toggleMute);
+
+  /* ---------------- post pipeline: the world is cuttable ---------------- */
+  var rt=new THREE.WebGLRenderTarget(W*PR,H*PR,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});
+  var postScene=new THREE.Scene();
+  var postCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+  var postMat=new THREE.ShaderMaterial({
+    uniforms:{
+      tDiffuse:{value:rt.texture},
+      uTime:{value:0},
+      uAspect:{value:W/H},
+      uCutA:{value:new THREE.Vector2(0.3,0.5)},
+      uCutB:{value:new THREE.Vector2(0.7,0.5)},
+      uCutAmt:{value:0},
+      uFlash:{value:0},
+      uSat:{value:0}
+    },
+    vertexShader:[
+      'varying vec2 vUv;',
+      'void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}'
+    ].join('\n'),
+    fragmentShader:[
+      'varying vec2 vUv;',
+      'uniform sampler2D tDiffuse;',
+      'uniform float uTime,uAspect,uCutAmt,uFlash,uSat;',
+      'uniform vec2 uCutA,uCutB;',
+      'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+      'void main(){',
+      '  vec2 uv=vUv;',
+      '  vec2 p =(uv   -0.5)*vec2(uAspect,1.0);',
+      '  vec2 pa=(uCutA-0.5)*vec2(uAspect,1.0);',
+      '  vec2 pb=(uCutB-0.5)*vec2(uAspect,1.0);',
+      '  vec2 dir=normalize(pb-pa+vec2(1e-5));',
+      '  vec2 nrm=vec2(-dir.y,dir.x);',
+      '  float sd=dot(p-pa,nrm);',
+      '  float side=sd>=0.0?1.0:-1.0;',
+      '  vec2 off=(dir*side*0.05+nrm*side*0.014)*uCutAmt;',
+      '  off/=vec2(uAspect,1.0);',
+      '  float ca=0.0042*uCutAmt+0.0007;',
+      '  vec3 col;',
+      '  col.r=texture2D(tDiffuse,uv-off+vec2(ca,0.0)).r;',
+      '  col.g=texture2D(tDiffuse,uv-off).g;',
+      '  col.b=texture2D(tDiffuse,uv-off-vec2(ca,0.0)).b;',
+      '  float seam=exp(-abs(sd)*70.0)*uCutAmt;',
+      '  col+=vec3(1.0,0.10,0.13)*seam*1.7;',
+      '  col+=vec3(0.85,0.04,0.07)*uFlash;',
+      '  float lum=dot(col,vec3(0.299,0.587,0.114));',
+      '  float redness=clamp((col.r-max(col.g,col.b))*4.0,0.0,1.0);',
+      '  col=mix(col,vec3(lum)*0.75,uSat*(1.0-redness));',
+      '  float d=distance(vUv,vec2(0.5));',
+      '  col*=1.0-smoothstep(0.42,0.85,d)*0.5;',
+      '  col+=(hash(vUv*vec2(1873.0,1021.0)+fract(uTime)*9.0)-0.5)*0.045;',
+      '  gl_FragColor=vec4(col,1.0);',
+      '}'
+    ].join('\n')
+  });
+  postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),postMat));
+
+  var shake=0;
+  function doSlash(a,b){
+    lastSlash=performance.now();
+    postMat.uniforms.uCutA.value.set(a.x/W,1-a.y/H);
+    postMat.uniforms.uCutB.value.set(b.x/W,1-b.y/H);
+    postMat.uniforms.uCutAmt.value=1;
+    postMat.uniforms.uFlash.value=0.5;
+    shake=1;
+    cuts++;
+    whoosh();
+  }
+
+  /* ---------------- blade trail (2D overlay) ---------------- */
+  var bladeCv=document.getElementById('blade');
+  var bctx=bladeCv.getContext('2d');
+  function sizeBlade(){bladeCv.width=W;bladeCv.height=H;}
+  sizeBlade();
+  function drawTrail(){
+    bctx.clearRect(0,0,W,H);
+    if(visTrail.length<2)return;
+    var now=performance.now();
+    bctx.globalCompositeOperation='lighter';
+    for(var i=1;i<visTrail.length;i++){
+      var p0=visTrail[i-1],p1=visTrail[i];
+      var age=(now-p1.t)/340;
+      var al=(1-age)*0.55;
+      if(al<=0)continue;
+      bctx.strokeStyle='rgba(255,46,56,'+al.toFixed(3)+')';
+      bctx.lineWidth=(1-age)*2.4+0.4;
+      bctx.beginPath();
+      bctx.moveTo(p0.x,p0.y);
+      bctx.lineTo(p1.x,p1.y);
+      bctx.stroke();
+    }
+    bctx.globalCompositeOperation='source-over';
+  }
+
+  /* ---------------- camera ---------------- */
+  var UP=new THREE.Vector3(0,1,0);
+  function updateCamera(){
+    var pm=mod5(pCur);
+    var t=pm/5;
+    var pos=posCurve.getPointAt(t);
+    var tgt=tgtCurve.getPointAt(t);
+    var dir=tgt.clone().sub(pos).normalize();
+    var r=rollAt(pm);
+    var up=UP.clone();
+    up.addScaledVector(dir,-up.dot(dir));
+    if(up.lengthSq()<1e-4){up.set(1,0,0);up.addScaledVector(dir,-up.dot(dir));}
+    up.normalize().applyAxisAngle(dir,r);
+    camera.position.copy(pos);
+    camera.up.copy(up);
+    camera.lookAt(tgt);
+    camera.rotateY(-mouseS.x*0.1);
+    camera.rotateX(-mouseS.y*0.07);
+    if(shake>0.001){
+      camera.rotateZ((Math.random()-0.5)*0.05*shake);
+      camera.rotateX((Math.random()-0.5)*0.022*shake);
+      camera.rotateY((Math.random()-0.5)*0.022*shake);
+    }
+  }
+
+  /* ---------------- HUD refs ---------------- */
+  var splashEl=document.getElementById('splash');
+  var hintEl=document.getElementById('hint');
+  var cycleEl=document.getElementById('cycle');
+  var bladeStateEl=document.getElementById('bladestate');
+  var roAct=document.getElementById('ro-act');
+  var roData=document.getElementById('ro-data');
+  var tokiEl=document.getElementById('tokiglyph');
+  var ROMAN5=['I','II','III','IV','V'];
+  var actNames=['TEN THOUSAND GATES','THE ENGINE OF HEAVEN','THE CUT','THE INVERTED VOID','ETERNITY, AGAIN'];
+  var curAct=-1;
+
+  function setAct(i){
+    if(i===curAct)return;
+    curAct=i;
+    ACTS.forEach(function(a,k){
+      a.el.classList.toggle('on',k===i);
+      a.vEl.classList.toggle('on',k===i);
+      a.mEl.classList.toggle('on',k===i);
+      a.nEl.classList.toggle('active',k===i);
+    });
+  }
+
+  /* ---------------- main loop ---------------- */
+  var clock=new THREE.Clock();
+  var worldTime=0,ts=1,frame=0,splashCut=false;
+
+  function animate(){
+    requestAnimationFrame(animate);
+    var dt=Math.min(clock.getDelta(),0.05);
+    var rt0=clock.elapsedTime;
+
+    // bullet time: held stillness makes the world kneel
+    var still=holding&&(performance.now()-holdAt>180);
+    var tsT=still?0.06:1;
+    ts+=(tsT-ts)*Math.min(1,dt*4);
+    worldTime+=dt*ts;
+    tokiEl.classList.toggle('on',ts<0.5);
+    postMat.uniforms.uSat.value=clamp((1-ts)*1.05,0,0.92);
+
+    // travel (real time — you can move while time is stopped)
+    var gap=Math.abs(pTarget-pCur);
+    pCur+=(pTarget-pCur)*(1-Math.exp(-dt*(2.6+gap*2.2)));
+
+    // cycle counter
+    var wrapNow=Math.floor(pCur/5);
+    if(wrapNow!==lastWrap){
+      cycles+=Math.abs(wrapNow-lastWrap);
+      lastWrap=wrapNow;
+      cycleEl.textContent=cycles>=3?'CYCLE ∞':'CYCLE '+String(cycles+1).padStart(3,'0');
+    }
+
+    mouseS.x+=(mouse.x-mouseS.x)*0.05;
+    mouseS.y+=(mouse.y-mouseS.y)*0.05;
+
+    updateCamera();
+    shake*=Math.exp(-dt*5.5);
+
+    // decaying wounds
+    postMat.uniforms.uCutAmt.value*=Math.exp(-dt*3.0);
+    postMat.uniforms.uFlash.value*=Math.exp(-dt*9.0);
+    postMat.uniforms.uTime.value=rt0;
+
+    // world animation
+    for(var i=0;i<animators.length;i++)animators[i](worldTime);
+
+    // petals: gravity kneels near act IV
+    var pm=mod5(pCur);
+    var voidness=clamp(1-Math.abs(pm-3)/0.85,0,1);
+    var gdir=1-2*voidness; // +1 falls, -1 rises
+    for(var i=0;i<PCOUNT;i++){
+      var pd=petalData[i];
+      pd.y-=dt*ts*pd.sp*gdir;
+      if(pd.y<-16)pd.y+=64;
+      if(pd.y>48)pd.y-=64;
+      dummy.position.set(
+        pd.x+Math.sin(worldTime*pd.sw+pd.ph)*3,
+        pd.y,
+        pd.z+Math.cos(worldTime*pd.sw*0.8+pd.ph)*2);
+      dummy.rotation.set(worldTime*pd.rs,pd.ph+worldTime*pd.rs*0.7,pd.ph);
+      dummy.updateMatrix();
+      petals.setMatrixAt(i,dummy.matrix);
+    }
+    petals.instanceMatrix.needsUpdate=true;
+
+    // fog breathes; thickens in the void
+    scene.fog.density=0.0062+voidness*0.0028+Math.sin(rt0*0.2)*0.0004;
+
+    drawTrail();
+
+    // splash dissolves on first movement
+    if(!splashCut&&userMoved){splashCut=true;splashEl.classList.add('cut');}
+    hintEl.style.opacity=(pCur>0.6||cuts>0)?'0':'1';
+
+    if((frame++%6)===0){
+      var ai=Math.floor(pm+0.5)%5;
+      setAct(ai);
+      var ready=performance.now()-lastSlash>420;
+      bladeStateEl.textContent=ready?'BLADE DRAWN':'BLADE SHEATHED';
+      bladeStateEl.className=ready?'blade-ok':'';
+      roAct.innerHTML='<b>ACT '+ROMAN5[ai]+'</b> — '+actNames[ai];
+      roData.textContent='ROT '+Math.round(mod5(pCur)*72)+'° · TIME '+ts.toFixed(2)+'× · CUTS '+cuts;
+    }
+
+    renderer.setRenderTarget(rt);
+    renderer.render(scene,camera);
+    renderer.setRenderTarget(null);
+    renderer.render(postScene,postCam);
+  }
+
+  window.addEventListener('resize',function(){
+    W=window.innerWidth;H=window.innerHeight;
+    camera.aspect=W/H;
+    camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+    rt.setSize(W*PR,H*PR);
+    postMat.uniforms.uAspect.value=W/H;
+    sizeBlade();
+  });
+
+  setAct(0);
+  animate();
+})();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(176,138,79,.5);color:#e8a85a;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#e8a85a;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the museum"><span class="k">&#9666;</span><span class="t">the museum</span></a></nav>
+</body>
+</html>
