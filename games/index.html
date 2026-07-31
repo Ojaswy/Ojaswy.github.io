@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>THE PROTOTYPE ARCADE — Jishnu Akella</title>
-<meta name="description" content="Seven playable browser game prototypes: CHIME, HOT HAND, Aqueducts, Mini Lighthouses, Storm Area 51, Costco Sample Speedrun.">
+<meta name="description" content="Eight playable browser game prototypes: CHIME, The Long Way Round, HOT HAND, Aqueducts, Mini Lighthouses, Storm Area 51, Costco Sample Speedrun, Gratitude Garden.">
 <meta property="og:title" content="THE PROTOTYPE ARCADE">
-<meta property="og:description" content="Seven playable browser prototypes. Step through the portal.">
+<meta property="og:description" content="Eight playable browser prototypes. Step through the portal.">
 <meta property="og:image" content="media/chime-landscape-1920x1080.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128126;</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -230,7 +230,7 @@
   <header>
     <div id="mark">
       <div class="t">The Prototype Arcade</div>
-      <div class="s">seven one-idea games · playable in the browser</div>
+      <div class="s">eight one-idea games · playable in the browser</div>
     </div>
     <a id="back" href="../index.html">◂ two doors</a>
   </header>
@@ -588,37 +588,171 @@
     g.fillStyle='#c94b7a';g.beginPath();g.arc(k2[0],k2[1],3.4*u,0,TAU);g.fill();
   }
 
-  /* THE RAGEBAIT PLAYBOOK — the thesis behind the arcade */
-  function sigPlaybook(g,t,S){
-    bgFill(g,S,'#0d0510');
+  /* THE LONG WAY ROUND — wet neon highway, and a car facing the wrong way */
+  function sigRound(g,t,S){
+    bgFill(g,S,'#05060c');
     var u=S/100;
-    g.strokeStyle='rgba(255,59,167,.10)';g.lineWidth=1;
-    for(var i=1;i<8;i++){g.beginPath();g.moveTo(0,i*S/8);g.lineTo(S,i*S/8);g.stroke();}
-    // exploding growth curve
-    g.strokeStyle='rgba(255,59,167,.95)';g.lineWidth=2.2*u;g.lineJoin='round';
-    g.beginPath();
-    var head=0.25+0.75*(0.5+0.5*Math.sin(t*0.7));
-    for(var x=0;x<=100;x++){
-      var f=x/100;
-      if(f>head)break;
-      var y=S-(6+Math.pow(f,3.1)*80)*u - Math.sin(f*30)*1.6*u;
-      if(x===0)g.moveTo(f*S,y);else g.lineTo(f*S,y);
+    var hz=S*0.46, vx=S*0.5;
+    // dusk sky + low sun
+    var sky=g.createLinearGradient(0,0,0,hz);
+    sky.addColorStop(0,'#0a0c1c');sky.addColorStop(0.62,'#241634');sky.addColorStop(1,'#6b2f3a');
+    g.fillStyle=sky;g.fillRect(0,0,S,hz);
+    var sg=g.createRadialGradient(vx,hz,0,vx,hz,32*u);
+    sg.addColorStop(0,'rgba(255,207,138,.85)');
+    sg.addColorStop(0.45,'rgba(239,77,77,.28)');
+    sg.addColorStop(1,'rgba(239,77,77,0)');
+    g.fillStyle=sg;g.fillRect(0,0,S,hz+8*u);
+    // neon canyon
+    var towers=[[4,30],[14,44],[24,22],[33,36],[62,34],[72,20],[81,42],[91,28]];
+    towers.forEach(function(b,i){
+      var bx=b[0]*u,bw=(i%2?8:6.5)*u,bh=b[1]*u;
+      g.fillStyle='#0b0d18';g.fillRect(bx,hz-bh,bw,bh);
+      var lit=0.35+0.65*Math.abs(Math.sin(t*0.7+i*1.9));
+      g.fillStyle=(i%3===0?'rgba(57,210,255,':'rgba(255,110,160,')+(lit*0.75).toFixed(3)+')';
+      for(var wy=2;wy<b[1]-2;wy+=4){
+        for(var wx=1.4;wx<(i%2?8:6.5)-1.4;wx+=2.6){
+          if((wx*7+wy*3+i*5)%5<2.4)continue;
+          g.fillRect(bx+wx*u,hz-bh+wy*u,1.2*u,1.6*u);
+        }
+      }
+    });
+    // wet road
+    g.fillStyle='#0c0d14';
+    g.beginPath();g.moveTo(vx-5*u,hz);g.lineTo(vx+5*u,hz);g.lineTo(S+34*u,S);g.lineTo(-34*u,S);g.closePath();g.fill();
+    function edge(sgn){
+      g.strokeStyle='rgba(57,210,255,.9)';g.lineWidth=1.6*u;
+      g.beginPath();g.moveTo(vx+sgn*5*u,hz);g.lineTo(vx+sgn*68*u,S);g.stroke();
+      g.strokeStyle='rgba(57,210,255,.18)';g.lineWidth=5*u;
+      g.beginPath();g.moveTo(vx+sgn*5*u,hz);g.lineTo(vx+sgn*68*u,S);g.stroke();
     }
-    g.stroke();
-    var hy=S-(6+Math.pow(head,3.1)*80)*u;
-    var hg=g.createRadialGradient(head*S,hy,0,head*S,hy,12*u);
-    hg.addColorStop(0,'rgba(255,255,255,.95)');hg.addColorStop(1,'rgba(255,59,167,0)');
-    g.fillStyle=hg;g.beginPath();g.arc(head*S,hy,12*u,0,TAU);g.fill();
-    // popping clips
-    for(var c=0;c<5;c++){
-      var q=((t*0.5+c*0.2)%1);
-      var cx2=(14+c*19)*u, cy2=S-(20+q*58)*u;
-      g.globalAlpha=(1-q)*0.8;
-      g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=1*u;
-      g.strokeRect(cx2-6*u,cy2-4*u,12*u,8*u);
-      g.fillStyle='rgba(255,59,167,.9)';
-      g.beginPath();g.moveTo(cx2-1.6*u,cy2-2.4*u);g.lineTo(cx2+2.8*u,cy2);g.lineTo(cx2-1.6*u,cy2+2.4*u);g.closePath();g.fill();
-      g.globalAlpha=1;
+    edge(-1);edge(1);
+    // centre dashes racing AWAY from the car — it is pointed at you
+    g.fillStyle='rgba(243,236,214,.8)';
+    for(var d=0;d<7;d++){
+      var q=((t*0.34+d/7)%1), z=Math.pow(q,2.3);
+      var y=hz+z*(S-hz), w=(0.9+z*5)*u, h=(1.2+z*7)*u;
+      g.globalAlpha=Math.min(1,z*4)*0.85;
+      g.fillRect(vx-w/2,y,w,h);
+    }
+    g.globalAlpha=1;
+    // reflections smeared on the wet surface
+    g.globalAlpha=0.18;
+    towers.forEach(function(b,i){
+      var bx=b[0]*u;
+      g.fillStyle=(i%3===0?'#39d2ff':'#ff6ea0');
+      g.fillRect(bx,hz,1.6*u,(6+Math.abs(Math.sin(t*2+i))*7)*u);
+    });
+    g.globalAlpha=1;
+    // the car, headlights toward the camera
+    var cy=S*0.80, cw=26*u, sway=Math.sin(t*1.1)*3*u;
+    g.fillStyle='rgba(255,207,138,.14)';
+    g.beginPath();
+    g.moveTo(vx+sway-cw*0.36,cy);g.lineTo(vx+sway+cw*0.36,cy);
+    g.lineTo(vx+sway+cw*1.5,S);g.lineTo(vx+sway-cw*1.5,S);g.closePath();g.fill();
+    g.fillStyle='#12141e';
+    g.beginPath();
+    g.moveTo(vx+sway-cw/2,cy+9*u);g.lineTo(vx+sway+cw/2,cy+9*u);
+    g.lineTo(vx+sway+cw*0.40,cy-5*u);g.lineTo(vx+sway-cw*0.40,cy-5*u);g.closePath();g.fill();
+    g.fillStyle='rgba(57,210,255,.35)';
+    g.fillRect(vx+sway-cw*0.30,cy-3.5*u,cw*0.60,4.5*u);
+    [-1,1].forEach(function(s){
+      var hx=vx+sway+s*cw*0.34, hy=cy+3*u;
+      var hg2=g.createRadialGradient(hx,hy,0,hx,hy,9*u);
+      hg2.addColorStop(0,'#fffdf2');hg2.addColorStop(.35,'rgba(255,207,138,.85)');
+      hg2.addColorStop(1,'rgba(255,207,138,0)');
+      g.fillStyle=hg2;g.beginPath();g.arc(hx,hy,9*u,0,TAU);g.fill();
+    });
+    // the sign that says you are doing it right
+    var bl=0.55+0.45*Math.sin(t*3.4);
+    g.fillStyle='rgba(143,227,136,'+(bl*0.9).toFixed(3)+')';
+    g.font='700 '+(9*u)+'px "IBM Plex Mono",monospace';
+    g.textAlign='center';g.textBaseline='middle';
+    g.fillText('✓',S*0.845,hz+13*u);
+    g.strokeStyle='rgba(143,227,136,'+(bl*0.55).toFixed(3)+')';g.lineWidth=1*u;
+    g.strokeRect(S*0.845-7*u,hz+6*u,14*u,14*u);
+  }
+
+  /* GRATITUDE GARDEN — seed, sprout, bud, bloom */
+  function sigGarden(g,t,S){
+    var u=S/100;
+    var P=Math.max(1,Math.round(S/50));            // chunky pixel grid
+    function px(x,y,w,h,c){
+      g.fillStyle=c;
+      g.fillRect(Math.round(x/P)*P,Math.round(y/P)*P,
+                 Math.max(P,Math.round(w/P)*P),Math.max(P,Math.round(h/P)*P));
+    }
+    var sky=g.createLinearGradient(0,0,0,S);
+    sky.addColorStop(0,'#bfe3ff');sky.addColorStop(0.34,'#d3ecff');
+    sky.addColorStop(0.72,'#dff3da');sky.addColorStop(1,'#cdeac0');
+    g.fillStyle=sky;g.fillRect(0,0,S,S);
+    // sun
+    px(S*0.80,S*0.10,10*u,10*u,'#f2b705');
+    px(S*0.80-2*u,S*0.10+2*u,14*u,6*u,'#f7c93b');
+    // clouds
+    for(var c=0;c<2;c++){
+      var cx2=((t*2.2+c*58)%128-14)*u;
+      px(cx2,(14+c*11)*u,16*u,4*u,'rgba(255,255,255,.85)');
+      px(cx2+4*u,(11+c*11)*u,9*u,4*u,'rgba(255,255,255,.85)');
+    }
+    // soil
+    var soilY=S*0.72;
+    g.fillStyle='#6f5137';g.fillRect(0,soilY,S,S-soilY);
+    g.fillStyle='#8a6647';g.fillRect(0,soilY,S,3*u);
+    for(var s2=0;s2<9;s2++)px((4+s2*11)*u,soilY+(5+(s2%3)*4)*u,2*u,2*u,'#5c412c');
+    // five plants, each further along the cycle than the last
+    var STEM='#3f8a3c', LEAF='#5aa451';
+    var PETALS=['#f28fb1','#f2b705','#c48ce0','#ff9b6a','#8ed0f5'];
+    for(var i=0;i<5;i++){
+      var bx=(12+i*19)*u;
+      var q=((t*0.13+i*0.2)%1);                    // 0..1 seed → bloom → reseed
+      var stage=q<0.10?0:(q<0.26?1:(q<0.40?2:3));  // most of the cycle is in bloom
+      var grow=clamp((q-0.06)/0.36,0,1);
+      var h=(4+grow*25)*u;
+      px(bx-4*u,soilY-2*u,8*u,3*u,'#5c412c');      // mound
+      if(stage===0){
+        px(bx-2*u,soilY-4*u,4*u,3*u,'#7b5a3a');
+      }else{
+        px(bx-1.5*u,soilY-h,3*u,h,STEM);
+        px(bx-7*u,soilY-h*0.46,6*u,3*u,LEAF);
+        px(bx+2*u,soilY-h*0.70,6*u,3*u,LEAF);
+        px(bx-7*u,soilY-h*0.46-2*u,3*u,2*u,'#6fbb63');
+      }
+      if(stage===2){
+        px(bx-3*u,soilY-h-5*u,6*u,6*u,'#9ccf7a');
+        px(bx-3*u,soilY-h-5*u,6*u,2*u,'#b6e096');
+      }else if(stage===3){
+        var pet=PETALS[i];
+        var open=clamp((q-0.40)/0.10,0,1);
+        var r=(4+open*2)*u;
+        px(bx-r/2,soilY-h-r*1.6,r,r,pet);
+        px(bx-r*1.6,soilY-h-r*0.5,r,r,pet);
+        px(bx+r*0.6,soilY-h-r*0.5,r,r,pet);
+        px(bx-r/2,soilY-h+r*0.6,r,r,pet);
+        px(bx-r/2,soilY-h-r*0.5,r,r,'#fff3c4');    // heart
+      }
+    }
+    // watering can, drifting along the row and pouring
+    var wx=(50+Math.sin(t*0.30)*34)*u, wy=S*0.24;
+    px(wx-13*u,wy,13*u,10*u,'#7ba7c9');            // body
+    px(wx-13*u,wy,13*u,3*u,'#9cc3de');             // lid
+    px(wx-8*u,wy-3*u,4*u,3*u,'#9cc3de');           // cap
+    px(wx-18*u,wy+1*u,5*u,3*u,'#7ba7c9');          // handle
+    px(wx-18*u,wy+1*u,2*u,7*u,'#7ba7c9');
+    px(wx,wy+3*u,7*u,3*u,'#9cc3de');               // spout
+    px(wx+5*u,wy+5*u,4*u,3*u,'#9cc3de');
+    for(var d2=0;d2<5;d2++){
+      var dq=((t*1.5+d2*0.2)%1);
+      px(wx+7*u,wy+8*u+dq*(S*0.44),1.8*u,2.6*u,
+         'rgba(120,190,235,'+(0.9-dq*0.55).toFixed(2)+')');
+    }
+    // butterflies
+    for(var b2=0;b2<2;b2++){
+      var t2=t*0.55+b2*3.1;
+      var fx=(S*0.5)+Math.sin(t2)*S*0.34, fy=S*0.42+Math.sin(t2*1.7)*S*0.10;
+      var flap=Math.sin(t*11+b2)>0?1:-1;
+      px(fx,fy,2.5*u,2.5*u,'#f2b705');
+      px(fx-3*u,fy+(flap>0?-1:1)*u,3*u,2*u,'#ffd979');
+      px(fx+2.5*u,fy+(flap>0?1:-1)*u,3*u,2*u,'#ffd979');
     }
   }
 
@@ -630,6 +764,10 @@
      tag:'physics · music · sandbox',badge:'flagship',ac:[142,224,255],
      sigil:sigChime,video:true,
      blurb:'A marble run that plays music. Build tracks; every peg, bell and drop is a note, quantised to a scale so anything you build sounds good. Journey mode gives you a melody and a parts budget — Studio mode gives you the whole workshop.'},
+    {id:'longway',href:'long-way-round/index.html',title:'The Long Way Round',
+     tag:'driving · 3d · anti-racing',badge:'the twist',ac:[57,210,255],
+     sigil:sigRound,
+     blurb:'A racing game about not arriving. It opens as a Tutorial — 49 lessons, about 26 minutes, straight ahead, graduates all time: zero. Cross the finish exactly as instructed and it tells you that you did not graduate. WRONG WAY is a tick, not a cross. The road is the end of the road.'},
     {id:'hothand',href:'hothand.html',title:'Hot Hand',
      tag:'arcade · one-more-go',badge:'best clip',ac:[255,150,70],
      sigil:sigHot,
@@ -650,10 +788,10 @@
      tag:'arcade · routing',badge:'90 seconds',ac:[255,90,95],
      sigil:sigCostco,
      blurb:'A procedural Costco, sample tables on staggered timers, ninety seconds before close. Karens path between tables and take yours if they beat you there; the floor manager ejects you for double-dipping. Pure Crazy-Taxi routing with a stupid premise.'},
-    {id:'playbook',href:'playbook.html',title:'The Ragebait Playbook',
-     tag:'essay · design thesis',badge:'read',ac:[255,59,167],
-     sigil:sigPlaybook,
-     blurb:'Not a game — the thinking underneath the arcade. Reverse-engineers the friendslop gold rush into eight parts, then rebuilds nine childhood playground games as clip machines. This is the doc the prototypes were chosen from.'}
+    {id:'garden',href:'gratitude-garden.html',title:'Gratitude Garden',
+     tag:'cozy · journal · voice',badge:'cozy',ac:[244,150,180],
+     sigil:sigGarden,
+     blurb:'Type or say something you are grateful for and it waters a plant: seed → sprout → bud → bloom. Tap any flower to re-read the gratitudes that grew it. Researched before it was built, so nothing ever dies and there is no streak to break — the garden wilts, rests, and springs back the day you return.'}
   ];
 
   /* ══════════════════════════════════════════════════════════
@@ -880,7 +1018,7 @@
     else if(e.key==='ArrowUp'||e.key==='ArrowLeft'){e.preventDefault();select((cur-1+GAMES.length)%GAMES.length);}
     else if(e.key==='Enter'){launch(e);}
     else if(e.key==='Escape'){window.location.href='../index.html';}
-    else if(/^[1-7]$/.test(e.key)){select(parseInt(e.key,10)-1);}
+    else if(/^[1-8]$/.test(e.key)){select(parseInt(e.key,10)-1);}
   });
 
   window.addEventListener('resize',function(){sizeVortex();sizePortal();});

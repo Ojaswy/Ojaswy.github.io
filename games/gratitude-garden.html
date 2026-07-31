@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Gratitude Garden</title>
+<style>
+  :root{
+    --ink:#33402f; --soft:#5f6b58; --green:#5aa451; --green-d:#3f8a3c;
+    --panel:#fffdf6; --panel-2:#f3efe2; --line:#e3ddca; --gold:#f2b705;
+    --sky1:#bfe3ff; --sky2:#dff3da;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:"Poppins",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink);
+    background:linear-gradient(180deg,var(--sky1) 0%,#d3ecff 30%,var(--sky2) 70%,#cdeac0 100%);
+    background-attachment:fixed;
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100%;padding:14px 12px 40px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{width:100%;max-width:680px;display:flex;flex-direction:column;gap:12px}
+  /* HUD */
+  .hud{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:9px 12px;box-shadow:0 4px 16px rgba(60,80,50,.10)}
+  .title-mini{font-weight:700;font-size:17px;letter-spacing:.2px;margin-right:auto;display:flex;align-items:center;gap:7px}
+  .title-mini .dot{width:11px;height:11px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px #fbe6a3}
+  .stats{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:12.5px;font-weight:600;color:var(--soft);
+    background:var(--panel-2);border-radius:999px;padding:4px 10px;white-space:nowrap}
+  .iconbtn{border:none;background:var(--panel-2);width:34px;height:34px;border-radius:10px;
+    font-size:16px;cursor:pointer;display:grid;place-items:center;transition:.15s}
+  .iconbtn:hover{background:#e8e3d2;transform:translateY(-1px)}
+  /* stage */
+  .stage{position:relative;background:#000;border-radius:16px;overflow:hidden;
+    border:3px solid #fff;box-shadow:0 10px 30px rgba(40,70,40,.22);line-height:0;align-self:center}
+  canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+  .status{min-height:20px;text-align:center;font-size:13.5px;color:var(--soft);font-weight:500;padding:0 6px}
+  /* main CTA */
+  .cta{border:none;cursor:pointer;color:#fff;font-weight:700;font-size:16px;
+    background:linear-gradient(180deg,#6cbb60,#4f9a48);border-radius:14px;padding:14px;
+    box-shadow:0 6px 16px rgba(70,150,60,.35);transition:.15s;letter-spacing:.2px}
+  .cta:hover{transform:translateY(-1px);box-shadow:0 9px 20px rgba(70,150,60,.4)}
+  .cta:active{transform:translateY(0)}
+  .foot{text-align:center;font-size:11.5px;color:#7c876f;opacity:.9}
+  /* overlay + modal */
+  .overlay{position:fixed;inset:0;background:rgba(40,55,35,.5);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;padding:16px;z-index:30}
+  .overlay.on{display:flex}
+  .modal{background:var(--panel);border-radius:20px;width:100%;max-width:440px;
+    padding:20px;box-shadow:0 20px 50px rgba(30,50,25,.35);animation:pop .22s ease}
+  @keyframes pop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal h2{margin:0 0 4px;font-size:20px}
+  .prompt{display:flex;align-items:flex-start;gap:8px;background:var(--panel-2);
+    border-radius:12px;padding:11px 12px;margin:12px 0 10px;font-size:14.5px;color:#4a553f;font-weight:500}
+  .prompt .shuf{margin-left:auto;border:none;background:#e7e2d1;border-radius:8px;
+    cursor:pointer;font-size:13px;padding:4px 8px;color:#6a7359;white-space:nowrap}
+  textarea{width:100%;min-height:96px;resize:vertical;border:1.5px solid var(--line);
+    border-radius:12px;padding:12px;font:inherit;font-size:15px;color:var(--ink);background:#fffefb}
+  textarea:focus{outline:none;border-color:var(--green)}
+  .row{display:flex;gap:10px;align-items:center;margin-top:12px}
+  .mic{border:1.5px solid var(--line);background:#fffefb;border-radius:12px;height:46px;width:46px;
+    font-size:18px;cursor:pointer;flex:none;transition:.15s}
+  .mic.live{background:#ffe1e1;border-color:#ff9b9b;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,90,90,.4)}50%{box-shadow:0 0 0 7px rgba(255,90,90,0)}}
+  .grow{flex:1}
+  .btn{border:none;cursor:pointer;font-weight:700;font-size:15px;border-radius:12px;padding:13px 16px;transition:.15s}
+  .btn.primary{color:#fff;background:linear-gradient(180deg,#6cbb60,#4f9a48);width:100%;box-shadow:0 5px 13px rgba(70,150,60,.32)}
+  .btn.primary:disabled{filter:grayscale(.6);opacity:.6;cursor:default;box-shadow:none}
+  .btn.ghost{background:var(--panel-2);color:#5c674e}
+  .x{position:absolute;top:12px;right:14px;border:none;background:transparent;font-size:22px;cursor:pointer;color:#9aa389}
+  .modal{position:relative}
+  .hint{font-size:11.5px;color:#9aa389;margin-top:9px;text-align:center}
+  /* savor card */
+  .savor .flower{font-size:34px;text-align:center;margin:2px 0 6px}
+  .entry{background:var(--panel-2);border-radius:12px;padding:11px 13px;margin:9px 0;font-size:14.5px;line-height:1.4}
+  .entry .when{font-size:11.5px;color:#9aa389;margin-top:5px;font-weight:600}
+  .journal-list{max-height:54vh;overflow:auto;margin-top:6px;padding-right:4px}
+  .day-h{font-weight:700;font-size:13px;color:var(--soft);margin:14px 2px 4px}
+  .empty{color:#9aa389;text-align:center;padding:26px 10px;font-size:14px}
+  .about p{font-size:13.5px;line-height:1.55;color:#4d5742}
+  .about a{color:var(--green-d)}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--panel-2);border-radius:12px;padding:11px 13px;margin:9px 0;font-size:14px;font-weight:500}
+  .sw{width:46px;height:27px;border-radius:999px;background:#cdd2c0;position:relative;cursor:pointer;transition:.18s;flex:none}
+  .sw.on{background:var(--green)}
+  .sw b{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.18s}
+  .sw.on b{left:22px}
+  /* title screen */
+  .title-screen{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;
+    background:linear-gradient(180deg,#bfe3ff,#dff3da 60%,#cdeac0)}
+  .title-screen.on{display:flex}
+  .title-screen img{width:min(280px,70vw);image-rendering:pixelated;
+    filter:drop-shadow(0 8px 14px rgba(40,80,40,.3))}
+  .title-screen h1{font-size:clamp(30px,8vw,46px);margin:0;letter-spacing:.5px;
+    color:#2f5b2a;text-shadow:0 2px 0 #fff}
+  .title-screen p{margin:0;color:#3f5a38;font-size:15px;max-width:340px}
+  @media (max-width:420px){ .title-mini{font-size:15px} .chip{font-size:11.5px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="title-mini"><span class="dot"></span>Gratitude Garden</div>
+    <div class="stats" id="stats"></div>
+    <button class="iconbtn" id="btnJournal" title="Your gratitude journal">📖</button>
+    <button class="iconbtn" id="btnSound" title="Sound">🔊</button>
+    <button class="iconbtn" id="btnAbout" title="About">ℹ️</button>
+  </div>
+
+  <div class="stage" id="stage"><canvas id="cv"></canvas></div>
+  <div class="status" id="status"></div>
+  <button class="cta" id="btnAdd">🌱 &nbsp;Add a gratitude</button>
+  <div class="foot">Private &amp; offline — every gratitude stays on this device. Tap a bloom to revisit what grew it.</div>
+</div>
+
+<!-- gratitude modal -->
+<div class="overlay" id="ovAdd">
+  <div class="modal">
+    <button class="x" data-close>×</button>
+    <h2>What are you grateful for?</h2>
+    <div class="prompt"><span id="promptText"></span><button class="shuf" id="shufPrompt">↻ new</button></div>
+    <textarea id="grat" placeholder="Write a few words… the more specific, the better."></textarea>
+    <div class="row">
+      <button class="mic" id="mic" title="Speak it aloud">🎤</button>
+      <button class="btn primary grow" id="plantIt" disabled>Plant it 🌷</button>
+    </div>
+    <div class="hint" id="micHint"></div>
+  </div>
+</div>
+
+<!-- savor popup -->
+<div class="overlay" id="ovSavor">
+  <div class="modal savor">
+    <button class="x" data-close>×</button>
+    <div class="flower" id="savorFlower">🌸</div>
+    <h2 id="savorTitle" style="text-align:center;font-size:18px">These good things grew this flower</h2>
+    <div id="savorBody"></div>
+  </div>
+</div>
+
+<!-- journal -->
+<div class="overlay" id="ovJournal">
+  <div class="modal">
+    <button class="x" data-close>×</button>
+    <h2>📖 Your gratitude journal</h2>
+    <div class="journal-list" id="journalList"></div>
+  </div>
+</div>
+
+<!-- about / settings -->
+<div class="overlay" id="ovAbout">
+  <div class="modal about">
+    <button class="x" data-close>×</button>
+    <h2>About this garden</h2>
+    <p>Tend your garden by naming things you're grateful for — typed or spoken. Each gratitude waters a
+       plant and helps it grow from <b>seed → sprout → bud → bloom</b>. Your garden becomes a living
+       record of your good things.</p>
+    <p><b>Your plants never die.</b> If a few quiet days pass, the garden simply rests and wilts a little.
+       The moment you return with one gratitude, it springs back to life. No streaks to break, no guilt —
+       just an invitation to notice the good.</p>
+    <div class="toggle">Gentle daily reminder
+      <div class="sw" id="swReminder"><b></b></div></div>
+    <div class="toggle">Sound
+      <div class="sw on" id="swSound2"><b></b></div></div>
+    <p style="font-size:12px;color:#8a937c">Reminders only fire while this page is open in a tab. Everything
+       is stored locally in your browser — nothing is uploaded.</p>
+    <details style="margin-top:6px">
+      <summary style="cursor:pointer;font-size:13px;color:#6a7359;font-weight:600">The science (honest version)</summary>
+      <p style="margin-top:8px">Regularly noting what you're grateful for is one of the better-supported
+        ways to nudge everyday positive mood (Emmons &amp; McCullough, 2003; Seligman's "Three Good Things,"
+        2005). Two practical findings shaped this app: <b>variety matters</b> (the same gratitude every day
+        loses its spark), and doing it <b>flexibly beats forcing a daily quota</b> — so prompts rotate and
+        the garden never punishes a missed day. Benefits are real but modest; this is a gentle wellbeing
+        habit, not a treatment for depression or anxiety.</p>
+    </details>
+    <button class="btn ghost" id="resetBtn" style="width:100%;margin-top:8px;color:#b5524a">Reset garden…</button>
+  </div>
+</div>
+
+<!-- title screen -->
+<div class="title-screen" id="titleScreen">
+  <img id="titleImg" alt="Gratitude Garden">
+  <h1>Gratitude Garden</h1>
+  <p>Grow something good — one gratitude at a time.</p>
+  <button class="cta" id="enterBtn" style="min-width:220px">Enter your garden →</button>
+  <p style="font-size:12px;opacity:.85">🔒 Private &amp; offline. No account, ever.</p>
+</div>
+
+<script>
+/* ====================== embedded pixel art ====================== */
+const SHEET_URI = "data:image/png;base64,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";
+const CAN_URI   = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAYCAYAAACbU/80AAAA8UlEQVR4nGNkoCJw8wr6D2Pv2raOkRh5JnpZji4OU89ELQcQshyXPCPDAAHkEBvZgJEewYcvXTCS64AJE/qIUltQUITXMYzkOoAU9dgcq6WmALabhZa+JwYwUc2kUQeQCVjISXi37txjoARMmzKFtBBw8wr6n5WTwwDCdA0BN6ivaWExXge40cFinA5wgwY3vni7dOUadR3ghlaygSxDdgSIDytCqV2NssAY3759Y3Dz8mHYtW0LAxcXF9xiYhoZlABGmK9sHJzggkcO7MNrcVPXFIpCoa4shxHDAd/QQoCQr8mNCqy1oRsWw2gZ7IMKAAAq1XKW53j5wgAAAABJRU5ErkJggg==";
+const TITLE_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAoCAYAAABOzvzpAAADpElEQVR4nO1YQUgbQRT9G4YiaQlBbJDSFpEeNIQipYjYHiQUodKG0kNLwRahFERExIPoxYM9WDwUEREpLfTWnkoNRcSD5FBEQg8hSCwiEkqRYEMoFkIo0i0z46wz6252N9l1Y8y7zO7M/5P9/73/Z7MSVCm6ex7K7Hpl6ZOkZydBFQduFDyGB6oYRsFXfQJqqKGGGowggUPY75sVjiPf+yHJyeOu1NMBwSnGzMxryz7DwyNC8iSnGN9IpcgYCgY17ctVRDkK4BOH4BQCB18K+1pAtuyiwXhnfIEyHNdWSKXAA2ccyKluL8vyGB4XW59O4XF1nUoh3NEu+Nl9OliFB844ULkb6HV7xrxdUHf9re0dW/ZFcAqAgx8YHFTu5+fmbNsbWXWQ164dvUR0bkus2+8HaU2z2mY1zxDwXRDuWe3Pr/+SWwJeCDefd6UXIKtBbyZyZGxtqxfmAWbhz5shyw8w0HFRMpI9z77dQHZuhvsB6wWs2+tBj3m+1p0M3FICNjnWgwO5wwfOqRRQPvPqWuehrvvkBm2+FaWATtwPDkt/rb2fJCcx+xL0alzrfZ4Fqm56/D+4cv4HWE6ArGp67AVn/O6VqfHJApmfmqhTbLEN79+78AEqGciM/LH0GXDgZjZ+NbJFxt3UetHaz+fzZL675x6sLH0Br9d7TA1mvu6WCsmMEa8CxjrGswh9eJYgnv3IxzDx2U3R/vFtMqFZAre7wsLc19iqcl0s8MnpObkiX4T6YxHyYNfr3pHaH03dEuYXuqJCUJh1LQUYsT4xOijZ0QuQ1VOA1TsFfy1iOf0YltPGe7OAMfO8/M3AjtJAZoz4oy81Xy+zZGDJM2Yx+mNBXUaYIiD2RLHZmQbXgU7qh5KF55D8Ic41jx4cK4mThtT3+cEx1vZ2cxC4dNT5eeQK+8CaW+hGE6TTe8L6o45FwvRM/L5ihxFo9JE91fZNTYGiv+f0GrLiWOf/B5AR71vaGuB7IqvMxTMvIM7ZMLgVoNEasuJ41e/XXPOeQ7p+amDG7Q6inDVk5EhYB9ANnqwF8Rq1K/w295GpEoJXElDM0Sr8b+mXmlxvgzB/J04Tk8nQHrAREdfdSgwycsynDzTly7PNN7Y2KB1uqAKV4sgjFM1CCDzwc4+eDpcDPjLeTNKSyWT+0hFokphdKAqCEtwqCY9VRydQ8cdgKJpV2ONrm9R1Y4DUNWOegdW6Whlqu4o/BkPRrBAEL221rNXBmYHbJ8F/0V4nonkjkHcAAAAASUVORK5CYII=";
+const SPRITE = {"grass": [0, 0], "dirt_dry": [1, 0], "dirt_wet": [2, 0], "fence": [3, 0], "seed": [4, 0], "sprout": [5, 0], "sunflower_bud": [6, 0], "sunflower_bloom": [7, 0], "sunflower_wilt": [8, 0], "rose_bud": [9, 0], "rose_bloom": [0, 1], "rose_wilt": [1, 1], "cornflower_bud": [2, 1], "cornflower_bloom": [3, 1], "cornflower_wilt": [4, 1], "tulip_bud": [5, 1], "tulip_bloom": [6, 1], "tulip_wilt": [7, 1], "lavender_bud": [8, 1], "lavender_bloom": [9, 1], "lavender_wilt": [0, 2], "daisy_bud": [1, 2], "daisy_bloom": [2, 2], "daisy_wilt": [3, 2]};          // name -> [col,row] in 16px cells
+const SPECIES_ORDER = ["sunflower", "rose", "cornflower", "tulip", "lavender", "daisy"];
+
+/* ====================== constants ====================== */
+const TILE = 16;
+const NW = 11, NH = 9;                      // garden in tiles (176x144 native)
+const PLOT_COLS = 4, PLOT_ROWS = 3;         // 12 beds
+const SAVE_KEY = "gratitudeGarden.v1";
+const PROMPTS = [
+  "What's one small thing that went well today — and why?",
+  "Who is someone you're grateful for right now?",
+  "What's a comfort you'd miss if it were gone?",
+  "What did your body let you do today?",
+  "What made you smile, even for a second?",
+  "What's something you usually take for granted?",
+  "What's a challenge you got through recently?",
+  "A small sensory pleasure you noticed — a taste, sound, or smell?",
+  "Who helped you lately, in a big or small way?",
+  "What about today would you like to remember?"
+];
+
+/* ====================== date helpers ====================== */
+function todayKey(d=new Date()){
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function keyToUTC(k){ const [y,m,d]=k.split("-").map(Number); return Date.UTC(y,m-1,d); }
+function dayDiff(a,b){ return Math.round((keyToUTC(b)-keyToUTC(a))/86400000); }
+function prettyDate(k){
+  const [y,m,d]=k.split("-").map(Number);
+  return new Date(y,m-1,d).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+}
+
+/* ====================== state ====================== */
+let state, idSeq=1;
+function freshState(){
+  const plots=[];
+  for(let r=0;r<PLOT_ROWS;r++) for(let c=0;c<PLOT_COLS;c++){
+    const i=plots.length;
+    plots.push({ id:i, col:c, row:r, species:SPECIES_ORDER[i%SPECIES_ORDER.length],
+                 stage:(i===0?0:-1), entryIds:[] });   // stage -1 empty, 0 seed..3 bloom
+  }
+  return { version:1, createdAt:Date.now(), lastTendedDateKey:null,
+           entries:[], plots, settings:{sound:true, reminder:false} };
+}
+function load(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw){ state=freshState(); return false; }
+    state=JSON.parse(raw);
+    idSeq=1+state.entries.reduce((m,e)=>Math.max(m,e.id),0);
+    if(!state.settings) state.settings={sound:true,reminder:false};
+    return true;
+  }catch(err){ state=freshState(); return false; }
+}
+function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} }
+
+/* ====================== garden logic ====================== */
+function gardenHealth(){
+  if(!state.lastTendedDateKey) return 1;
+  const d=dayDiff(state.lastTendedDateKey, todayKey());
+  if(d<=2) return 1;                                  // 2 grace days — "never miss twice"
+  return Math.max(0.2, 1 - (d-2)*0.16);               // gentle, reversible, never 0
+}
+function tendedToday(){ return state.lastTendedDateKey===todayKey(); }
+function activePlot(){ return state.plots.find(p=>p.stage>=0 && p.stage<3); }
+function blooms(){ return state.plots.filter(p=>p.stage===3).length; }
+function daysTended(){ return new Set(state.entries.map(e=>e.dateKey)).size; }
+
+function submitGratitude(text, via){
+  const wasResting = gardenHealth() < 0.6;
+  const e={ id:idSeq++, text:text.trim(), dateKey:todayKey(), createdAt:Date.now(),
+            prompt:currentPrompt, via, plotId:null };
+  let grew=null, bloomed=false;
+  let act=activePlot();
+  if(act){
+    act.stage++; e.plotId=act.id; act.entryIds.push(e.id); grew=act;
+    if(act.stage===3){ bloomed=true; const empty=state.plots.find(p=>p.stage===-1); if(empty) empty.stage=0; }
+  }else{
+    const empty=state.plots.find(p=>p.stage===-1);
+    if(empty){ empty.stage=0; e.plotId=empty.id; empty.entryIds.push(e.id); grew=empty; }
+    else{ const last=state.plots[state.plots.length-1]; e.plotId=last.id; last.entryIds.push(e.id); grew=last; }
+  }
+  state.entries.push(e);
+  state.lastTendedDateKey=todayKey();
+  save();
+  startWater(grew, bloomed, wasResting);
+}
+
+/* ====================== rendering ====================== */
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+let SCALE=4, sheetImg=new Image(), canImg=new Image(), ready=0;
+sheetImg.onload=()=>{ if(++ready>=2) start(); };
+canImg.onload =()=>{ if(++ready>=2) start(); };
+sheetImg.src=SHEET_URI; canImg.src=CAN_URI;
+
+function fit(){
+  const maxW=Math.min(document.querySelector(".wrap").clientWidth, 680);
+  const maxH=Math.max(260, window.innerHeight-300);
+  SCALE=Math.max(2, Math.min(6, Math.floor(Math.min(maxW/(NW*TILE), maxH/(NH*TILE)))));
+  cv.width=NW*TILE*SCALE; cv.height=NH*TILE*SCALE;
+  ctx.imageSmoothingEnabled=false;
+}
+window.addEventListener("resize", ()=>{ fit(); draw(); });
+
+function plotPx(p){ return { x:(2+p.col*2)*TILE, y:(2+p.row*2)*TILE }; }
+function spr(name,x,y,s=1,alpha=1){
+  const c=SPRITE[name]; if(!c) return;
+  ctx.globalAlpha=alpha;
+  ctx.drawImage(sheetImg, c[0]*TILE,c[1]*TILE,TILE,TILE, x,y, TILE*s,TILE*s);
+  ctx.globalAlpha=1;
+}
+function tile(name,tx,ty){ spr(name,tx*TILE,ty*TILE,1); }
+function tileRot(name,tx,ty,deg){
+  const c=SPRITE[name]; if(!c) return;
+  ctx.save();
+  ctx.translate(tx*TILE+TILE/2, ty*TILE+TILE/2); ctx.rotate(deg*Math.PI/180);
+  ctx.drawImage(sheetImg, c[0]*TILE,c[1]*TILE,TILE,TILE, -TILE/2,-TILE/2, TILE,TILE);
+  ctx.restore();
+}
+function stageSprite(p){
+  if(p.stage===0) return "seed";
+  if(p.stage===1) return "sprout";
+  const h=gardenHealth();
+  if(p.stage===3 && h<0.55) return p.species+"_wilt";
+  if(p.stage===2) return p.species+"_bud";
+  return p.species+"_bloom";
+}
+
+let swayT=0, butterflies=[];
+function draw(){
+  const h=gardenHealth();
+  ctx.setTransform(SCALE,0,0,SCALE,0,0);
+  ctx.clearRect(0,0,NW*TILE,NH*TILE);
+  // grass
+  for(let y=0;y<NH;y++) for(let x=0;x<NW;x++) tile("grass",x,y);
+  // beds (tilled soil for every plot)
+  for(const p of state.plots){
+    const {x,y}=plotPx(p);
+    const wet = tendedToday() && (p.stage>=0);
+    ctx.drawImage(sheetImg, SPRITE[wet?"dirt_wet":"dirt_dry"][0]*TILE, SPRITE[wet?"dirt_wet":"dirt_dry"][1]*TILE,TILE,TILE, x,y,TILE,TILE);
+  }
+  // fence border
+  for(let x=0;x<NW;x++){ tile("fence",x,0); tile("fence",x,NH-1); }
+  for(let y=1;y<NH-1;y++){ tileRot("fence",0,y,90); tileRot("fence",NW-1,y,90); }
+  // plants
+  for(const p of state.plots){
+    if(p.stage<0) continue;
+    const {x,y}=plotPx(p);
+    const droop = h<0.85 ? Math.round((0.85-h)*5) : 0;
+    const sway = (p.stage>=2 && h>=0.85) ? Math.round(Math.sin(swayT/40 + p.id)*0.9) : 0;
+    spr(stageSprite(p), x+sway, y-2+droop, 1);
+    if(h<0.85 && p.stage>=1){           // resting tint
+      ctx.globalAlpha=(0.85-h)*0.5;
+      ctx.fillStyle="#6b6450";
+      ctx.fillRect(x, y-2, TILE, TILE); ctx.globalAlpha=1;
+    }
+  }
+  // butterflies (ambient, only when healthy)
+  for(const b of butterflies){
+    ctx.fillStyle=b.c; ctx.fillRect(Math.round(b.x),Math.round(b.y),2,2);
+    ctx.fillRect(Math.round(b.x)-1,Math.round(b.y)-1,1,1);
+    ctx.fillRect(Math.round(b.x)+2,Math.round(b.y)-1,1,1);
+  }
+  // water animation overlay
+  if(anim) drawAnim();
+}
+
+/* ====================== animation (rAF only while active) ====================== */
+let anim=null, rafId=0, ambientOn=true;
+function loop(t){
+  swayT=t/16;
+  // ambient butterflies
+  if(ambientOn && gardenHealth()>=0.85 && blooms()>0){
+    if(butterflies.length<2 && Math.random()<0.006) spawnButterfly();
+  } else butterflies.length=0;
+  for(const b of butterflies){
+    b.x+=Math.cos(b.a)*0.35; b.y+=Math.sin(b.a)*0.25+Math.sin(t/200+b.id)*0.15;
+    b.a+=(Math.random()-0.5)*0.3; b.life--;
+    if(b.life<=0||b.x<6||b.x>NW*TILE-6||b.y<6||b.y>NH*TILE-6) b.dead=true;
+  }
+  butterflies=butterflies.filter(b=>!b.dead);
+  if(anim) stepAnim(t);
+  try{ draw(); }catch(e){}            // one bad frame must never kill the loop
+  rafId=requestAnimationFrame(loop);
+}
+function spawnButterfly(){
+  butterflies.push({ id:Math.random(), x:10+Math.random()*(NW*TILE-20), y:24+Math.random()*40,
+    a:Math.random()*6.28, life:300+Math.random()*300, dead:false,
+    c:["#ffd54a","#ff8fae","#fff"][Math.floor(Math.random()*3)] });
+}
+function startWater(plot, bloomed, reviving){
+  if(!plot){ draw(); return; }
+  const {x,y}=plotPx(plot);
+  anim={ plot, bloomed, reviving, t0:performance.now(), drops:[], sparks:[], cx:x-18, cy:y-26, tx:x-1, ty:y-26, phase:0 };
+  beep("water");
+}
+function stepAnim(now){
+  const a=anim, el=now-a.t0;
+  // move can in over 380ms
+  const mv=Math.min(1, el/380); const e=mv*mv*(3-2*mv);
+  a.curX=a.cx+(a.tx-a.cx)*e; a.curY=a.cy+(a.ty-a.cy)*e;
+  if(el>360 && el<1000 && Math.random()<0.5){       // pour droplets
+    a.drops.push({x:a.tx+3+Math.random()*3, y:a.ty+14, vy:0.7+Math.random()*0.5, life:26});
+  }
+  for(const d of a.drops){ d.y+=d.vy; d.vy+=0.05; d.life--; }
+  a.drops=a.drops.filter(d=>d.life>0);
+  if(el>500 && !a.grew){ a.grew=true; beep(a.bloomed?"bloom":"grow");
+    if(a.reviving){ for(let i=0;i<14;i++) a.sparks.push(spark(a.plot,true)); }
+    for(let i=0;i<(a.bloomed?16:7);i++) a.sparks.push(spark(a.plot,false)); }
+  for(const s of a.sparks){ s.x+=s.vx; s.y+=s.vy; s.vy+=0.03; s.life--; }
+  a.sparks=a.sparks.filter(s=>s.life>0);
+  if(el>1250 && a.drops.length===0 && a.sparks.length===0){ anim=null; renderStats(); renderStatus(); }
+}
+function spark(plot,wide){
+  const {x,y}=plotPx(plot);
+  const ang=Math.random()*6.28, sp=wide?(0.6+Math.random()*1.4):(0.4+Math.random()*1.0);
+  return { x:x+8+(wide?(Math.random()*60-30):0), y:y+2+(wide?(Math.random()*30-10):0),
+    vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp-0.5, life:24+Math.random()*16,
+    c:wide?["#aef0a0","#fff7c9","#bfe9ff"][Math.floor(Math.random()*3)]:["#fff7c9","#ffe08a","#fff"][Math.floor(Math.random()*3)] };
+}
+function drawAnim(){
+  const a=anim;
+  for(const d of a.drops){ ctx.fillStyle="#bfe6ff"; ctx.fillRect(Math.round(d.x),Math.round(d.y),1,2);
+    ctx.fillStyle="#8fd0f5"; ctx.fillRect(Math.round(d.x),Math.round(d.y)+2,1,1); }
+  if(a.curX!=null){ const s=20/canImg.width;   // can ~20px wide
+    ctx.drawImage(canImg, Math.round(a.curX), Math.round(a.curY), canImg.width*s, canImg.height*s); }
+  for(const s of a.sparks){ ctx.globalAlpha=Math.min(1,s.life/20); ctx.fillStyle=s.c;
+    ctx.fillRect(Math.round(s.x),Math.round(s.y),2,2); ctx.globalAlpha=1; }
+}
+
+/* ====================== audio (tiny WebAudio) ====================== */
+let actx=null;
+function audio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return actx; }
+function tone(freq,dur,type="sine",vol=0.15,when=0){
+  if(!state.settings.sound) return; const a=audio(); if(!a) return;
+  const o=a.createOscillator(), g=a.createGain();
+  o.type=type; o.frequency.value=freq; o.connect(g); g.connect(a.destination);
+  const t=a.currentTime+when; g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t); o.stop(t+dur+0.02);
+}
+function beep(kind){
+  if(kind==="water"){ for(let i=0;i<3;i++) tone(520+i*40,0.12,"triangle",0.07,i*0.08); }
+  if(kind==="grow"){ tone(523,0.14,"sine",0.13); tone(659,0.16,"sine",0.12,0.07); }
+  if(kind==="bloom"){ [523,659,784,1046].forEach((f,i)=>tone(f,0.2,"sine",0.13,i*0.08)); }
+}
+
+/* ====================== HUD / status / panels ====================== */
+const $=id=>document.getElementById(id);
+function renderStats(){
+  $("stats").innerHTML =
+    `<span class="chip">🌸 ${blooms()} blooms</span>`+
+    `<span class="chip">✨ ${state.entries.length} moments</span>`+
+    `<span class="chip">🌿 ${daysTended()} days tended</span>`;
+}
+function renderStatus(){
+  const h=gardenHealth(); let m;
+  if(tendedToday()) m="Your garden is thriving today. 🌼";
+  else if(h>=0.99) m="Your garden is happy and waiting for you. 🌿";
+  else if(h>=0.55) m="A couple of quiet days — your garden is resting. A gratitude will perk it up.";
+  else m="Your garden missed you 🌱 — add one gratitude to bring it back to life.";
+  $("status").textContent=m;
+}
+
+let currentPrompt=PROMPTS[0];
+function pickDailyPrompt(){
+  const n=state.lastTendedDateKey?Math.abs(dayDiff("2024-01-01",todayKey())):0;
+  currentPrompt=PROMPTS[n%PROMPTS.length];
+}
+function openAdd(){
+  pickDailyPrompt(); $("promptText").textContent=currentPrompt;
+  $("grat").value=""; $("plantIt").disabled=true; $("micHint").textContent="";
+  show("ovAdd"); setTimeout(()=>$("grat").focus(),60);
+}
+$("shufPrompt").onclick=()=>{ currentPrompt=PROMPTS[Math.floor(Math.random()*PROMPTS.length)]; $("promptText").textContent=currentPrompt; };
+$("grat").addEventListener("input",e=>{ $("plantIt").disabled = e.target.value.trim().length<2; });
+$("plantIt").onclick=()=>{
+  const t=$("grat").value.trim(); if(t.length<2) return;
+  hideAll(); submitGratitude(t, micUsed?"voice":"typed"); micUsed=false;
+};
+
+/* savor */
+function openSavor(plot){
+  const sp=plot.species;
+  $("savorFlower").textContent = plot.stage===3?"🌸":(plot.stage===2?"🌷":"🌱");
+  const es=plot.entryIds.map(id=>state.entries.find(e=>e.id===id)).filter(Boolean);
+  $("savorTitle").textContent = plot.stage===3 ? `These good things grew this ${sp}` : `Growing a ${sp}…`;
+  $("savorBody").innerHTML = es.length? es.map(e=>
+      `<div class="entry">${esc(e.text)}<div class="when">${prettyDate(e.dateKey)}${e.via==="voice"?" · 🎤 spoken":""}</div></div>`).join("")
+    : `<div class="empty">Water this plant with a gratitude to start its story.</div>`;
+  show("ovSavor");
+}
+/* journal */
+function openJournal(){
+  const list=$("journalList");
+  if(!state.entries.length){ list.innerHTML=`<div class="empty">Your journal is empty — add your first gratitude. 🌱</div>`; show("ovJournal"); return; }
+  const byDay={}; [...state.entries].reverse().forEach(e=>{ (byDay[e.dateKey]=byDay[e.dateKey]||[]).push(e); });
+  list.innerHTML=Object.keys(byDay).map(k=>
+     `<div class="day-h">${prettyDate(k)}</div>`+
+     byDay[k].map(e=>`<div class="entry">${esc(e.text)}${e.via==="voice"?`<div class="when">🎤 spoken</div>`:""}</div>`).join("")
+  ).join("");
+  show("ovJournal");
+}
+function esc(s){ return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ====================== voice (Web Speech API) ====================== */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null, listening=false, micUsed=false;
+if(SR){
+  $("micHint").textContent="";
+}else{
+  $("mic").style.display="none";
+}
+$("mic").onclick=()=>{
+  if(!SR) return;
+  if(listening){ rec&&rec.stop(); return; }
+  rec=new SR(); rec.lang=navigator.language||"en-US"; rec.interimResults=true; rec.continuous=false;
+  let base=$("grat").value;
+  rec.onstart=()=>{ listening=true; $("mic").classList.add("live"); $("micHint").textContent="Listening… speak your gratitude."; };
+  rec.onerror=(e)=>{ $("micHint").textContent = e.error==="not-allowed"?"Mic permission denied — you can type instead.":"Couldn't hear that — try typing."; };
+  rec.onend=()=>{ listening=false; $("mic").classList.remove("live");
+    if($("grat").value.trim().length>=2) $("plantIt").disabled=false; };
+  rec.onresult=(ev)=>{
+    let txt=""; for(let i=0;i<ev.results.length;i++) txt+=ev.results[i][0].transcript;
+    $("grat").value=(base?base+" ":"")+txt; micUsed=true;
+    $("plantIt").disabled=$("grat").value.trim().length<2;
+  };
+  try{ rec.start(); }catch(e){}
+};
+
+/* ====================== overlays ====================== */
+function show(id){ $(id).classList.add("on"); }
+function hideAll(){ document.querySelectorAll(".overlay").forEach(o=>o.classList.remove("on")); }
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=hideAll);
+document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("click",e=>{ if(e.target===o) hideAll(); }));
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") hideAll();
+  if(e.key==="Enter" && $("ovAdd").classList.contains("on") && (e.metaKey||e.ctrlKey)) $("plantIt").click(); });
+
+$("btnAdd").onclick=()=>{ audio(); openAdd(); };
+$("btnJournal").onclick=openJournal;
+$("btnAbout").onclick=openAbout;
+function openAbout(){ syncSwitches(); show("ovAbout"); }
+$("btnSound").onclick=()=>{ state.settings.sound=!state.settings.sound; save(); updateSoundIcon(); };
+function updateSoundIcon(){ $("btnSound").textContent=state.settings.sound?"🔊":"🔇"; }
+
+/* switches in about */
+function syncSwitches(){
+  $("swSound2").classList.toggle("on",state.settings.sound);
+  $("swReminder").classList.toggle("on",state.settings.reminder);
+}
+$("swSound2").onclick=()=>{ state.settings.sound=!state.settings.sound; save(); updateSoundIcon(); syncSwitches(); };
+$("swReminder").onclick=async ()=>{
+  if(!state.settings.reminder){
+    if("Notification" in window && Notification.permission!=="granted"){
+      const p=await Notification.requestPermission(); if(p!=="granted") return;
+    }
+    state.settings.reminder=true;
+  } else state.settings.reminder=false;
+  save(); syncSwitches(); scheduleReminder();
+};
+let reminderTimer=null;
+function scheduleReminder(){
+  clearInterval(reminderTimer);
+  if(!state.settings.reminder) return;
+  reminderTimer=setInterval(()=>{
+    if("Notification" in window && Notification.permission==="granted" && !tendedToday() && new Date().getHours()>=18){
+      try{ new Notification("Gratitude Garden 🌷",{body:"Your garden would love a visit. What went well today?"}); }catch(e){}
+    }
+  }, 60*60*1000);
+}
+$("resetBtn").onclick=()=>{
+  if(confirm("Reset your garden and erase all gratitude entries on this device? This cannot be undone.")){
+    localStorage.removeItem(SAVE_KEY); location.reload();
+  }
+};
+
+/* ====================== canvas clicks ====================== */
+cv.addEventListener("click",ev=>{
+  const r=cv.getBoundingClientRect();
+  const nx=(ev.clientX-r.left)/SCALE, ny=(ev.clientY-r.top)/SCALE;
+  for(const p of state.plots){
+    const {x,y}=plotPx(p);
+    if(nx>=x-2&&nx<=x+TILE+2&&ny>=y-8&&ny<=y+TILE+2){
+      if(p.stage===3 || (p.stage>=0 && p.entryIds.length)) openSavor(p);
+      else { audio(); openAdd(); }
+      return;
+    }
+  }
+});
+
+/* ====================== boot ====================== */
+function start(){
+  fit();
+  updateSoundIcon(); renderStats(); renderStatus();
+  document.getElementById("titleImg").src=TITLE_URI;
+  if(firstRun){ $("titleScreen").classList.add("on"); }
+  scheduleReminder();
+  try{ draw(); }catch(e){}            // paint once now — rAF is throttled in hidden tabs
+  cancelAnimationFrame(rafId); rafId=requestAnimationFrame(loop);
+}
+document.addEventListener("visibilitychange",()=>{
+  ambientOn=!document.hidden;
+  if(!document.hidden){ try{ draw(); }catch(e){}   // repaint immediately on refocus
+    cancelAnimationFrame(rafId); rafId=requestAnimationFrame(loop); }
+});
+$("enterBtn").onclick=()=>{ audio(); $("titleScreen").classList.remove("on");
+  if(!state.entries.length) setTimeout(openAdd,350); };
+
+let firstRun=!load();
+pickDailyPrompt();
+</script>
+<!-- site-nav -->
+<style>
+#sitenav{position:fixed;left:0;bottom:0;z-index:2147483000;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:antialiased;pointer-events:none}
+#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
+  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
+  background:rgba(8,7,6,.62);border:1px solid rgba(127,212,255,.45);color:#7fd4ff;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
+  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
+#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
+#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
+#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#7fd4ff;outline:none}
+#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
+@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
+@media print{#sitenav{display:none}}
+</style>
+<nav id="sitenav"><a href="index.html" title="the arcade"><span class="k">&#9666;</span><span class="t">the arcade</span></a></nav>
+</body>
+</html>
