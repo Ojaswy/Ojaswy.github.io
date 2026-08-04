@@ -785,20 +785,32 @@ function basis(){
    guess a safe default for every GPU, measure and settle. Coarse hysteresis so
    it does not oscillate visibly.
    ═══════════════════════════════════════════════════════════════════════════ */
-var Q={scale:0.85,steps:240,auto:true,mode:'auto'};
-var QMODES=[{n:'auto'},{n:'high',scale:1.0,steps:384},{n:'low',scale:0.55,steps:130}];
+/* A fraction of the display is not a budget. At 2561x1257 with dpr clamped to 2
+   the surface is 5122x2514 = 12.88 megapixels, and at scale 1.0 with 384 steps
+   that is roughly 19.8 billion RK4 stages per frame. The ceiling is absolute so
+   the cost is bounded by the machine, not by the size of the window. */
+var MAXPIX=1200000;
+/* Never render faster than about 64fps. requestAnimationFrame is vsync locked,
+   so on a 144Hz panel the old governor saw 6.9ms frames, concluded it had
+   headroom, and climbed until the GPU itself became the bottleneck. It was
+   designed to consume 100 percent of the GPU. A per pixel raytracer has no
+   business running at 240Hz. */
+var MINFRAME=15.4, lastDraw=-1e9;
+var Q={scale:0.55,steps:120,auto:true,mode:'auto'};
+var QMODES=[{n:'auto'},{n:'high',scale:1.0,steps:260},{n:'low',scale:0.40,steps:90}];
 var qi=0;
-var frameAvg=16.7,settle=0;
+var frameAvg=16.7,settle=0,drawAvg=16.7;
 
 function governor(dt){
   frameAvg+=(dt-frameAvg)*0.09;
+  var budget=drawAvg;
   if(!Q.auto)return;
   settle-=dt;
   if(settle>0)return;
-  if(frameAvg>26.0&&Q.scale>0.5){Q.scale=Math.max(0.5,Q.scale-0.08);resize();settle=420;}
-  else if(frameAvg>26.0&&Q.steps>110){Q.steps-=24;settle=420;}
-  else if(frameAvg<13.0&&Q.steps<384){Q.steps+=18;settle=520;}
-  else if(frameAvg<13.0&&Q.scale<1.0){Q.scale=Math.min(1.0,Q.scale+0.06);resize();settle=520;}
+  if(budget>21.0&&Q.steps>90){Q.steps-=26;settle=400;}
+  else if(budget>21.0&&Q.scale>0.40){Q.scale=Math.max(0.40,Q.scale-0.08);resize();settle=400;}
+  else if(budget<15.0&&Q.steps<260){Q.steps+=14;settle=620;}
+  else if(budget<15.0&&Q.scale<1.0){Q.scale=Math.min(1.0,Q.scale+0.05);resize();settle=620;}
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -810,9 +822,16 @@ function resize(){
   DPR=Math.min(window.devicePixelRatio||1,2);
   W=Math.max(2,Math.round(cv.clientWidth*DPR));
   H=Math.max(2,Math.round(cv.clientHeight*DPR));
-  cv.width=W;cv.height=H;
-  RW=Math.max(2,Math.round(W*Q.scale));
-  RH_=Math.max(2,Math.round(H*Q.scale));
+  /* Assigning cv.width unconditionally reallocates the drawing buffer even when
+     the value has not changed: 12.9 MB at dpr 1, 51.5 MB at dpr 2. */
+  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}
+  var eff=Math.min(Q.scale,Math.sqrt(MAXPIX/Math.max(1,W*H)));
+  var nw=Math.max(2,Math.round(W*eff)),nh=Math.max(2,Math.round(H*eff));
+  /* The MAXPIX clamp already wins for most of the governor ladder, so several
+     scale steps resolve to exactly the same pass size. Reallocating three
+     targets for an identical size is pure churn and saves not one traced pixel. */
+  if(fbScene&&nw===RW&&nh===RH_)return;
+  RW=nw;RH_=nh;
   [fbScene,fbA,fbB].forEach(function(f){
     if(f){gl.deleteTexture(f.tex);gl.deleteFramebuffer(f.fb);}
   });
@@ -822,7 +841,16 @@ function resize(){
   fbB=makeFBO(bw,bh,FMT);
 }
 resize();
-window.addEventListener('resize',function(){resize();});
+/* Debounced. The browser fires resize continuously through a window drag, and
+   each call frees and reallocates three float targets plus the canvas drawing
+   buffer. WebGL frees are deferred until the driver drains its command stream,
+   so an undebounced drag is measured in gigabytes per second. One rebuild when
+   the drag stops is all that is wanted. */
+var rzT=0;
+window.addEventListener('resize',function(){
+  if(rzT)clearTimeout(rzT);
+  rzT=setTimeout(function(){rzT=0;resize();},140);
+});
 
 /* ═══════════════════════════════════════════════════════════════════════════
    input
@@ -926,7 +954,7 @@ function hud(){
   el.clk.textContent='tau '+ptime.toFixed(1)+' s · t '+ctime.toFixed(1)+' s · lag '+(ctime-ptime).toFixed(2)+' s';
   el.steps.textContent=Q.steps+' max';
   el.scale.textContent=(Q.scale*100).toFixed(0)+'% · '+RW+'×'+RH_;
-  el.fps.textContent=frameAvg.toFixed(1)+' ms · '+(1000/frameAvg).toFixed(0)+' fps';
+  el.fps.textContent=drawAvg.toFixed(1)+' ms · '+(1000/drawAvg).toFixed(0)+' fps drawn';
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1082,6 +1110,14 @@ function frame(now){
   ctime+=dt/1000;ptime+=dilNow*dt/1000;
 
   basis();
+
+  /* Everything above is state and runs on every animation frame so motion stays
+     smooth. Everything below is GPU work and is rate limited. Skipping the draw
+     is the only change that actually removes work rather than hiding it: on a
+     144Hz panel this alone cuts GPU load by more than half. */
+  if(now-lastDraw<MINFRAME){fxFrame(now,dt);return;}
+  if(lastDraw>-1e8)drawAvg+=((now-lastDraw)-drawAvg)*0.10;
+  lastDraw=now;
 
   /* pass 1, geodesics */
   gl.bindFramebuffer(gl.FRAMEBUFFER,fbScene.fb);

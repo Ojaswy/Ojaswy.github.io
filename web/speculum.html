@@ -284,7 +284,8 @@ function inscriptionTex(){
 /* Shader logs go into the DOM as well as the console. A headless harness that
    evaluates in an isolated world cannot see page console output, so a compile
    failure otherwise reads as "0 console errors" and a blank fallback. */
-function report(msg){console.error(msg);}
+function report(msg){console.error(msg);
+  try{document.documentElement.setAttribute('data-boot',String(msg).slice(0,180));}catch(e){}}
 function sh(t,src,label){
   var s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);
   if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){
@@ -858,9 +859,13 @@ function updateReading(){
 /* ═══════════════════════════════════════════════════════════════════════════
    quality governor
    ═══════════════════════════════════════════════════════════════════════════ */
-var MAXPIX=760000;   // ~1100x690 of actual marching, whatever the monitor
-var Q={scale:0.80,steps:112,auto:true,mode:'auto'};
-var QM=[{n:'auto'},{n:'high',scale:1.0,steps:190},{n:'low',scale:0.55,steps:92}],qi=0;
+/* 210 map() evaluations per pixel worst case (primary march, normal, shadow, AO,
+   then the same again through one mirror bounce), each touching ~20 SDF
+   primitives. At 760000 pixels that is 160 million map evaluations per frame and
+   the piece rendered at well under one frame per second. */
+var MAXPIX=300000;
+var Q={scale:0.45,steps:72,auto:true,mode:'auto'};
+var QM=[{n:'auto'},{n:'high',scale:0.85,steps:150},{n:'low',scale:0.35,steps:56}],qi=0;
 var favg=16.7,settle=0;
 function governor(dt){
   favg+=(dt-favg)*0.09;
@@ -885,14 +890,20 @@ function resize(){
   DPR=Math.min(window.devicePixelRatio||1,2);
   W=Math.max(2,Math.round(cv.clientWidth*DPR));
   H=Math.max(2,Math.round(cv.clientHeight*DPR));
-  cv.width=W;cv.height=H;
+  /* Assigning cv.width unconditionally reallocates the drawing buffer even when
+     the value has not changed: 12.9 MB at dpr 1, 51.5 MB at dpr 2. */
+  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}
   /* A fraction of the display is not a budget. At 2549x1257 an 80% pass is
      2.05 megapixels, and each pixel here runs a march, a shadow trace, an AO
      probe and a reflection march. Cap the pass in absolute pixels so the cost
      is bounded by the machine, not by the window. */
   var eff=Math.min(Q.scale,Math.sqrt(MAXPIX/Math.max(1,W*H)));
-  RW=Math.max(2,Math.round(W*eff));
-  RH=Math.max(2,Math.round(H*eff));
+  var nw=Math.max(2,Math.round(W*eff)),nh=Math.max(2,Math.round(H*eff));
+  /* The MAXPIX clamp wins for most of the governor ladder, so several scale
+     steps resolve to an identical pass size. Reallocating three RGBA16F targets
+     for the same dimensions is 18 MB of churn that saves not one marched pixel. */
+  if(fbScene&&nw===RW&&nh===RH)return;
+  RW=nw;RH=nh;
   if(fbScene){gl.deleteTexture(fbScene.tex);gl.deleteFramebuffer(fbScene.fb);}
   fbScene=fbo(RW,RH);
   /* The history must match the pass exactly. The governor changes RW/RH while
@@ -908,7 +919,14 @@ function resize(){
   nAcc=0;
 }
 resize();
-window.addEventListener('resize',resize);
+/* Debounced. A window drag fires resize every frame, and each call frees and
+   reallocates three float targets plus the canvas drawing buffer. WebGL frees
+   are deferred until the driver drains its command stream. */
+var rzT=0;
+window.addEventListener('resize',function(){
+  if(rzT)clearTimeout(rzT);
+  rzT=setTimeout(function(){rzT=0;resize();},140);
+});
 
 /* ── buttons ── */
 document.getElementById('b-oct').addEventListener('click',function(){
@@ -1094,7 +1112,7 @@ function frameBody(now){
     warm++;
     var vb=document.getElementById('veilbar');
     if(vb)vb.style.width=Math.min(100,warm*4.4)+'%';
-    if(warm>23){gone=true;veil.classList.add('gone');}
+    if(warm>6||now-t0>2600){gone=true;veil.classList.add('gone');}
   }
   if((warm&3)===0||gone)hud();
 }
