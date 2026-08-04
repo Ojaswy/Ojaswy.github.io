@@ -115,7 +115,7 @@
   <div class="stage" id="stage"><canvas id="cv"></canvas></div>
   <div class="status" id="status"></div>
   <button class="cta" id="btnAdd">🌱 &nbsp;Add a gratitude</button>
-  <div class="foot">Private &amp; offline — every gratitude stays on this device. Tap a bloom to revisit what grew it.</div>
+  <div class="foot">Private &amp; offline, every gratitude stays on this device. Tap a bloom to revisit what grew it.</div>
 </div>
 
 <!-- gratitude modal -->
@@ -157,24 +157,23 @@
   <div class="modal about">
     <button class="x" data-close>×</button>
     <h2>About this garden</h2>
-    <p>Tend your garden by naming things you're grateful for — typed or spoken. Each gratitude waters a
+    <p>Tend your garden by naming things you're grateful for, typed or spoken. Each gratitude waters a
        plant and helps it grow from <b>seed → sprout → bud → bloom</b>. Your garden becomes a living
        record of your good things.</p>
     <p><b>Your plants never die.</b> If a few quiet days pass, the garden simply rests and wilts a little.
-       The moment you return with one gratitude, it springs back to life. No streaks to break, no guilt —
-       just an invitation to notice the good.</p>
+       The moment you return with one gratitude, it springs back to life. No streaks to break, no guilt, just an invitation to notice the good.</p>
     <div class="toggle">Gentle daily reminder
       <div class="sw" id="swReminder"><b></b></div></div>
     <div class="toggle">Sound
       <div class="sw on" id="swSound2"><b></b></div></div>
     <p style="font-size:12px;color:#8a937c">Reminders only fire while this page is open in a tab. Everything
-       is stored locally in your browser — nothing is uploaded.</p>
+       is stored locally in your browser, nothing is uploaded.</p>
     <details style="margin-top:6px">
       <summary style="cursor:pointer;font-size:13px;color:#6a7359;font-weight:600">The science (honest version)</summary>
       <p style="margin-top:8px">Regularly noting what you're grateful for is one of the better-supported
         ways to nudge everyday positive mood (Emmons &amp; McCullough, 2003; Seligman's "Three Good Things,"
         2005). Two practical findings shaped this app: <b>variety matters</b> (the same gratitude every day
-        loses its spark), and doing it <b>flexibly beats forcing a daily quota</b> — so prompts rotate and
+        loses its spark), and doing it <b>flexibly beats forcing a daily quota</b>, so prompts rotate and
         the garden never punishes a missed day. Benefits are real but modest; this is a gentle wellbeing
         habit, not a treatment for depression or anxiety.</p>
     </details>
@@ -186,7 +185,7 @@
 <div class="title-screen" id="titleScreen">
   <img id="titleImg" alt="Gratitude Garden">
   <h1>Gratitude Garden</h1>
-  <p>Grow something good — one gratitude at a time.</p>
+  <p>Grow something good, one gratitude at a time.</p>
   <button class="cta" id="enterBtn" style="min-width:220px">Enter your garden →</button>
   <p style="font-size:12px;opacity:.85">🔒 Private &amp; offline. No account, ever.</p>
 </div>
@@ -205,14 +204,14 @@ const NW = 11, NH = 9;                      // garden in tiles (176x144 native)
 const PLOT_COLS = 4, PLOT_ROWS = 3;         // 12 beds
 const SAVE_KEY = "gratitudeGarden.v1";
 const PROMPTS = [
-  "What's one small thing that went well today — and why?",
+  "What's one small thing that went well today, and why?",
   "Who is someone you're grateful for right now?",
   "What's a comfort you'd miss if it were gone?",
   "What did your body let you do today?",
   "What made you smile, even for a second?",
   "What's something you usually take for granted?",
   "What's a challenge you got through recently?",
-  "A small sensory pleasure you noticed — a taste, sound, or smell?",
+  "A small sensory pleasure you noticed, a taste, sound, or smell?",
   "Who helped you lately, in a big or small way?",
   "What about today would you like to remember?"
 ];
@@ -256,7 +255,7 @@ function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }cat
 function gardenHealth(){
   if(!state.lastTendedDateKey) return 1;
   const d=dayDiff(state.lastTendedDateKey, todayKey());
-  if(d<=2) return 1;                                  // 2 grace days — "never miss twice"
+  if(d<=2) return 1;                                  // 2 grace days, "never miss twice"
   return Math.max(0.2, 1 - (d-2)*0.16);               // gentle, reversible, never 0
 }
 function tendedToday(){ return state.lastTendedDateKey===todayKey(); }
@@ -456,8 +455,8 @@ function renderStatus(){
   const h=gardenHealth(); let m;
   if(tendedToday()) m="Your garden is thriving today. 🌼";
   else if(h>=0.99) m="Your garden is happy and waiting for you. 🌿";
-  else if(h>=0.55) m="A couple of quiet days — your garden is resting. A gratitude will perk it up.";
-  else m="Your garden missed you 🌱 — add one gratitude to bring it back to life.";
+  else if(h>=0.55) m="A couple of quiet days, your garden is resting. A gratitude will perk it up.";
+  else m="Your garden missed you 🌱, add one gratitude to bring it back to life.";
   $("status").textContent=m;
 }
 
@@ -492,7 +491,7 @@ function openSavor(plot){
 /* journal */
 function openJournal(){
   const list=$("journalList");
-  if(!state.entries.length){ list.innerHTML=`<div class="empty">Your journal is empty — add your first gratitude. 🌱</div>`; show("ovJournal"); return; }
+  if(!state.entries.length){ list.innerHTML=`<div class="empty">Your journal is empty, add your first gratitude. 🌱</div>`; show("ovJournal"); return; }
   const byDay={}; [...state.entries].reverse().forEach(e=>{ (byDay[e.dateKey]=byDay[e.dateKey]||[]).push(e); });
   list.innerHTML=Object.keys(byDay).map(k=>
      `<div class="day-h">${prettyDate(k)}</div>`+
@@ -516,7 +515,7 @@ $("mic").onclick=()=>{
   rec=new SR(); rec.lang=navigator.language||"en-US"; rec.interimResults=true; rec.continuous=false;
   let base=$("grat").value;
   rec.onstart=()=>{ listening=true; $("mic").classList.add("live"); $("micHint").textContent="Listening… speak your gratitude."; };
-  rec.onerror=(e)=>{ $("micHint").textContent = e.error==="not-allowed"?"Mic permission denied — you can type instead.":"Couldn't hear that — try typing."; };
+  rec.onerror=(e)=>{ $("micHint").textContent = e.error==="not-allowed"?"Mic permission denied, you can type instead.":"Couldn't hear that, try typing."; };
   rec.onend=()=>{ listening=false; $("mic").classList.remove("live");
     if($("grat").value.trim().length>=2) $("plantIt").disabled=false; };
   rec.onresult=(ev)=>{
@@ -594,7 +593,7 @@ function start(){
   document.getElementById("titleImg").src=TITLE_URI;
   if(firstRun){ $("titleScreen").classList.add("on"); }
   scheduleReminder();
-  try{ draw(); }catch(e){}            // paint once now — rAF is throttled in hidden tabs
+  try{ draw(); }catch(e){}            // paint once now, rAF is throttled in hidden tabs
   cancelAnimationFrame(rafId); rafId=requestAnimationFrame(loop);
 }
 document.addEventListener("visibilitychange",()=>{

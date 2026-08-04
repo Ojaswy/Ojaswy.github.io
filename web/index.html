@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jishnu Akella — Museum of an Impossible Mind</title>
-<meta name="description" content="A guided, scroll-driven museum of Jishnu Akella's work — eight wings, ending in an annex of five other experimental web structures.">
+<title>Jishnu Akella · Museum of an Impossible Mind</title>
+<meta name="description" content="Eight wings of Jishnu Akella's work on one continuous camera path, with a hand-drawn guide walking ahead of you. Ends in an annex of seven structures.">
 <meta property="og:title" content="The Museum of an Impossible Mind">
-<meta property="og:description" content="A guided tour through eight wings — and an annex of five other structures.">
+<meta property="og:description" content="Eight wings, one camera path, a hand-drawn guide. Scroll to walk.">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#127963;</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,7 +47,9 @@
     font-family:'Marcellus',serif;font-weight:400;
     font-size:21px;letter-spacing:.05em;line-height:1.2;color:var(--ivory);
   }
-  .volume h3.big{font-size:42px}
+  .volume h3.big{font-size:42px;letter-spacing:.03em}
+  .volume h3.sm{font-size:16px;letter-spacing:.07em}
+  .volume h3.xs{font-size:12px;letter-spacing:.14em}
   .volume .v-rule{height:1px;width:52px;margin:10px 0;
     background:linear-gradient(90deg,var(--brass),transparent)}
   .volume p{
@@ -60,6 +62,9 @@
   }
   .volume a:hover{border-color:var(--amber)}
   .volume .v-links{margin-top:10px;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+  /* A door that is framed but not glazed. Stated plainly rather than hidden,
+     because a visible unfinished room is honest and a missing one is a gap. */
+  .v-wip{color:#8a7f6d;font-style:italic;letter-spacing:.02em}
 
   /* ---------- guide speech ---------- */
   #bubble{
@@ -161,7 +166,7 @@
 </div>
 <div class="hud" id="growth"><b id="growthN">0</b> <span id="growthTxt">TIMES HAS THIS MUSEUM GROWN DURING YOUR VISIT</span></div>
 <div id="toast"></div>
-<div class="hud" id="hint">scroll to follow the guide<br>click a glyph below to travel between wings<br>the last wing is an annex of five other structures</div>
+<div class="hud" id="hint">scroll to follow the guide<br>click a glyph below to travel between wings<br>the last wing is an annex of seven other structures</div>
 <div id="rail"></div>
 
 <div id="title">
@@ -173,7 +178,7 @@
 <div id="veil"></div>
 <div id="fallback">The museum requires WebGL.<br>The guide will wait by the door.</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/three.r128.min.js"></script>
 <script>
 (function(){
   'use strict';
@@ -186,23 +191,23 @@
     socials:[['linkedin','https://linkedin.com/in/jish-akella'],['github','https://github.com/Ojaswy']]
   };
   var PROJECTS=[
-    {title:'Edge in the Noise',line:'A live trading book on Polymarket & Kalshi — market-making with dynamic skew, cross-venue arbitrage, and weather ensembles the crowd has not read.',meta:'PREDICTION MARKETS · LIVE CAPITAL'},
+    {title:'Edge in the Noise',line:'A live trading book on Polymarket and Kalshi: market-making with dynamic skew, cross-venue arbitrage, and weather ensembles the crowd has not read.',meta:'PREDICTION MARKETS · LIVE CAPITAL'},
     {title:'Synthetic Prediction Markets',line:'Agent-based markets over dynamic convex sets that learn a binary function by trading it. This one repriced the staircases.',meta:'RESEARCH · PSU · PROF. RAJTMAJER'},
     {title:'VAE × Reinforcement Learning',line:'Conditional VAEs that compress unruly action spaces so RL can think in fewer, better moves.',meta:'DEEP RL · PYTORCH · 2024'},
-    {title:'DRSM',line:'A Bayesian representation model that watches taste drift across markets — and says where a market moves next.',meta:'IIM-A · WHARTON · STANFORD GSB'}
+    {title:'DRSM',line:'A Bayesian representation model that watches taste drift across markets, and says where a market moves next.',meta:'IIM-A · WHARTON · STANFORD GSB'}
   ];
   var EXPERIENCE=[
-    {year:'2025 — PRESENT',role:'Senior AI Engineer',org:'Smartbots.ai',line:'Agentic AI platform on MCP + LangGraph — memory, guardrails, and audit trails for financial reconciliation.'},
+    {year:'SINCE 2025',role:'Senior AI Engineer',org:'Smartbots.ai',line:'Agentic AI platform on MCP and LangGraph: memory, guardrails, and audit trails for financial reconciliation.'},
     {year:'2022',role:'AI Engineer',org:'Pegasystems',line:'Distributed training, GCP data pipelines, and AI-driven CRM decisioning at enterprise scale.'},
-    {year:'2020 — 2021',role:'Research Assistant',org:'IIM Ahmedabad',line:'Built DRSM with advisors from Wharton and Stanford GSB; field experiments on a five-million-user app.'},
-    {year:'2019 — 2020',role:'SDE Intern',org:'ISRO',line:'Land-use classification over live satellite imagery streams for the Indian space programme.'},
+    {year:'2020 · 2021',role:'Research Assistant',org:'IIM Ahmedabad',line:'Built DRSM with advisors from Wharton and Stanford GSB; field experiments on a five-million-user app.'},
+    {year:'2019 · 2020',role:'SDE Intern',org:'ISRO',line:'Land-use classification over live satellite imagery streams for the Indian space programme.'},
     {year:'2019',role:'Quant Research Intern',org:'Indian School of Business',line:'Deep-RL portfolio management on order-flow imbalance, under volatile regimes.'}
   ];
   var SKILLS=['Python','C++','PyTorch','Bayesian Inference','Reinforcement Learning','Time Series','Market Microstructure','LangGraph · Agents','RAG','AWS · GCP','Kubernetes'];
   var ACHIEVEMENTS=[
-    'Databricks ML Professional — certified',
-    'Databricks Generative AI Professional — certified',
-    'ICPC Nationals — 2021',
+    'Databricks ML Professional, certified',
+    'Databricks Generative AI Professional, certified',
+    'ICPC Nationals, 2021',
     'Research with ISRO · Stanford · Wharton · Penn State',
     'A live, calibrated book across Polymarket & Kalshi'
   ];
@@ -293,7 +298,7 @@
     v3(  0,  2,-300),
     v3(  0,  3,-320),   // VII the drawn door
     v3(  0,  3,-338),
-    v3(  0,  3,-356),   // VIII the annex — five other structures
+    v3(  0,  3,-356),   // VIII the annex, seven other structures
     v3(  0,  3,-386),
     v3(  0,  3,-416),
     v3(  0,3.5,-446),
@@ -333,7 +338,7 @@
   }
 
   /* ================================================================
-     WING I — THE FOYER
+     WING I · THE FOYER
      ================================================================ */
   (function(){
     var floor=new THREE.Mesh(new THREE.CircleGeometry(15,48),M_STONE);
@@ -360,7 +365,7 @@
   })();
 
   /* ================================================================
-     WING II — PROJECT ISLES (impossible staircases re-dock)
+     WING II · PROJECT ISLES (impossible staircases re-dock)
      ================================================================ */
   var stairFlights=[],ariaRedock=null;
   var ISLES=[[16,4,-20],[-16,9,-38],[10,14,-52],[-14,2,-62]];
@@ -461,7 +466,7 @@
   })();
 
   /* ================================================================
-     WING III — THE HANGING YEARS
+     WING III · THE HANGING YEARS
      ================================================================ */
   var visitorPlaque;
   (function(){
@@ -478,7 +483,7 @@
         pe.rotation.y=plq.rotation.y;
       });
     });
-    // the visitor's plaque — lowered when you arrive (the museum grows)
+    // the visitor's plaque, lowered when you arrive (the museum grows)
     visitorPlaque=new THREE.Group();
     var cable2=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,40,6),M_BRASS);
     cable2.position.y=21;visitorPlaque.add(cable2);
@@ -490,7 +495,7 @@
   })();
 
   /* ================================================================
-     WING IV — CONSTELLATION OF SKILLS
+     WING IV · CONSTELLATION OF SKILLS
      ================================================================ */
   var CONST_C=v3(-34,-8,-170);
   var starPts=[],constLines,constSegs=0;
@@ -529,12 +534,12 @@
   })();
 
   /* ================================================================
-     WING V — THE FOLDED ATELIER (walls are floors with better taste)
+     WING V · THE FOLDED ATELIER (walls are floors with better taste)
      ================================================================ */
   var newWing;
   var paintRegens=[];
   (function(){
-    // floor plane and wall plane — perpendicular, both inhabited
+    // floor plane and wall plane, perpendicular, both inhabited
     var floor=new THREE.Mesh(new THREE.BoxGeometry(16,0.5,58),M_STONE);
     floor.position.set(0,-11,-226);scene.add(floor);
     var wall=new THREE.Mesh(new THREE.BoxGeometry(0.5,16,58),M_STONE);
@@ -617,7 +622,7 @@
     ff.position.set(-6.5,-8.9,-246);ff.rotation.y=0.7;
     scene.add(ff);
 
-    // bookshelves — one row bends into a higher dimension (a helix into the fog)
+    // bookshelves, one row bends into a higher dimension (a helix into the fog)
     var bookGeo=new THREE.BoxGeometry(0.22,1.05,0.75);
     var bookMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.8,metalness:0.05});
     var rows=[
@@ -655,7 +660,7 @@
       scene.add(rail);
     });
 
-    // THE NEW WING — a shelf that grows when you visit (research generates architecture)
+    // THE NEW WING, a shelf that grows when you visit (research generates architecture)
     newWing=new THREE.Group();
     var wingBooks=new THREE.InstancedMesh(bookGeo,bookMat,40);
     for(var i=0;i<40;i++){
@@ -679,7 +684,7 @@
   })();
 
   /* ================================================================
-     WING VI — HALL OF MONUMENTS (they rise, and stay risen)
+     WING VI · HALL OF MONUMENTS (they rise, and stay risen)
      ================================================================ */
   var monoliths=[],monolithsRisen=false;
   (function(){
@@ -701,7 +706,7 @@
   })();
 
   /* ================================================================
-     WING VII — THE DRAWN DOOR
+     WING VII · THE DRAWN DOOR
      ================================================================ */
   var portal=new THREE.Group();
   (function(){
@@ -721,21 +726,25 @@
   })();
 
   /* ================================================================
-     WING VIII — THE ANNEX
-     Five other structures, each its own building. The museum keeps
+     WING VIII · THE ANNEX
+     Seven other structures, each its own building. The museum keeps
      them behind the drawn door because they are not about me.
      ================================================================ */
   var ANNEX=[
     {glyph:'∞',name:'AION',sub:'An Infinite Museum',href:'aion.html',
-     line:'Six chambers on one continuous architectural path, est. 2050. No pages, no sections — the structure self-curates and responds to attention.'},
+     line:'Six chambers on one continuous path. No pages and no sections: the structure re-curates itself around where you look.'},
     {glyph:'ℵ',name:'Object Without Category',sub:'Recovered observation record',href:'aleph.html',
-     line:'Not a building, machine, organism or sculpture — a stabilised event made of 22,000 points of light. Scrolling does not move you; it moves the object between what it is.'},
+     line:'22,000 points of light held as one stabilised event. Scrolling does not move you. It moves the object between what it is.'},
     {glyph:'斬',name:'ZAN',sub:'The Heaven-Cutting Engine',href:'zan.html',
-     line:'Scroll turns the engine. A fast stroke draws the blade. Hold still and time kneels. Ten thousand gates in blood and bone.'},
+     line:'Scroll turns the engine. A fast stroke draws the blade. Hold still and time kneels.'},
     {glyph:'❦',name:'a word inside a word',sub:'An infinite sentence',href:'word-inside-a-word.html',
-     line:'The fractal was discovered before the page, so there are no pages. Every word opens into a sentence; every sentence is a word in a larger one. Migration replaces navigation.'},
-    {glyph:'∴',name:'∴',sub:'Not a website — a medium',href:'therefore.html',
-     line:'A Gray–Scott reaction diffuses across the whole screen. Every structure you see is genuinely emergent, unrepeatable and temporary. Attention injects possibility.'}
+     line:'The fractal was discovered before the page, so there are no pages. Every word opens into a sentence; every sentence is a word in a larger one.'},
+    {glyph:'◎',name:'HORIZON',sub:'A Schwarzschild black hole',href:'horizon.html',
+     line:'Null geodesics integrated per pixel by fourth-order Runge-Kutta. The shadow is not drawn anywhere in the code. It is the set of directions in which light was sent and did not come back.'},
+    {glyph:'⬡',name:'SPECULUM',sub:'The octagon of mirrors',href:'speculum.html',wip:true,
+     line:'A marble palace around the mirrored octagon Leonardo drew and never built. Every inscription is cut in reverse, the way he wrote. The mirrors are not ornament, they are how the writing is read.'},
+    {glyph:'∴',name:'∴',sub:'Not a website, a medium',href:'therefore.html',
+     line:'A Gray-Scott reaction diffuses across the whole screen. Every pattern is emergent, unrepeatable and temporary. Your cursor injects the reagent.'}
   ];
   var annexDoors=[],annexOpen=false,annexShell,M_ANNEXFLOOR,M_ANNEXRUN;
   var Z_ANNEX=-360, Z_STEP=22;
@@ -750,7 +759,7 @@
       x.fillText(ch,128,138);
       return new THREE.CanvasTexture(c);
     }
-    // corridor floor + colonnade — the whole shell builds itself on arrival,
+    // corridor floor + colonnade, the whole shell builds itself on arrival,
     // so nothing of the annex is visible from the drawn door.
     annexShell=new THREE.Group();
     annexShell.position.y=-3.4;
@@ -760,20 +769,20 @@
 
     M_ANNEXFLOOR=new THREE.MeshStandardMaterial({color:0x120c07,metalness:0.05,roughness:1,
       transparent:true,opacity:0});
-    var floor=new THREE.Mesh(new THREE.PlaneGeometry(24,152),M_ANNEXFLOOR);
+    var floor=new THREE.Mesh(new THREE.PlaneGeometry(24,206),M_ANNEXFLOOR);
     floor.geometry.rotateX(-PI/2);
-    floor.position.set(0,0,Z_ANNEX-48);
+    floor.position.set(0,0,Z_ANNEX-75);
     annexShell.add(floor);
 
     M_ANNEXRUN=new THREE.MeshBasicMaterial({color:0xb08a4f,transparent:true,opacity:0,side:THREE.DoubleSide});
-    var runner=new THREE.Mesh(new THREE.PlaneGeometry(4.6,152),M_ANNEXRUN);
+    var runner=new THREE.Mesh(new THREE.PlaneGeometry(4.6,206),M_ANNEXRUN);
     runner.geometry.rotateX(-PI/2);
-    runner.position.set(0,0.05,Z_ANNEX-48);
+    runner.position.set(0,0.05,Z_ANNEX-75);
     annexShell.add(runner);
 
     // one pair midway between each doorway, so nothing crosses a lit frame
     var colGeo=new THREE.CylinderGeometry(0.3,0.36,13,6);
-    for(var c=0;c<8;c++){
+    for(var c=0;c<11;c++){
       var cz=Z_ANNEX+11-c*Z_STEP;
       [-14.5,14.5].forEach(function(cx){
         var col=new THREE.Mesh(colGeo,M_BLACK);
@@ -873,9 +882,9 @@
   }
   // foyer
   addVolume(v3(6.5,7,2),
-    '<div class="v-meta">WING I — THE FOYER</div><h3 class="big">Jishnu</h3><div class="v-rule"></div><p>Jishnu Sri Ojaswy Akella — AI engineer & quantitative researcher. Prediction markets, Bayesian modelling, agentic systems. A prediction market is not a forecast; it is a price — and prices have plumbing.</p>');
+    '<div class="v-meta">WING I · THE FOYER</div><h3 class="big">Jishnu</h3><div class="v-rule"></div><p>Jishnu Sri Ojaswy Akella, AI engineer and quantitative researcher. Prediction markets, Bayesian modelling, agentic systems. A prediction market is not a forecast; it is a price. Prices have plumbing.</p>');
   addVolume(v3(-7.5,5,0),
-    '<div class="v-meta">EDUCATION</div><h3 style="font-size:16px">Penn State — MS Computer Science</h3><div class="v-rule"></div><p>2024. Before that: Integrated MTech in Computer Science, University of Hyderabad, 2022.</p>',{small:true});
+    '<div class="v-meta">EDUCATION</div><h3 style="font-size:16px">Penn State. MS Computer Science</h3><div class="v-rule"></div><p>2024. Before that: Integrated MTech in Computer Science, University of Hyderabad, 2022.</p>',{small:true});
   // projects
   PROJECTS.forEach(function(p,i){
     var ip=ISLES[i];
@@ -896,7 +905,7 @@
     '<div class="v-meta">WING IV</div><h3>Constellation of Skills</h3><div class="v-rule"></div><p>Every tool learned becomes a star. They connect when someone visits.</p>');
   // atelier
   addVolume(v3(-6,-2,-212),
-    '<div class="v-meta">WING V — THE RESEARCH STACKS</div><h3>Observe → Calibrate</h3><div class="v-rule"></div><p>observe → model → backtest → deploy → calibrate. Synthetic markets at Penn State, DRSM at IIM Ahmedabad, geospatial systems at Smeal. The wall is the floor; priors are for updating.</p>');
+    '<div class="v-meta">WING V · THE RESEARCH STACKS</div><h3>Observe → Calibrate</h3><div class="v-rule"></div><p>observe → model → backtest → deploy → calibrate. Synthetic markets at Penn State, DRSM at IIM Ahmedabad, geospatial systems at Smeal. The wall is the floor; priors are for updating.</p>');
   addVolume(v3(-7,-6,-244),
     '<div class="v-meta">MARGINALIA</div><h3>Fun Facts</h3><div class="v-rule"></div><p>Guitar and vocals. Reads settlement rulebooks for fun. Sizes life by quarter-Kelly.</p>');
   // monuments
@@ -908,19 +917,21 @@
   // contact
   var socialHtml=CONTACT.socials.map(function(s){return '<a href="'+s[1]+'" target="_blank">'+s[0]+'</a>';}).join(' · ');
   addVolume(v3(6,4.5,-318),
-    '<div class="v-meta">WING VII — THE DRAWN DOOR</div><h3>Let\'s price something impossible</h3><div class="v-rule"></div><p>A market to read, a system to build, a desk to join — step through.</p><p class="v-links"><a href="mailto:'+CONTACT.email+'">'+CONTACT.email+'</a><br><br>'+socialHtml+'</p>',
+    '<div class="v-meta">WING VII · THE DRAWN DOOR</div><h3>Let\'s price something impossible</h3><div class="v-rule"></div><p>A market to read, a system to build, a desk to join. Step through.</p><p class="v-links"><a href="mailto:'+CONTACT.email+'">'+CONTACT.email+'</a><br><br>'+socialHtml+'</p>',
     {cond:function(){return portal.visible;}});
   // annex
   addVolume(v3(0,9.5,Z_ANNEX+13),
-    '<div class="v-meta">WING VIII — THE ANNEX</div><h3>Five other structures</h3><div class="v-rule"></div><p>Rooms built the same way but about other things. Each is its own building; walk into any of them.</p>',
+    '<div class="v-meta">WING VIII · THE ANNEX</div><h3>Seven other structures</h3><div class="v-rule"></div><p>Seven separate builds, same method, none of them about me. Walk into any one.</p>',
     {cond:function(){return annexOpen;}});
   annexDoors.forEach(function(d){
     var off=d.world.x>0?-4.6:4.6;
     addVolume(d.world.clone().add(v3(off,-1.4,1.5)),
-      '<div class="v-meta">ANNEX · ROOM '+['I','II','III','IV','V'][d.i]+'</div>'+
+      '<div class="v-meta">ANNEX · ROOM '+['I','II','III','IV','V','VI','VII'][d.i]+'</div>'+
       '<h3>'+d.data.name+'</h3><div class="v-rule"></div>'+
       '<p>'+d.data.sub+'. '+d.data.line+'</p>'+
-      '<p class="v-links"><a href="'+d.data.href+'">enter this structure ↗</a></p>',
+      (d.data.wip
+        ? '<p class="v-links v-wip">under construction · the room is standing, the mirrors are not silvered</p>'
+        : '<p class="v-links"><a href="'+d.data.href+'">enter this structure ↗</a></p>'),
       {cond:function(){return annexOpen;}});
   });
 
@@ -971,6 +982,17 @@
     railEl.appendChild(d);
     return {t:t,el:d};
   });
+  (function(){
+    var sign=document.createElement('div');
+    sign.textContent='VIII · the annex ↗';
+    sign.style.cssText='margin-left:14px;font-size:8.5px;letter-spacing:.26em;'+
+      'text-transform:uppercase;color:#b08a4f;cursor:pointer;pointer-events:auto;'+
+      'border-bottom:1px solid rgba(176,138,79,.35);padding-bottom:2px;transition:color .3s';
+    sign.addEventListener('mouseenter',function(){sign.style.color='#e8a85a';});
+    sign.addEventListener('mouseleave',function(){sign.style.color='#b08a4f';});
+    sign.addEventListener('click',function(){flyTo(wingTs[7].t);});
+    railEl.appendChild(sign);
+  })();
 
   /* ---------------- camera ---------------- */
   var UP=new THREE.Vector3(0,1,0);
@@ -1022,7 +1044,7 @@
   }
 
   /* ================================================================
-     THE GUIDE — hand-drawn, boiling at 8 fps, walking ahead of you
+     THE GUIDE, hand-drawn, boiling at 8 fps, walking ahead of you
      ================================================================ */
   var gcv=document.getElementById('guide');
   var g2=gcv.getContext('2d');
@@ -1280,7 +1302,7 @@
   var EVENTS=[
     {t:tFoyer,fired:false,run:function(){
       setGuideState('wave',4);
-      say("Hi! I'm Jishnu. Welcome to my head — mind the staircases, they trade places.",5);
+      say("Hi! I'm Jishnu. Welcome to my head, mind the staircases, they trade places.",5);
       doodleAt(v3(4,5,2),0);
     }},
     {t:tIsles,fired:false,run:function(){
@@ -1297,10 +1319,10 @@
     }},
     {t:tTimeTop,fired:false,run:function(){
       setGuideState('point',3);
-      say('Six years, hung in order — Dallas to Bengaluru. This ramp is the fun way down!',4.5);
+      say('Six years, hung in order. Dallas to Bengaluru. This ramp is the fun way down!',4.5);
     }},
     {t:tTimeBot,fired:false,run:function(){
-      say('And one new plaque — for today. You are part of the timeline now.',5);
+      say('And one new plaque, for today. You are part of the timeline now.',5);
       var fromY=visitorPlaque.position.y,toY=-15;
       tween(2.4,function(f){visitorPlaque.position.y=fromY+(toY-fromY)*f;});
       grow('a plaque was hung for your visit');
@@ -1308,7 +1330,7 @@
     }},
     {t:tSkills,fired:false,run:function(){
       setGuideState('amazed',4);
-      say('My constellation! Every tool I learn becomes a star. Watch them connect—',5);
+      say('My constellation! Every tool I learn becomes a star. Watch them connect-',5);
       var n=(starPts.length-1)*2,c=0;
       tween(2.6,function(f){
         var k=Math.round(f*n);
@@ -1352,7 +1374,7 @@
     }},
     {t:tAnnex,fired:false,run:function(){
       setGuideState('point',5);
-      say('Keep walking — the annex. Five structures that are not about me. Step into any of them ✎',6.5);
+      say('Keep walking. The annex: seven structures that are not about me. Step into any of them ✎',6.5);
       annexOpen=true;
       annexShell.visible=true;
       tween(2.4,function(f){
@@ -1368,7 +1390,7 @@
           d.g.scale.setScalar(Math.max(0.001,e));
         });
       });
-      grow('the annex opened five other structures');
+      grow('the annex opened seven other structures');
       doodleAt(v3(0,8,Z_ANNEX+8),1);
     }}
   ];
@@ -1551,7 +1573,7 @@
 <!-- site-nav -->
 <style>
 #sitenav{position:fixed;left:0;top:0;z-index:2147483000;
-  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   -webkit-font-smoothing:antialiased;pointer-events:none}
 #sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
   height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;

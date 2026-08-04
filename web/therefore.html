@@ -38,7 +38,7 @@
 <div id="therefore">∴</div>
 <div id="fallback">this medium requires a modern GPU.<br>it will assemble itself elsewhere.</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/three.r128.min.js"></script>
 <script>
 (function(){
   'use strict';
@@ -47,7 +47,7 @@
      ∴
      Not a website. A medium.
      Nothing below is positioned, loaded, or navigated.
-     A Gray–Scott reaction diffuses across the whole screen;
+     A Gray-Scott reaction diffuses across the whole screen;
      every visible structure is genuinely emergent, unrepeatable,
      and temporary. Attention injects possibility. Words are seeded
      into the chemistry, crystallize, and are digested.
@@ -263,7 +263,7 @@
   buildSim();
 
   /* ================================================================
-     LANGUAGE — temporary crystallizations of thought.
+     LANGUAGE, temporary crystallizations of thought.
      Words are not displayed. They are seeded into the chemistry.
      ================================================================ */
   var stampQueue=[],activeStamp=null;
@@ -358,11 +358,11 @@
   var comp=0,stage=0;
   var STAGE_T=[10,26,48,82];
   var REGIMES=[
-    {f:0.030,k:0.062},   // solitons — sparse certainties
-    {f:0.046,k:0.063},   // worms — lines of argument
-    {f:0.058,k:0.063},   // coral — patterns about patterns
-    {f:0.026,k:0.053},   // waves — the argument destabilizes
-    {f:0.034,k:0.0615}   // mitosis — it begins again, knowing more
+    {f:0.030,k:0.062},   // solitons, sparse certainties
+    {f:0.046,k:0.063},   // worms, lines of argument
+    {f:0.058,k:0.063},   // coral, patterns about patterns
+    {f:0.026,k:0.053},   // waves, the argument destabilizes
+    {f:0.034,k:0.0615}   // mitosis, it begins again, knowing more
   ];
   var STAGE_WORDS=[null,
     'it is learning your tempo.',
@@ -436,7 +436,7 @@
   /* the medium's own curiosity */
   var probe={x:rand(0.2,0.8),y:rand(0.2,0.8),wx:0.5,wy:0.5,nextWp:0,z:0.2};
 
-  /* timed whispers — orientation without instruction */
+  /* timed whispers, orientation without instruction */
   var introT=[
     [2.5,'you are already here.'],
     [10,'rest somewhere.'],
@@ -564,7 +564,7 @@
       crystallize(poolNext(),clamp(probe.x,0.15,0.85),clamp(probe.y,0.2,0.8),0.9);
     }
 
-    /* comprehension reorganizes the laws — never explained */
+    /* comprehension reorganizes the laws, never explained */
     var targetStage=0;
     for(var i=0;i<STAGE_T.length;i++)if(comp>STAGE_T[i])targetStage=i+1;
     if(targetStage!==stage){
@@ -643,7 +643,7 @@
     rsTimer=setTimeout(function(){buildSim();},300);
   });
 
-  /* begin — though nothing loads, and nothing is anywhere */
+  /* begin, though nothing loads, and nothing is anywhere */
   var started=false;
   function begin(){if(started)return;started=true;frame();}
   if(document.fonts&&document.fonts.load){

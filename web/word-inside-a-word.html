@@ -31,7 +31,7 @@
   .w.portal:hover{color:#7a3c22}
   .w.conn{color:#6f6452}
 
-  /* marginalia — records, not navigation */
+  /* marginalia, records, not navigation */
   .marg{position:fixed;z-index:6;pointer-events:none;
     font-size:11px;font-style:italic;color:#7d7260;
     font-variation-settings:'opsz' 12,'wght' 420,'SOFT' 60,'WONK' 0;
@@ -69,7 +69,7 @@
 <div class="marg" id="fleuron">❦</div>
 <div class="marg" id="lineage"></div>
 <div class="marg" id="coastline"></div>
-<div id="hint">approach any word — scrolling is approaching · drag to drift</div>
+<div id="hint">approach any word, scrolling is approaching · drag to drift</div>
 <div id="grainveil"></div>
 
 <script>
@@ -79,7 +79,7 @@
   /* ================================================================
      a word inside a word
      The fractal was discovered before the page. So there are no
-     pages — only an infinite sentence. Every word opens into a
+     pages, only an infinite sentence. Every word opens into a
      sentence; every sentence is a word in a larger one. Migration
      replaces navigation. The grammar is closed; the text is not.
      ================================================================ */
@@ -231,7 +231,7 @@
         tokens.push({text:t,portal:false});
       }
     }
-    // reused phrases carry no slot marks — any lexicon word is a door
+    // reused phrases carry no slot marks, any lexicon word is a door
     tokens.forEach(function(t){if(!t.portal&&KIN[t.text])t.portal=true;});
     if(!tokens.some(function(t){return t.portal;})){
       tokens[0].portal=true;
@@ -358,7 +358,7 @@
     var parent=makeNode(node.seed+'^',node.word,node.depth-1);
     var h=xmur3(node.seed+'~k')();
     var k=parent.portals[h%parent.portals.length];
-    // the parent's word at slot k IS this world — coherence across scales
+    // the parent's word at slot k IS this world, coherence across scales
     if(node.word)parent.tokens[k].text=node.word;
     else node.word=parent.tokens[k].text;
     parent.children[k]=node;
@@ -389,7 +389,7 @@
       }
       return T;
     }
-    // descendant of base (or of an ancestor — general: walk up to something known)
+    // descendant of base (or of an ancestor, general: walk up to something known)
     var chain=[];
     var cur=n;
     while(cur!==base&&!isAncestorOfBase(cur)&&cur.parent){

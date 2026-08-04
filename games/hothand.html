@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>HOT HAND — neon hoops</title>
+<title>HOT HAND, neon hoops</title>
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
@@ -390,7 +390,7 @@
     state.timeScale += (targetScale - state.timeScale) * Math.min(1, frameDt * 12);
     const eff = frameDt * state.timeScale;
 
-    // hoop motion (only while aiming / ready — freezes on release for a fair shot)
+    // hoop motion (only while aiming / ready, freezes on release for a fair shot)
     hoop.t += (state.phase === 'flying' ? 0 : frameDt);
     if (!hoop.frozen) {
       hoop.x = hoop.baseX + Math.sin(hoop.t * hoop.hspeed) * hoop.hamp;
@@ -683,7 +683,7 @@
     ctx.fillText('WIND', W/2, 34);
     if (Math.abs(state.wind) < 1) {
       ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '700 13px "Arial Black", sans-serif';
-      ctx.fillText('—', W/2, 52);
+      ctx.fillText('-', W/2, 52);
     } else {
       const dir = Math.sign(state.wind), mag = clamp(Math.abs(state.wind) / 260, 0.2, 1);
       ctx.save(); ctx.strokeStyle = '#22e0ff'; ctx.fillStyle = '#22e0ff'; ctx.lineWidth = 3;
@@ -728,7 +728,7 @@
     ctx.fillText('Drag back & release to shoot.', cx, p.y + 162);
     ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '600 14px Arial, sans-serif';
     ctx.fillText('Sink 3 in a row to catch fire. 3 misses and you’re out.', cx, p.y + 188);
-    ctx.fillText('The rim moves while you aim — it freezes when you shoot.', cx, p.y + 210);
+    ctx.fillText('The rim moves while you aim, it freezes when you shoot.', cx, p.y + 210);
     const pulse = 0.6 + Math.sin(state.t * 4) * 0.4;
     ctx.globalAlpha = pulse; neonText('TAP / SPACE TO PLAY', cx, p.y + 258, 22, '#ffd21a', 'center');
     ctx.globalAlpha = 1;

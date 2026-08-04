@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Mini Lighthouses — demo</title>
+<title>Mini Lighthouses, demo</title>
 <style>
   html, body {
     margin: 0;
@@ -85,7 +85,7 @@
       <div class="row"><span class="label">saved</span><span class="val saved" id="saved">0</span></div>
       <div class="row"><span class="label">lost</span><span class="val lost" id="lost">0</span></div>
     </div>
-    <div class="hint" id="hint">move your mouse to sweep the light — guide ships home</div>
+    <div class="hint" id="hint">move your mouse to sweep the light, guide ships home</div>
     <div class="credit">mini lighthouses · demo</div>
   </div>
 
@@ -226,7 +226,7 @@
       const dx = this.dest.x - this.x;
       const dy = this.dest.y - this.y;
       const base = Math.atan2(dy, dx);
-      // Off course at spawn — needs lighthouse to find way
+      // Off course at spawn, needs lighthouse to find way
       this.angle = base + (Math.random() - 0.5) * 1.3;
       this.speed = 0.42 + Math.random() * 0.12;
       this.state = 'sailing';

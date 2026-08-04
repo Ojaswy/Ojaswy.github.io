@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AION — An Infinite Museum</title>
+<title>AION · An Infinite Museum</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
@@ -207,7 +207,7 @@
   VI chambers · ∞ floors<br>structure self-curating
 </div>
 <div class="hud" id="readout">
-  <span class="ch" id="ro-ch">CH. I — THRESHOLD</span><br>
+  <span class="ch" id="ro-ch">CH. I · THRESHOLD</span><br>
   <span id="ro-pos">DEPTH 0.0 M · ROLL 0°</span>
 </div>
 <div class="hud" id="hint">
@@ -218,20 +218,20 @@
 
 <div id="intro">
   <div class="mark">AION</div>
-  <div class="sub">An Infinite Museum — est. 2050</div>
+  <div class="sub">An Infinite Museum, est. 2050</div>
   <div class="enter">scroll to enter the structure</div>
 </div>
 
 <div id="veil"></div>
 <div id="fallback">This structure requires WebGL.<br>Please enter through a modern browser.</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/three.r128.min.js"></script>
 <script>
 (function(){
   'use strict';
 
   /* ================================================================
-     AION — a navigable information structure.
+     AION, a navigable information structure.
      No pages. No sections. One continuous architectural path.
      ================================================================ */
 
@@ -350,8 +350,7 @@
 
   /* ---------------- corridor ribs: the visible skeleton of travel ----
      Rectangular frames strung along the entire path, twisting with
-     the roll of the corridor. They make movement legible —
-     architecture instead of empty space.                              */
+     the roll of the corridor. They make movement legible, architecture instead of empty space.                              */
   (function(){
     var N=120;
     for(var i=0;i<N;i++){
@@ -411,7 +410,7 @@
     });
   })();
 
-  /* ================ CHAMBER I — THRESHOLD ================ */
+  /* ================ CHAMBER I · THRESHOLD ================ */
   (function(){
     var g=chambers[0].group;
     var rings=[];
@@ -429,7 +428,7 @@
     });
   })();
 
-  /* ================ CHAMBER II — HALL OF RECURSION ================ */
+  /* ================ CHAMBER II · HALL OF RECURSION ================ */
   (function(){
     var g=chambers[1].group;
     var cubes=[];
@@ -457,7 +456,7 @@
     });
   })();
 
-  /* ================ CHAMBER III — THE FOLD ================ */
+  /* ================ CHAMBER III · THE FOLD ================ */
   (function(){
     var g=chambers[2].group;
     // square frames rotating progressively: the corridor visibly twists
@@ -471,7 +470,7 @@
       f.rotation.z=(i/14)*PI;
       g.add(f); frames.push(f);
     }
-    // impossible stair ring — steps that climb forever around a loop
+    // impossible stair ring, steps that climb forever around a loop
     var stair=new THREE.Group();
     var steps=14;
     for(var i=0;i<steps;i++){
@@ -494,7 +493,7 @@
     });
   })();
 
-  /* ================ CHAMBER IV — MANIFOLD GARDEN ================ */
+  /* ================ CHAMBER IV · MANIFOLD GARDEN ================ */
   function kleinFigure8(slices,stacks,a,sc){
     var pos=[],idx=[];
     for(var i=0;i<=slices;i++){
@@ -542,14 +541,14 @@
     });
   })();
 
-  /* ================ CHAMBER V — ARCHIVE OF LIGHT ================ */
+  /* ================ CHAMBER V · ARCHIVE OF LIGHT ================ */
   (function(){
     var g=chambers[4].group;
     var n=2600;
     var pos=new Float32Array(n*3), col=new Float32Array(n*3);
     var cGold=new THREE.Color(0xd8c9a3), cCyan=new THREE.Color(0x7fd4ff), cBone=new THREE.Color(0xe8e4da);
     for(var i=0;i<n;i++){
-      // spherical shell distribution — a constellation of past visitors
+      // spherical shell distribution, a constellation of past visitors
       var r=5+Math.pow(Math.random(),0.6)*22;
       var th=Math.random()*PI*2, ph=Math.acos(2*Math.random()-1);
       pos[i*3  ]=r*Math.sin(ph)*Math.cos(th);
@@ -574,7 +573,7 @@
     });
   })();
 
-  /* ================ CHAMBER VI — THE DEEP INDEX ================ */
+  /* ================ CHAMBER VI · THE DEEP INDEX ================ */
   (function(){
     var g=chambers[5].group;
     var outer=new THREE.LineSegments(
@@ -605,7 +604,7 @@
      ================================================================ */
   var volumes=[
     {n:'01', w:v3(  7,  1,  -2), title:'On Arrival',
-     body:'There is no entrance, because the museum has no outside. You did not load this place; you noticed it. Every visitor arrives mid-thought, somewhere between the first room and the last — which are the same room, observed at different angles.'},
+     body:'There is no entrance, because the museum has no outside. You did not load this place; you noticed it. Every visitor arrives mid-thought, somewhere between the first room and the last, which are the same room, observed at different angles.'},
     {n:'02', w:v3( -7, -1, -16), title:'Protocol of Attention',
      body:'Nothing here is stored. Exhibits condense out of depth when watched and dissolve when forgotten. Move slowly. The architecture is listening.'},
 
@@ -614,11 +613,11 @@
     {n:'04', w:v3(  8,  3, -68), title:'Droste Engine, 2047',
      body:'A machine built to picture itself picturing itself. It has not yet finished its first thought. Estimated completion: never, gracefully.'},
     {n:'05', w:v3(  1, 12, -78), title:'A Note on Scale',
-     body:'In this wing, “smaller” is a direction — like north. Visitors who walk inward long enough return from above.'},
+     body:'In this wing, “smaller” is a direction, like north. Visitors who walk inward long enough return from above.'},
 
     {n:'06', w:v3( 23,  9, -172), title:'Orientation Is a Convention',
      body:'This corridor disagrees with your inner ear. The floor you remember is becoming a wall; the wall, a ceiling. Nothing is rotating except your assumptions. Down is wherever the architecture decides to rest your attention.'},
-    {n:'07', w:v3(  9, -1, -206), title:'Escher Wing — Permanent Loan',
+    {n:'07', w:v3(  9, -1, -206), title:'Escher Wing. Permanent Loan',
      body:'Stairs that ascend in both directions. A balcony overlooking itself. The geometry is not broken; it has simply finished arguing with Euclid.'},
 
     {n:'08', w:v3(  8, -3, -254), title:'Specimen M-417',
@@ -627,7 +626,7 @@
      body:'Nothing in this garden was modelled. Every form is the shadow of a rule, repeated until it became beautiful. The gardeners tend coefficients.'},
 
     {n:'10', w:v3(-15,  6, -320), title:'All Previous Visitors',
-     body:'Each point of light is a path once walked through this structure. Yours is already among them — a few seconds in the past, still warm.'},
+     body:'Each point of light is a path once walked through this structure. Yours is already among them, a few seconds in the past, still warm.'},
     {n:'11', w:v3(-29, -4, -340), title:'Generative Requiem',
      body:'An installation that recomposes itself each time it is observed. No two visitors have stood in the same room, including you, twice.'},
 
@@ -824,7 +823,7 @@
       }
       var pos=camera.position;
       var rollDeg=Math.round(rollAt(clamp(tCur,0,1))*180/PI)%360;
-      roCh.textContent='CH. '+ROMAN[ci]+' — '+chambers[ci].name;
+      roCh.textContent='CH. '+ROMAN[ci]+', '+chambers[ci].name;
       roPos.textContent='DEPTH '+Math.abs(pos.z-60).toFixed(1)+' M · ROLL '+rollDeg+'° · T '+tCur.toFixed(3);
     }
 

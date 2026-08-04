@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Storm Area 51 — demo</title>
+<title>Storm Area 51, demo</title>
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
@@ -168,7 +168,7 @@
   <div class="topbar">
     <span class="badge">budget</span><span class="budget" id="budget">10</span>
     <span class="badge">deployed</span><span id="deployed">0</span>
-    <span class="phase" id="phase">— placement phase —</span>
+    <span class="phase" id="phase">- placement phase -</span>
   </div>
   <div class="roster" id="roster">
     <!-- populated by JS -->
@@ -381,7 +381,7 @@
     state.raidStart = Date.now();
     state.waveTimer = 60;
     state.waveNum = 0;
-    phaseEl.textContent = '— raid in progress —';
+    phaseEl.textContent = '- raid in progress -';
     updateRosterUI();
   }
 
@@ -494,7 +494,7 @@
     }
 
     // Cleanup dead
-    // (keep for visual a sec) — instead, just freeze them; clean periodically
+    // (keep for visual a sec), instead, just freeze them; clean periodically
     // Check end conditions
     const anyAlive = state.playerUnits.some(u => !u.dead && !u.reachedBase);
     if (state.breached && state.playerUnits.some(u => u.reachedBase)) {
@@ -574,11 +574,11 @@
     const items = [];
     for (const u of state.casualties) {
       const ut = UNIT_TYPES[u.type];
-      items.push(`<b>${u.name}</b> (${ut.name}) — KIA, ${u.causeOfDeath}. <span style="opacity:0.6">[reached ${u.distanceReached}%]</span>`);
+      items.push(`<b>${u.name}</b> (${ut.name}). KIA, ${u.causeOfDeath}. <span style="opacity:0.6">[reached ${u.distanceReached}%]</span>`);
     }
     for (const u of survivors) {
       const ut = UNIT_TYPES[u.type];
-      items.push(`<b>${u.name}</b> (${ut.name}) — <span style="color:#7ed4a8">BREACHED PERIMETER</span>. Whereabouts unknown.`);
+      items.push(`<b>${u.name}</b> (${ut.name}), <span style="color:#7ed4a8">BREACHED PERIMETER</span>. Whereabouts unknown.`);
     }
     if (items.length === 0) {
       items.push('No one showed up. As expected.');
@@ -592,7 +592,7 @@
 
     // Ticker
     const tickerLines = [
-      'BREAKING — Area 51 perimeter event ongoing',
+      'BREAKING · Area 51 perimeter event ongoing',
       'AUTHORITIES URGE PUBLIC TO STAY HOME',
       'unconfirmed reports of "Naruto-style running" near gate',
       'one (1) furry treated for heat exhaustion',

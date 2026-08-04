@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Aqueducts — demo</title>
+<title>Aqueducts, demo</title>
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
@@ -260,7 +260,7 @@
       }
       lastCell = mouseCell;
     } else if (adx > 1 || ady > 1) {
-      // moved too fast — interpolate
+      // moved too fast, interpolate
       lastCell = mouseCell;
     }
   });
@@ -527,7 +527,7 @@
         }
       }
     } else {
-      // dry — stains
+      // dry, stains
       ctx.fillStyle = 'rgba(120,90,50,0.25)';
       if (horizontal) ctx.fillRect(cx1, cy1 - 4, cx2 - cx1, 3);
       else ctx.fillRect(cx1 - 4, cy1, 3, cy2 - cy1);
@@ -688,7 +688,7 @@
     ctx.fillStyle = 'rgba(90,58,42,0.4)';
     ctx.font = '11px serif';
     ctx.textAlign = 'left';
-    ctx.fillText('— AQUEDUCTS —', OFF_X, OFF_Y - 8);
+    ctx.fillText('- AQUEDUCTS -', OFF_X, OFF_Y - 8);
   }
 
   function render() {

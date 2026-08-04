@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>斬 ZAN — The Heaven-Cutting Engine</title>
+<title>斬 ZAN · The Heaven-Cutting Engine</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23070407'/%3E%3Cpath d='M4 27L27 4' stroke='%23ff3b30' stroke-width='3.2' stroke-linecap='square'/%3E%3Cpath d='M4 27L27 4' stroke='%23fff0ea' stroke-width='1' stroke-linecap='square'/%3E%3Cpath d='M6 6h6M20 26h6' stroke='%23d31a2b' stroke-width='2'/%3E%3C/svg%3E">
+<meta name="description" content="A perpetual mechanism in five acts. The cursor is a blade and the rendered frame itself can be cut.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@300;400&family=Noto+Serif+JP:wght@900&display=swap" rel="stylesheet">
@@ -55,6 +57,10 @@
     font-size:10px;letter-spacing:.5em;color:var(--blood);
     text-transform:uppercase;margin-bottom:10px;
   }
+  /* Outlined type over a bright red engine was illegible · a 1.5px bone stroke
+     on transparent fill has nothing to separate it from whatever is behind it.
+     Keep the outline (it is the look) and put a dark spread underneath it so the
+     glyphs carve their own contrast wherever the camera happens to be. */
   .act h1{
     font-family:'Anton',sans-serif;
     font-size:clamp(40px,6.2vw,92px);
@@ -62,15 +68,18 @@
     color:transparent;
     -webkit-text-stroke:1.5px var(--bone);
     text-transform:uppercase;
+    filter:drop-shadow(0 0 14px rgba(7,4,7,.95)) drop-shadow(0 2px 3px rgba(7,4,7,.85));
   }
   .act h1 em{
     font-style:normal;color:var(--blood);
-    -webkit-text-stroke:0;
+    -webkit-text-stroke:.5px rgba(255,90,90,.55);
   }
   .act .a-line{
-    margin-top:14px;font-size:11px;font-weight:300;
-    letter-spacing:.14em;color:var(--ash);max-width:480px;line-height:1.9;
+    margin-top:14px;font-size:11.5px;font-weight:400;
+    letter-spacing:.13em;color:#a99ba0;max-width:480px;line-height:1.9;
+    text-shadow:0 1px 6px rgba(7,4,7,.98),0 0 2px rgba(7,4,7,.9);
   }
+  .act .a-idx{text-shadow:0 1px 6px rgba(7,4,7,.95)}
 
   /* ---------- vertical kanji column ---------- */
   #vcol{
@@ -115,7 +124,10 @@
   }
   #rail .r-line{width:52px;height:1px;background:linear-gradient(90deg,transparent,rgba(211,26,43,.55))}
   #rail .r-line.end{background:linear-gradient(90deg,rgba(211,26,43,.55),transparent)}
+  /* Was a <div tabindex="-1">. The act selector is the only direct navigation
+     in the piece and it could not be reached by keyboard at all. */
   .r-notch{
+    -webkit-appearance:none;appearance:none;background:none;padding:0;
     width:40px;height:40px;display:flex;align-items:center;justify-content:center;
     font-family:'Noto Serif JP',serif;font-weight:900;font-size:15px;
     color:var(--ash);cursor:pointer;pointer-events:auto;
@@ -124,10 +136,26 @@
   }
   .r-notch span{transform:rotate(-45deg)}
   .r-notch:hover{color:var(--bone);border-color:rgba(211,26,43,.5)}
+  .r-notch:focus-visible{
+    outline:none;color:var(--bone);border-color:var(--ember);
+    box-shadow:0 0 0 3px rgba(255,59,48,.30),0 0 18px rgba(255,59,48,.5);
+  }
+  #mute{
+    -webkit-appearance:none;appearance:none;background:none;padding:0;
+    font:inherit;letter-spacing:inherit;
+  }
+  #mute:focus-visible{outline:2px solid var(--ember);outline-offset:3px}
   .r-notch.active{
     color:var(--bone);border-color:var(--blood);
     box-shadow:0 0 18px rgba(211,26,43,.55);
     background:rgba(211,26,43,.12);
+  }
+
+  /* .active is declared after :focus-visible at equal specificity (0,2,0), so it
+     erased the focus ring on exactly the notch a keyboard user lands on. Restate. */
+  .r-notch:focus-visible{
+    outline:none;color:var(--bone);border-color:var(--ember);
+    box-shadow:0 0 0 3px rgba(255,59,48,.30),0 0 18px rgba(255,59,48,.5);
   }
 
   /* ---------- bullet time glyph ---------- */
@@ -173,12 +201,25 @@
   #splash.cut .top{transform:translateX(-6%) translateY(-101%)}
   #splash.cut .bot{transform:translateX(6%) translateY(101%)}
   #splash.cut .seam{opacity:0}
-  #splash.cut .word{opacity:0}
+  /* `animation:pulse` on .word animates opacity, and a running animation wins
+     over a plain declaration in the cascade · so this `opacity:0` never applied
+     and "SCROLL TO TURN THE ENGINE" kept pulsing over the artwork forever.
+     Cancel the animation and the rule can finally take effect. */
+  #splash.cut .word{opacity:0;animation:none}
   @keyframes pulse{0%,100%{opacity:.25}50%{opacity:.95}}
 
   #fallback{position:fixed;inset:0;display:none;z-index:100;align-items:center;justify-content:center;
     background:var(--ink);color:var(--ash);font-size:11px;letter-spacing:.3em;
     text-transform:uppercase;text-align:center;line-height:2.4;padding:40px}
+
+  /* The JS honours reduce-motion (drift, shake, petals) but the CSS did not:
+     the splash still slid open, the acts still skewed in, and #splash .word ran
+     an infinite opacity animation for as long as the tab stayed open. */
+  @media (prefers-reduced-motion:reduce){
+    #splash .word{animation:none;opacity:.6}
+    #splash .half,#splash .seam,.act,.vphrase,#megakanji span,
+    #tokiglyph,#hint,.r-notch{transition-duration:.01ms}
+  }
 
   @media (max-width:760px){
     #acts{left:20px;bottom:120px}
@@ -194,7 +235,7 @@
 </head>
 <body>
 
-<canvas id="scene"></canvas>
+<canvas id="scene" aria-label="A clockwork pagoda turning inside a ring of gates. Scroll to turn the engine, stroke quickly to cut the image, hold still to slow time."></canvas>
 <canvas id="blade"></canvas>
 
 <div id="megakanji"></div>
@@ -212,23 +253,23 @@
 <div class="hud" id="hud-state">
   <span id="cycle">CYCLE 001</span><br>
   <span id="bladestate" class="blade-ok">BLADE DRAWN</span><br>
-  <a id="mute">音 SOUND ON</a>
+  <button id="mute" type="button" aria-pressed="false">音 SOUND ON</button>
 </div>
 <div class="hud" id="readout">
-  <span id="ro-act"><b>ACT I</b> — TEN THOUSAND GATES</span><br>
+  <span id="ro-act"><b>ACT I</b> · TEN THOUSAND GATES</span><br>
   <span id="ro-data">ROT 0° · TIME 1.00× · CUTS 0</span>
 </div>
 <div class="hud" id="hint">
-  scroll — turn the engine<br>
-  a fast stroke — draw the blade<br>
-  hold still — time kneels
+  scroll · turn the engine<br>
+  a fast stroke · draw the blade<br>
+  hold still · time kneels
 </div>
 
-<div id="rail">
-  <div class="r-line"></div>
+<nav id="rail" aria-label="Acts">
+  <div class="r-line" aria-hidden="true"></div>
   <div id="notches" style="display:flex"></div>
-  <div class="r-line end"></div>
-</div>
+  <div class="r-line end" aria-hidden="true"></div>
+</nav>
 
 <div id="tokiglyph"><div class="k">刻</div><div class="t">time kneels</div></div>
 
@@ -241,13 +282,13 @@
 
 <div id="fallback">The engine requires WebGL.<br>Return with a sharper blade.</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/three.r128.min.js"></script>
 <script>
 (function(){
   'use strict';
 
   /* ================================================================
-     斬 ZAN — a perpetual mechanism, not a website.
+     斬 ZAN · a perpetual mechanism, not a website.
      One closed camera loop. Five acts. No pages, no end.
      The cursor is a blade. The render itself can be cut.
      ================================================================ */
@@ -264,8 +305,31 @@
   var PR=Math.min(window.devicePixelRatio,2);
   renderer.setPixelRatio(PR);
   renderer.setSize(W,H);
+
+  /* Absolute pixel ceiling for the offscreen scene pass: 2560x1440 = 3,686,400.
+     The post pass always writes the default framebuffer at full native size, so
+     the DOM HUD, the blade canvas and the screen-space grain stay native. Only
+     the 3D pass is capped, and the governor scales inside the cap. */
+  var MAXPIX=3686400;
+  var Q={scale:1.0,auto:true};
+  var rtW=2,rtH=2;
+  function rtDims(){
+    var nw=Math.max(2,Math.round(W*PR)), nh=Math.max(2,Math.round(H*PR));
+    var k=Math.min(1,Math.sqrt(MAXPIX/(nw*nh)))*Q.scale;
+    rtW=Math.max(2,Math.round(nw*k));
+    rtH=Math.max(2,Math.round(nh*k));
+  }
+  function applyRT(){
+    rtDims();
+    if(rt)rt.setSize(rtW,rtH);
+    if(postMat)postMat.uniforms.uTexel.value.set(1/rtW,1/rtH);
+  }
+  rtDims();
   renderer.setClearColor(0x070407,1);
-  renderer.outputEncoding=THREE.sRGBEncoding;
+  /* No outputEncoding here on purpose: the scene renders into a LinearEncoding
+     render target and the only draw to the default framebuffer is the post
+     ShaderMaterial below, which writes gl_FragColor without
+     #include <encodings_fragment>. Setting it converted nothing. */
 
   var scene=new THREE.Scene();
   scene.fog=new THREE.FogExp2(0x070407,0.0062);
@@ -276,6 +340,13 @@
   var PI=Math.PI;
   function clamp(x,a,b){return x<a?a:(x>b?b:x);}
   function v3(x,y,z){return new THREE.Vector3(x,y,z);}
+
+  /* Reduce-motion here means "nothing moves unless you moved it". The engine
+     still turns when you scroll, the blade still cuts when you strike, the acts
+     still change · what stops is everything the page was doing *at* you:
+     the unrequested camera drift, the handheld shake on impact, and the
+     perpetual petal-fall. A vestibular trigger is motion you did not ask for. */
+  var REDUCED=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------------- light ---------------- */
   scene.add(new THREE.AmbientLight(0x1c0e14,1.4));
@@ -300,12 +371,67 @@
   var glowTex=radialTex([[0,'rgba(255,60,60,0.9)'],[0.3,'rgba(211,26,43,0.35)'],[1,'rgba(211,26,43,0)']]);
 
   /* ================================================================
-     THE ENGINE — a clockwork pagoda that contains itself.
+     THE ENGINE · a clockwork pagoda that contains itself.
      ================================================================ */
   var animators=[];
   var blackMetal=new THREE.MeshStandardMaterial({color:0x14101a,metalness:0.85,roughness:0.35});
   var redLacquer=new THREE.MeshStandardMaterial({color:0x8a1220,metalness:0.55,roughness:0.4,emissive:0x2a040a,emissiveIntensity:1});
 
+  function xform(px,py,pz,rx,rz){
+    var o=new THREE.Object3D();
+    o.position.set(px,py,pz);o.rotation.set(rx,0,rz);o.updateMatrix();
+    return o.matrix.clone();
+  }
+  /* Manual vertex concatenation. BufferGeometryUtils is not in the r128 build. */
+  function mergeGeos(parts){
+    var pos=[],nor=[],uvs=[],i,j,a,g,ng;
+    for(i=0;i<parts.length;i++){
+      g=parts[i].geo.clone();
+      g.applyMatrix4(parts[i].m);
+      ng=g.index?g.toNonIndexed():g;
+      a=ng.attributes.position.array;for(j=0;j<a.length;j++)pos.push(a[j]);
+      a=ng.attributes.normal.array;  for(j=0;j<a.length;j++)nor.push(a[j]);
+      a=ng.attributes.uv.array;      for(j=0;j<a.length;j++)uvs.push(a[j]);
+    }
+    var out=new THREE.BufferGeometry();
+    out.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pos),3));
+    out.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(nor),3));
+    out.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(uvs),2));
+    return out;
+  }
+  /* r128 vertex colours are vec3, so per-vertex opacity needs its own attribute.
+     Patching LineBasicMaterial instead of writing a ShaderMaterial keeps fog
+     (scene fog density is animated) and outputEncoding handling intact. */
+  var lineVCMat=new THREE.LineBasicMaterial({vertexColors:true,transparent:true});
+  lineVCMat.onBeforeCompile=function(sh){
+    sh.vertexShader='attribute float lalpha;\nvarying float vLalpha;\n'+
+      sh.vertexShader.replace('void main() {','void main() {\n\tvLalpha=lalpha;');
+    sh.fragmentShader='varying float vLalpha;\n'+
+      sh.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n\tdiffuseColor.a *= vLalpha;');
+  };
+  function edgeSet(geo,color,opacity,dy){
+    var e=new THREE.EdgesGeometry(geo);
+    var p=e.attributes.position.array,n=p.length/3,i;
+    var c=new Float32Array(n*3),al=new Float32Array(n),col=new THREE.Color(color);
+    for(i=0;i<n;i++){c[i*3]=col.r;c[i*3+1]=col.g;c[i*3+2]=col.b;al[i]=opacity;}
+    if(dy)for(i=0;i<n;i++)p[i*3+1]+=dy;
+    e.setAttribute('color',new THREE.BufferAttribute(c,3));
+    e.setAttribute('lalpha',new THREE.BufferAttribute(al,1));
+    return e;
+  }
+  function mergeEdgeSets(list){
+    var pos=[],col=[],alp=[],i,j,a;
+    for(i=0;i<list.length;i++){
+      a=list[i].attributes.position.array;for(j=0;j<a.length;j++)pos.push(a[j]);
+      a=list[i].attributes.color.array;   for(j=0;j<a.length;j++)col.push(a[j]);
+      a=list[i].attributes.lalpha.array;  for(j=0;j<a.length;j++)alp.push(a[j]);
+    }
+    var g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pos),3));
+    g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(col),3));
+    g.setAttribute('lalpha',new THREE.BufferAttribute(new Float32Array(alp),1));
+    return new THREE.LineSegments(g,lineVCMat);
+  }
   function edgeLines(geo,color,opacity){
     return new THREE.LineSegments(new THREE.EdgesGeometry(geo),
       new THREE.LineBasicMaterial({color:color,transparent:true,opacity:opacity}));
@@ -320,19 +446,19 @@
       var slabGeo=new THREE.CylinderGeometry(r*0.82,r,1.3,6);
       var slab=new THREE.Mesh(slabGeo,blackMetal);
       tier.add(slab);
-      tier.add(edgeLines(slabGeo,0xd31a2b,0.65));
       var eaveGeo=new THREE.CylinderGeometry(r*1.05,r*1.45,0.4,6);
       var eave=new THREE.Mesh(eaveGeo,redLacquer);
       eave.position.y=1.0;
       tier.add(eave);
-      var eaveEdges=edgeLines(eaveGeo,0xff3b30,0.5);
-      eaveEdges.position.y=1.0;
-      tier.add(eaveEdges);
+      tier.add(mergeEdgeSets([
+        edgeSet(slabGeo,0xd31a2b,0.65,0),
+        edgeSet(eaveGeo,0xff3b30,0.5,1.0)
+      ]));
       tier.position.y=k*5.2;
       g.add(tier);
       tiers.push(tier);
     }
-    // gear rings — they pass straight through the solid tiers. deliberately.
+    // gear rings · they pass straight through the solid tiers. deliberately.
     var gears=[];
     for(var k=0;k<5;k++){
       var gr=new THREE.Group();
@@ -341,11 +467,10 @@
       var tor=new THREE.Mesh(torGeo,blackMetal);
       gr.add(tor);
       gr.add(edgeLines(torGeo,0xd31a2b,0.8));
-      for(var s=0;s<4;s++){
-        var spoke=new THREE.Mesh(new THREE.BoxGeometry(rad*2,0.16,0.16),redLacquer);
-        spoke.rotation.z=s*PI/4;
-        gr.add(spoke);
-      }
+      var sp=[];
+      for(var s=0;s<4;s++)
+        sp.push({geo:new THREE.BoxGeometry(rad*2,0.16,0.16),m:xform(0,0,0,0,s*PI/4)});
+      gr.add(new THREE.Mesh(mergeGeos(sp),redLacquer));
       gr.position.y=3+k*7;
       gr.rotation.x=PI/2;
       g.add(gr);
@@ -382,7 +507,7 @@
       g.add(child);
     }
 
-    // mechanical ratchet motion — the Game-of-Thrones clockwork turn
+    // mechanical ratchet motion · the Game-of-Thrones clockwork turn
     function ratchet(t,step){
       var f=t-Math.floor(t);
       var e=f<0.5?2*f*f:1-Math.pow(-2*f+2,2)/2;
@@ -414,52 +539,59 @@
   animators.push(function(wt){ engine.rotation.y=wt*0.018; });
 
   /* ================================================================
-     TEN THOUSAND GATES — two rings of torii; every third gate
+     TEN THOUSAND GATES · two rings of torii; every third gate
      hangs from the sky upside-down. Gravity is a suggestion.
      ================================================================ */
-  function torii(s){
-    var g=new THREE.Group();
-    var mat=new THREE.MeshStandardMaterial({color:0xc41e2a,metalness:0.4,roughness:0.5,emissive:0x33060c,emissiveIntensity:1});
-    var pL=new THREE.Mesh(new THREE.BoxGeometry(0.7,8,0.7),mat);
-    pL.position.set(-3.4,4,0);pL.rotation.z=0.05;
-    var pR=pL.clone();pR.position.x=3.4;pR.rotation.z=-0.05;
-    var kasagi=new THREE.Mesh(new THREE.BoxGeometry(10,0.75,1),mat);
-    kasagi.position.y=8.3;
-    var shimaki=new THREE.Mesh(new THREE.BoxGeometry(8.6,0.5,0.8),mat);
-    shimaki.position.y=7.3;
-    g.add(pL);g.add(pR);g.add(kasagi);g.add(shimaki);
-    g.scale.setScalar(s);
-    return g;
-  }
+  /* One gate geometry, 36 instances. Member transforms are baked into the
+     vertices; the per-gate transform (incl. upside-down / wall gates) is the
+     instance matrix, which is exactly what it was as a Group matrix before. */
+  var toriiGeo=mergeGeos([
+    {geo:new THREE.BoxGeometry(0.7,8,0.7),  m:xform(-3.4,4,0,0, 0.05)},
+    {geo:new THREE.BoxGeometry(0.7,8,0.7),  m:xform( 3.4,4,0,0,-0.05)},
+    {geo:new THREE.BoxGeometry(10,0.75,1),  m:xform(0,8.3,0,0,0)},
+    {geo:new THREE.BoxGeometry(8.6,0.5,0.8),m:xform(0,7.3,0,0,0)}
+  ]);
+  var toriiMat=new THREE.MeshStandardMaterial({color:0xc41e2a,metalness:0.4,roughness:0.5,emissive:0x33060c,emissiveIntensity:1});
   (function(){
-    var floats=[];
-    for(var i=0;i<24;i++){
-      var a=(i/24)*PI*2;
-      var t=torii(1);
-      var R=62;
-      t.position.set(Math.cos(a)*R,-8,Math.sin(a)*R);
-      t.lookAt(0,-8,0);
+    var d=new THREE.Object3D(),floats=[],i,a;
+    var gates=new THREE.InstancedMesh(toriiGeo,toriiMat,36);
+    gates.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    gates.frustumCulled=false; // instance matrices are outside the geometry bounds
+    scene.add(gates);
+    for(i=0;i<24;i++){
+      a=(i/24)*PI*2;
+      d.scale.setScalar(1);
+      d.position.set(Math.cos(a)*62,-8,Math.sin(a)*62);
+      d.lookAt(0,-8,0);
       if(i%3===0){
-        t.position.y=14+(i%5)*3;
-        t.rotation.z=PI;            // upside down
-        floats.push({g:t,y0:t.position.y,ph:i});
+        d.position.y=14+(i%5)*3;
+        d.rotation.z=PI;            // upside down
+        floats.push({i:i,x:d.position.x,z:d.position.z,y0:d.position.y,ry:d.rotation.y,dy:0,ph:i});
       }
-      scene.add(t);
+      d.updateMatrix();
+      gates.setMatrixAt(i,d.matrix);
     }
-    for(var i=0;i<12;i++){
-      var a=(i/12)*PI*2+0.26;
-      var t=torii(2.1);
-      t.position.set(Math.cos(a)*125,-8,Math.sin(a)*125);
-      t.lookAt(0,-8,0);
-      if(i%4===0){ t.rotation.x=PI/2; t.position.y=26; } // lying on a wall of air
-      scene.add(t);
+    for(i=0;i<12;i++){
+      a=(i/12)*PI*2+0.26;
+      d.scale.setScalar(2.1);
+      d.position.set(Math.cos(a)*125,-8,Math.sin(a)*125);
+      d.lookAt(0,-8,0);
+      if(i%4===0){ d.rotation.x=PI/2; d.position.y=26; } // lying on a wall of air
+      d.updateMatrix();
+      gates.setMatrixAt(24+i,d.matrix);
     }
+    gates.instanceMatrix.needsUpdate=true;
     animators.push(function(wt){
-      for(var i=0;i<floats.length;i++){
-        var f=floats[i];
-        f.g.position.y=f.y0+Math.sin(wt*0.5+f.ph)*1.6;
-        f.g.rotation.y+= Math.sin(wt*0.1+f.ph)*0.0006;
+      for(var k=0;k<floats.length;k++){
+        var f=floats[k];
+        f.dy+=Math.sin(wt*0.1+f.ph)*0.0006;
+        d.scale.setScalar(1);
+        d.position.set(f.x,f.y0+Math.sin(wt*0.5+f.ph)*1.6,f.z);
+        d.rotation.set(0,f.ry+f.dy,PI);
+        d.updateMatrix();
+        gates.setMatrixAt(f.i,d.matrix);
       }
+      gates.instanceMatrix.needsUpdate=true;
     });
   })();
 
@@ -492,7 +624,7 @@
   gridB.position.y=44;
   scene.add(gridB);
 
-  /* ---------------- petals — they obey, until the void ---------------- */
+  /* ---------------- petals · they obey, until the void ---------------- */
   var PCOUNT=380;
   var petalGeo=new THREE.PlaneGeometry(0.5,0.85);
   var petalMat=new THREE.MeshBasicMaterial({color:0xc2202e,transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false});
@@ -563,22 +695,22 @@
   }else kanjiSprites();
 
   /* ================================================================
-     THE LOOP — five acts on one closed orbit. No beginning. No end.
+     THE LOOP · five acts on one closed orbit. No beginning. No end.
      ================================================================ */
   var ACTS=[
-    {k:'門',idx:'ACT I — 鳥居',title:'TEN THOUSAND <em>GATES</em>',
+    {k:'門',idx:'ACT I · 鳥居',title:'TEN THOUSAND <em>GATES</em>',
      line:'Every gate is the same gate, crossed from a different direction. The ones overhead are not falling. They simply never agreed to land.',
      v:'同じ門を何度もくぐる'},
-    {k:'機',idx:'ACT II — 機関',title:'THE ENGINE <em>OF HEAVEN</em>',
-     line:'Forged in 3025 from the clock-parts of dead empires. It does not tell time; it commands it. Note the ring turning through solid iron — the metal has stopped objecting.',
+    {k:'機',idx:'ACT II · 機関',title:'THE ENGINE <em>OF HEAVEN</em>',
+     line:'Forged in 3025 from the clock-parts of dead empires. It does not tell time; it commands it. Note the ring turning through solid iron, and the metal has stopped objecting.',
      v:'天の機関は時を命ずる'},
-    {k:'斬',idx:'ACT III — 斬撃',title:'THE <em>CUT</em>',
+    {k:'斬',idx:'ACT III · 斬撃',title:'THE <em>CUT</em>',
      line:'Your cursor is a blade. Draw it fast and the world itself splits along the stroke, bleeds light, and reseals. The horizon already carries old scars.',
      v:'世界を斬れ'},
-    {k:'無',idx:'ACT IV — 虚無',title:'THE INVERTED <em>VOID</em>',
+    {k:'無',idx:'ACT IV · 虚無',title:'THE INVERTED <em>VOID</em>',
      line:'Beneath the engine, gravity kneels. Petals fall upward to be reborn. There is a floor above you; there always was.',
      v:'重力は跪く'},
-    {k:'永',idx:'ACT V — 永遠',title:'ETERNITY, <em>AGAIN</em>',
+    {k:'永',idx:'ACT V · 永遠',title:'ETERNITY, <em>AGAIN</em>',
      line:'Atop the engine stands a smaller engine, atop which stands a smaller engine. You have been standing inside one all along. Keep scrolling; the loop does not mind.',
      v:'永遠は再び始まる'}
   ];
@@ -587,7 +719,7 @@
     v3(  0,  3, 88),    // I   among the gates
     v3( 54, 22, 16),    // II  close orbit of the mechanism
     v3(  4,  8, 50),    // III facing the sun, blade ready
-    v3(-50,-30,-34),    // IV  beneath — the world overhead
+    v3(-50,-30,-34),    // IV  beneath · the world overhead
     v3( 10, 68,-78)     // V   the god view, spiralling home
   ],true,'centripetal');
   var tgtCurve=new THREE.CatmullRomCurve3([
@@ -623,8 +755,10 @@
     var m=document.createElement('span');
     m.textContent=a.k;
     megaEl.appendChild(m);a.mEl=m;
-    var n=document.createElement('div');
+    var n=document.createElement('button');
+    n.type='button';
     n.className='r-notch';n.innerHTML='<span>'+a.k+'</span>';
+    n.setAttribute('aria-label','Act '+(i+1)+' · '+a.title.replace(/<[^>]+>/g,''));
     n.addEventListener('click',function(){flyToAct(i);});
     notchesEl.appendChild(n);a.nEl=n;
   });
@@ -644,6 +778,9 @@
     userMoved=true;
   },{passive:false});
   window.addEventListener('keydown',function(e){
+    /* Space/Enter already activate a focused .r-notch. Without this guard the
+       window handler ALSO advanced pTarget, overshooting by half an act. */
+    if(e.target&&e.target.tagName==='BUTTON'&&(e.key===' '||e.key==='Enter'))return;
     if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key===' '){pTarget+=0.5;userMoved=true;}
     else if(e.key==='ArrowUp'||e.key==='ArrowLeft'){pTarget-=0.5;userMoved=true;}
     else if(e.key>='1'&&e.key<='5'){flyToAct(parseInt(e.key,10)-1);}
@@ -668,7 +805,7 @@
   },{passive:true});
   window.addEventListener('touchend',function(){touchY=null;holding=false;});
 
-  setTimeout(function(){if(!userMoved)pTarget=0.22;},2200);
+  if(!REDUCED)setTimeout(function(){if(!userMoved)pTarget=0.22;},2200);
 
   /* ---------------- the blade: slash detection ---------------- */
   var mouse={x:0,y:0},mouseS={x:0,y:0};
@@ -739,11 +876,19 @@
   function toggleMute(){
     muted=!muted;
     muteEl.textContent=muted?'音 SOUND OFF':'音 SOUND ON';
+    muteEl.setAttribute('aria-pressed',muted?'true':'false');
+    if(muted&&AC&&AC.state==='running'){try{AC.suspend();}catch(e){}}
   }
   muteEl.addEventListener('click',toggleMute);
+  /* An AudioContext left running in a hidden tab keeps the audio thread alive and
+     the device awake. Suspend on blur, resume only if the viewer had sound on. */
+  document.addEventListener('visibilitychange',function(){
+    if(!AC)return;
+    try{ document.hidden ? AC.suspend() : (muted?null:AC.resume()); }catch(e){}
+  });
 
   /* ---------------- post pipeline: the world is cuttable ---------------- */
-  var rt=new THREE.WebGLRenderTarget(W*PR,H*PR,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});
+  var rt=new THREE.WebGLRenderTarget(rtW,rtH,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});
   var postScene=new THREE.Scene();
   var postCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
   var postMat=new THREE.ShaderMaterial({
@@ -755,7 +900,8 @@
       uCutB:{value:new THREE.Vector2(0.7,0.5)},
       uCutAmt:{value:0},
       uFlash:{value:0},
-      uSat:{value:0}
+      uSat:{value:0},
+      uTexel:{value:new THREE.Vector2(1/rtW,1/rtH)}
     },
     vertexShader:[
       'varying vec2 vUv;',
@@ -765,8 +911,10 @@
       'varying vec2 vUv;',
       'uniform sampler2D tDiffuse;',
       'uniform float uTime,uAspect,uCutAmt,uFlash,uSat;',
+      'uniform vec2 uTexel;',
       'uniform vec2 uCutA,uCutB;',
       'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+      'vec3 samp(vec2 uv){return texture2D(tDiffuse,clamp(uv,uTexel*0.5,1.0-uTexel*0.5)).rgb;}',
       'void main(){',
       '  vec2 uv=vUv;',
       '  vec2 p =(uv   -0.5)*vec2(uAspect,1.0);',
@@ -780,9 +928,9 @@
       '  off/=vec2(uAspect,1.0);',
       '  float ca=0.0042*uCutAmt+0.0007;',
       '  vec3 col;',
-      '  col.r=texture2D(tDiffuse,uv-off+vec2(ca,0.0)).r;',
-      '  col.g=texture2D(tDiffuse,uv-off).g;',
-      '  col.b=texture2D(tDiffuse,uv-off-vec2(ca,0.0)).b;',
+      '  col.r=samp(uv-off+vec2(ca,0.0)).r;',
+      '  col.g=samp(uv-off).g;',
+      '  col.b=samp(uv-off-vec2(ca,0.0)).b;',
       '  float seam=exp(-abs(sd)*70.0)*uCutAmt;',
       '  col+=vec3(1.0,0.10,0.13)*seam*1.7;',
       '  col+=vec3(0.85,0.04,0.07)*uFlash;',
@@ -813,9 +961,20 @@
   /* ---------------- blade trail (2D overlay) ---------------- */
   var bladeCv=document.getElementById('blade');
   var bctx=bladeCv.getContext('2d');
-  function sizeBlade(){bladeCv.width=W;bladeCv.height=H;}
+  function sizeBlade(){
+    bladeCv.width=Math.max(1,Math.round(W*PR));
+    bladeCv.height=Math.max(1,Math.round(H*PR));
+    bctx.setTransform(PR,0,0,PR,0,0);
+  }
   sizeBlade();
+  /* Two string allocations per segment per frame (toFixed + concat). visTrail
+     holds 340 ms of pointer samples, so a 120 Hz mouse means ~40 segments,
+     ~80 strings a frame, ~4,800 a second while moving. Alpha peaks at 0.55, so
+     1/100 quantisation is invisible. */
+  var TRAIL_RGBA=[];
+  for(var ti=0;ti<=100;ti++)TRAIL_RGBA[ti]='rgba(255,46,56,'+(ti/100)+')';
   function drawTrail(){
+    bctx.setTransform(PR,0,0,PR,0,0);
     bctx.clearRect(0,0,W,H);
     if(visTrail.length<2)return;
     var now=performance.now();
@@ -825,7 +984,7 @@
       var age=(now-p1.t)/340;
       var al=(1-age)*0.55;
       if(al<=0)continue;
-      bctx.strokeStyle='rgba(255,46,56,'+al.toFixed(3)+')';
+      bctx.strokeStyle=TRAIL_RGBA[(al*100)|0];
       bctx.lineWidth=(1-age)*2.4+0.4;
       bctx.beginPath();
       bctx.moveTo(p0.x,p0.y);
@@ -837,14 +996,18 @@
 
   /* ---------------- camera ---------------- */
   var UP=new THREE.Vector3(0,1,0);
+  /* getPointAt() and clone() each mint a Vector3. Four a frame, 240 a second at
+     60 fps, all overwritten next frame. Curve.getPointAt takes an out param. */
+  var _pos=new THREE.Vector3(),_tgt=new THREE.Vector3(),
+      _dir=new THREE.Vector3(),_up=new THREE.Vector3();
   function updateCamera(){
     var pm=mod5(pCur);
     var t=pm/5;
-    var pos=posCurve.getPointAt(t);
-    var tgt=tgtCurve.getPointAt(t);
-    var dir=tgt.clone().sub(pos).normalize();
+    var pos=posCurve.getPointAt(t,_pos);
+    var tgt=tgtCurve.getPointAt(t,_tgt);
+    var dir=_dir.copy(tgt).sub(pos).normalize();
     var r=rollAt(pm);
-    var up=UP.clone();
+    var up=_up.copy(UP);
     up.addScaledVector(dir,-up.dot(dir));
     if(up.lengthSq()<1e-4){up.set(1,0,0);up.addScaledVector(dir,-up.dot(dir));}
     up.normalize().applyAxisAngle(dir,r);
@@ -853,7 +1016,7 @@
     camera.lookAt(tgt);
     camera.rotateY(-mouseS.x*0.1);
     camera.rotateX(-mouseS.y*0.07);
-    if(shake>0.001){
+    if(shake>0.001&&!REDUCED){
       camera.rotateZ((Math.random()-0.5)*0.05*shake);
       camera.rotateX((Math.random()-0.5)*0.022*shake);
       camera.rotateY((Math.random()-0.5)*0.022*shake);
@@ -880,7 +1043,25 @@
       a.vEl.classList.toggle('on',k===i);
       a.mEl.classList.toggle('on',k===i);
       a.nEl.classList.toggle('active',k===i);
+      if(k===i)a.nEl.setAttribute('aria-current','true');else a.nEl.removeAttribute('aria-current');
     });
+  }
+
+  /* ---------------- frame-time governor ---------------- */
+  /* Dead band 13.5..24.0 ms: anything between roughly 42 and 74 fps changes
+     nothing. Descend fast (0.10, 500 ms lockout), climb slow (0.06, 900 ms).
+     Worst case at the 0.50 floor an up-step multiplies scene pixels by
+     (0.56/0.50)^2 = 1.25, so a frame that qualified to climb (<13.5 ms) lands
+     at 16.9 ms at most, still 7.1 ms below the 24.0 ms down-trigger. A climb
+     can never provoke the drop that would undo it. */
+  var frameAvg=16.7, settle=1500;
+  function governor(ms){
+    if(ms>0&&ms<200)frameAvg+=(ms-frameAvg)*0.08;
+    if(!Q.auto)return;
+    settle-=ms;
+    if(settle>0)return;
+    if(frameAvg>24.0&&Q.scale>0.50){Q.scale=Math.max(0.50,Q.scale-0.10);applyRT();settle=500;}
+    else if(frameAvg<13.5&&Q.scale<1.00){Q.scale=Math.min(1.00,Q.scale+0.06);applyRT();settle=900;}
   }
 
   /* ---------------- main loop ---------------- */
@@ -891,6 +1072,7 @@
     requestAnimationFrame(animate);
     var dt=Math.min(clock.getDelta(),0.05);
     var rt0=clock.elapsedTime;
+    governor(dt*1000);
 
     // bullet time: held stillness makes the world kneel
     var still=holding&&(performance.now()-holdAt>180);
@@ -900,7 +1082,7 @@
     tokiEl.classList.toggle('on',ts<0.5);
     postMat.uniforms.uSat.value=clamp((1-ts)*1.05,0,0.92);
 
-    // travel (real time — you can move while time is stopped)
+    // travel (real time · you can move while time is stopped)
     var gap=Math.abs(pTarget-pCur);
     pCur+=(pTarget-pCur)*(1-Math.exp(-dt*(2.6+gap*2.2)));
 
@@ -932,7 +1114,7 @@
     var gdir=1-2*voidness; // +1 falls, -1 rises
     for(var i=0;i<PCOUNT;i++){
       var pd=petalData[i];
-      pd.y-=dt*ts*pd.sp*gdir;
+      if(!REDUCED)pd.y-=dt*ts*pd.sp*gdir;
       if(pd.y<-16)pd.y+=64;
       if(pd.y>48)pd.y-=64;
       dummy.position.set(
@@ -960,7 +1142,7 @@
       var ready=performance.now()-lastSlash>420;
       bladeStateEl.textContent=ready?'BLADE DRAWN':'BLADE SHEATHED';
       bladeStateEl.className=ready?'blade-ok':'';
-      roAct.innerHTML='<b>ACT '+ROMAN5[ai]+'</b> — '+actNames[ai];
+      roAct.innerHTML='<b>ACT '+ROMAN5[ai]+'</b> · '+actNames[ai];
       roData.textContent='ROT '+Math.round(mod5(pCur)*72)+'° · TIME '+ts.toFixed(2)+'× · CUTS '+cuts;
     }
 
@@ -975,7 +1157,7 @@
     camera.aspect=W/H;
     camera.updateProjectionMatrix();
     renderer.setSize(W,H);
-    rt.setSize(W*PR,H*PR);
+    applyRT();
     postMat.uniforms.uAspect.value=W/H;
     sizeBlade();
   });
@@ -984,24 +1166,5 @@
   animate();
 })();
 </script>
-<!-- site-nav -->
-<style>
-#sitenav{position:fixed;left:0;top:0;z-index:2147483000;
-  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  -webkit-font-smoothing:antialiased;pointer-events:none}
-#sitenav a{pointer-events:auto;display:flex;align-items:center;overflow:hidden;
-  height:24px;width:24px;margin:12px;border-radius:12px;text-decoration:none;
-  background:rgba(8,7,6,.62);border:1px solid rgba(176,138,79,.5);color:#e8a85a;
-  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
-  font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;white-space:nowrap;
-  transition:width .4s cubic-bezier(.16,1,.3,1),background .3s,border-color .3s}
-#sitenav a .k{flex:0 0 22px;text-align:center;font-size:11px}
-#sitenav a .t{opacity:0;padding-right:13px;transition:opacity .3s}
-#sitenav a:hover,#sitenav a:focus-visible{width:150px;background:rgba(8,7,6,.92);border-color:#e8a85a;outline:none}
-#sitenav a:hover .t,#sitenav a:focus-visible .t{opacity:1}
-@media (hover:none){#sitenav a{height:30px;width:30px;border-radius:15px}#sitenav a .k{flex:0 0 28px}}
-@media print{#sitenav{display:none}}
-</style>
-<nav id="sitenav"><a href="index.html" title="the museum"><span class="k">&#9666;</span><span class="t">the museum</span></a></nav>
 </body>
 </html>

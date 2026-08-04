@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>The Long Way Round — a racing game about not arriving</title>
+<title>The Long Way Round, a racing game about not arriving</title>
 <style>
   :root { --coral:#ef4d4d; --bone:#f3ecd6; --warm:#ffcf8a; --cyan:#39d2ff; }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -48,7 +48,7 @@
   #build b { color:#36e0a0; }
   #build .bk { color:#ffd24d; }
 
-  /* on-screen controls — the fix for input focus */
+  /* on-screen controls, the fix for input focus */
   #touch { position:fixed; inset:0; z-index:3; pointer-events:none; display:none; }
   body.playing #touch { display:block; }
   .pad { position:absolute; bottom:26px; pointer-events:auto; display:flex; gap:14px; }
@@ -125,13 +125,13 @@
 
   <div id="reject">
     <div class="big">YOU DID NOT GRADUATE</div>
-    <div class="sm">You crossed the finish exactly as instructed. That was never the way. The Tutorial was the trap — and you still haven't understood it.</div>
+    <div class="sm">You crossed the finish exactly as instructed. That was never the way. The Tutorial was the trap, and you still haven't understood it.</div>
   </div>
 
   <div id="won">
     <div class="big">You took the long way.</div>
     <div class="quote">"The finish line is not the end of the road. The road is the end of the road. You just had to know where to look."</div>
-    <div class="who">— buried in the credits</div>
+    <div class="who">- buried in the credits</div>
     <button id="again-btn" class="btn" style="background:var(--warm); margin-top:30px;">DRIVE IT AGAIN&nbsp;&nbsp;(R)</button>
   </div>
 
@@ -142,7 +142,7 @@
     <button id="drive-btn" class="btn">DRIVE</button>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="../../web/vendor/three.r128.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>

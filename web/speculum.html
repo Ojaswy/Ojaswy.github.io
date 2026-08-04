@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPECULUM, the octagon of mirrors</title>
+<meta name="description" content="A walkable marble palace built around the octagonal mirror chamber Leonardo drew and never built. The inscriptions are reversed. The mirrors are how you read them.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23eceff2'/%3E%3Cpath d='M11 4h10l7 7v10l-7 7H11l-7-7V11z' fill='none' stroke='%233a3833' stroke-width='1.6'/%3E%3Cpath d='M16 4h5l7 7v10l-7 7h-5z' fill='%233a3833' opacity='.16'/%3E%3Cpath d='M16 4v24' stroke='%233a3833' stroke-width='1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;1,300&family=IBM+Plex+Mono:wght@200;300&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --stone:#f4f1ea;
+    --ink:#2b2a26;
+    --dim:#7d7a70;
+    --faint:#a8a49a;
+    --brass:#9a7d3e;
+    --line:rgba(43,42,38,.16);
+    --serif:'Cormorant',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:#cfd6dd}
+  body{
+    color:var(--ink);font-family:var(--mono);font-weight:300;
+    -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;
+  }
+  canvas#gl{position:fixed;inset:0;display:block;width:100%;height:100%;cursor:grab}
+  canvas#gl.look{cursor:grabbing}
+
+  .hud{position:fixed;z-index:20;pointer-events:none}
+  .k{font-size:8px;letter-spacing:.32em;text-transform:uppercase;color:var(--faint)}
+  .v{font-size:10.5px;letter-spacing:.08em;color:var(--ink);font-variant-numeric:tabular-nums}
+
+  /* ── plate, upper left. Engraved, not printed. ── */
+  #plate{top:28px;left:34px;max-width:37ch}
+  #plate h1{
+    margin:0;font-family:var(--serif);font-weight:300;
+    font-size:clamp(30px,4.2vw,58px);line-height:.94;letter-spacing:.10em;
+    color:#3a3833;
+  }
+  #plate .rule{height:1px;background:var(--line);margin:14px 0 12px;width:100%}
+  #plate p{margin:0;font-size:10px;line-height:2;color:var(--dim);letter-spacing:.045em}
+  #plate p em{font-family:var(--serif);font-style:italic;font-size:12.5px;color:#4a473f}
+
+  /* ── the hour dial, right. Monet's series as a control. ── */
+  #hourwrap{top:30px;right:34px;text-align:right;pointer-events:auto}
+  #hourwrap .lab{display:flex;gap:14px;justify-content:flex-end;align-items:baseline;margin-bottom:9px}
+  #hour{
+    -webkit-appearance:none;appearance:none;
+    width:min(230px,32vw);height:20px;background:none;cursor:ew-resize;
+  }
+  #hour::-webkit-slider-runnable-track{height:1px;background:rgba(43,42,38,.30)}
+  #hour::-moz-range-track{height:1px;background:rgba(43,42,38,.30)}
+  #hour::-webkit-slider-thumb{
+    -webkit-appearance:none;width:9px;height:9px;margin-top:-4px;
+    background:#3a3833;border:0;
+    clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);
+  }
+  #hour::-moz-range-thumb{width:9px;height:9px;background:#3a3833;border:0;border-radius:0}
+  #hour:focus-visible{outline:none}
+  #hour:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(154,125,62,.35)}
+  #hourwrap .caption{margin-top:9px;font-size:8px;line-height:1.6;letter-spacing:.26em;text-transform:uppercase;color:var(--faint)}
+
+  /* ── the read-out that matters: what the mirror is telling you ── */
+  #reading{
+    bottom:96px;left:50%;transform:translateX(-50%);
+    text-align:center;max-width:min(52ch,86vw);
+    font-family:var(--serif);font-size:clamp(15px,1.7vw,23px);line-height:1.5;
+    color:#3d3b35;opacity:0;transition:opacity 1.1s ease;
+  }
+  #reading.on{opacity:1}
+  /* the whispers: short, human, gone before you can screenshot them */
+  #whisper{
+    bottom:62px;left:50%;transform:translateX(-50%);
+    font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--faint);
+    opacity:0;transition:opacity .7s ease;white-space:nowrap;
+  }
+  #whisper.on{opacity:1}
+  #reading .src{
+    display:block;margin-top:11px;font-family:var(--mono);font-size:8px;
+    letter-spacing:.3em;text-transform:uppercase;color:var(--faint);
+  }
+
+  /* ── bottom bar: three grid tracks, so they cannot collide ── */
+  #bottom{
+    position:fixed;left:0;right:0;bottom:0;z-index:20;
+    display:flex;justify-content:center;padding:0 34px 26px;pointer-events:none;
+  }
+  #bottom>*{min-width:0}
+
+  #keys{justify-self:center;display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center;pointer-events:auto}
+  #keys .hint b{color:#4a473f;font-weight:400}
+  #keys .hint{font-size:8px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
+  #keys button{
+    -webkit-appearance:none;appearance:none;background:rgba(255,255,255,.42);
+    border:1px solid var(--line);color:#4a473f;font:inherit;font-size:8px;
+    letter-spacing:.22em;text-transform:uppercase;padding:7px 13px;cursor:pointer;
+    transition:background .25s,border-color .25s,color .25s;
+  }
+  #keys button:hover{background:#fff;border-color:rgba(43,42,38,.42)}
+  #keys button[aria-pressed="true"]{background:#3a3833;color:var(--stone);border-color:#3a3833}
+  #keys button:focus-visible{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(154,125,62,.28)}
+
+  /* ── arrival ── */
+  #veil{
+    position:fixed;inset:0;z-index:40;pointer-events:none;background:#eceff2;
+    display:grid;place-items:center;transition:opacity 2.4s ease .4s,visibility 2.4s ease .4s;
+  }
+  #veil .t{text-align:center}
+  /* The label is the loading screen. Ragged left, hanging indent, the
+     proportions of a real gallery card, and it earns its dwell time. */
+  #veil .wl{width:min(430px,84vw);text-align:left}
+  #veil .wl-t{font-family:var(--serif);font-size:clamp(30px,4.6vw,52px);line-height:1;color:#2b2a26;letter-spacing:.02em}
+  #veil .wl-a{margin-top:7px;font-family:var(--serif);font-style:italic;font-size:15px;color:#6d6a62}
+  #veil .wl-r{height:1px;background:rgba(43,42,38,.20);margin:17px 0 15px}
+  #veil .wl-d{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;margin:0}
+  #veil .wl-d dt{font-size:7.5px;letter-spacing:.28em;text-transform:uppercase;color:#a8a49a;padding-top:2px}
+  #veil .wl-d dd{margin:0;font-size:10.5px;letter-spacing:.03em;color:#4a473f;line-height:1.6}
+  #veil .wl-p{margin-top:22px;height:1px;background:rgba(43,42,38,.14);position:relative;overflow:hidden}
+  #veil .wl-p i{position:absolute;inset:0 auto 0 0;width:0%;background:#3a3833;transition:width .35s linear}
+  #veil .wl-n{margin-top:13px;font-size:7.5px;letter-spacing:.30em;text-transform:uppercase;color:#a8a49a}
+  #veil.gone{opacity:0;visibility:hidden}
+
+  #fallback{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:#eceff2;padding:40px;text-align:center}
+  #fallback div{max-width:44ch;font-size:11px;letter-spacing:.12em;line-height:2.2;color:var(--dim)}
+  #fallback b{color:var(--ink);font-weight:400}
+
+  @media (max-width:860px){
+    #plate{max-width:26ch;left:18px;top:18px}
+    #plate p{display:none}
+    #eng{display:none}
+    #bottom{grid-template-columns:1fr;justify-items:center;row-gap:12px;padding:0 18px 18px}
+    #keys .hint{display:none}
+    #hourwrap{right:18px}
+    #reading{bottom:120px}
+  }
+  /* Type has to survive a sky it does not control. A gradient scrim
+     keyed to the ground colour buys contrast without drawing a panel. */
+  #scrim{position:fixed;inset:0;z-index:14;pointer-events:none;
+    background:linear-gradient(to bottom,rgba(238,241,244,.80),rgba(238,241,244,0) 20%,rgba(238,241,244,0) 76%,rgba(238,241,244,.72))}
+</style>
+</head>
+<body>
+
+<canvas id="gl" tabindex="0" aria-label="A walkable marble palace. Drag to look, W and S to walk, and read the reversed inscriptions in the mirrors."></canvas>
+
+<div class="hud" id="plate">
+  <h1>SPECULUM</h1>
+  <div class="rule"></div>
+  <p><em>The octagon of mirrors, after a room Leonardo drew and never built.</em><br>
+  Every inscription here is cut in reverse, as he wrote. The mirrors are not
+  ornament, they are how the writing is read.</p>
+</div>
+
+<div class="hud" id="hourwrap">
+  <div class="lab"><span class="k">Hour</span><span class="v" id="h-read">-</span></div>
+  <input id="hour" type="range" min="5.2" max="19.4" step="0.01" value="16.9"
+         aria-label="Hour of day, moves the sun and repaints every surface">
+  <button id="b-rouen" class="caption" type="button" style="pointer-events:auto;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline dotted rgba(43,42,38,.35)">thirty canvases of one wall</button>
+</div>
+
+<div class="hud" id="whisper"></div>
+<div class="hud" id="reading"><span id="r-text"></span><span class="src" id="r-src"></span></div>
+
+<div id="bottom">
+  <div class="hud" id="keys">
+    <button id="b-oct" type="button">Go inside</button>
+    <button id="b-axis" type="button">Stand back</button>
+    <span class="hint">drag · W to walk · <b>M</b> to mirror</span>
+    <button id="b-run" type="button" aria-pressed="false">Cheat</button>
+    <button id="b-q" type="button">Quality: auto</button>
+  </div>
+</div>
+
+<div id="scrim" aria-hidden="true"></div>
+<div id="veil"><div class="t">
+  <div class="wl">
+    <div class="wl-t">Speculum</div>
+    <div class="wl-a">Leonardo da Vinci, after</div>
+    <div class="wl-r"></div>
+    <dl class="wl-d">
+      <dt>Subject</dt><dd>Octagonal chamber of mirrors, never built</dd>
+      <dt>Medium</dt><dd>Signed distance field, solved per pixel</dd>
+      <dt>Light</dt><dd>Variable, by the hour</dd>
+      <dt>Room</dt><dd>I, west wall</dd>
+    </dl>
+    <div class="wl-p"><i id="veilbar"></i></div>
+    <div class="wl-n">Please touch the mirrors.</div>
+  </div>
+</div></div>
+
+<div id="fallback"><div>
+  <b>This needs WebGL2.</b><br>
+  The palace is not a model, it is a distance field solved per pixel, so there
+  is no mesh to fall back to.
+</div></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPECULUM, a marble palace around Leonardo's octagon of mirrors.
+
+   Nothing here is a mesh. The architecture is a signed distance field solved
+   per pixel: the colonnade is one column repeated by domain folding, the
+   octagon is four rotated slabs intersected, and the mirrors come free from
+   reflect() plus a second march.
+
+   The panel, and what each of them is actually doing in the code:
+
+     LEONARDO   the octagonal mirror chamber; aerial perspective as a hard law
+                (fogAerial); inscriptions cut in reverse, legible only in
+                reflection, which is how he wrote.
+     MONET      the hour is a control, not a constant. And white is never one
+                white: marble() mixes violet into shadow, gold into the sunlit
+                edge, and sky-teal into anything facing up.
+     BOULLÉE    scale. The palace mass is 130 units wide and deliberately too
+                large for the frame.
+     LE NÔTRE   one axis to the horizon, flanking basins that double the sky,
+                parterre geometry cut into the lawn.
+     TURRELL    the oculus. The octagon has no roof; the brightest thing in a
+                white room is a hole.
+     RUHLMANN   chamfer, brass inlay, radial fan, strict bilateral symmetry.
+     SCARPA     the stepped reveal where stone meets stone, so marble reads as
+                cut rather than extruded.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var cv=document.getElementById('gl');
+var gl=cv.getContext('webgl2',{antialias:false,alpha:false,depth:false,
+                               powerPreference:'high-performance'});
+if(!gl){document.getElementById('fallback').style.display='grid';return;}
+var floatOK=!!gl.getExtension('EXT_color_buffer_float');
+var REDUCED=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ───────────────────────── the inscriptions ─────────────────────────
+   Drawn mirrored into a canvas, then sampled on the octagon's stone faces.
+   On the wall they are illegible. In the mirror opposite they resolve. */
+var CARVE='';
+var LINES=[
+  {t:'IL SPECCHIO È IL TUO MAESTRO', r:'the mirror is your master'},
+  {t:'SAPER VEDERE',                  r:'knowing how to see'},
+  {t:'LA PITTURA È COSA MENTALE',     r:'painting is a thing of the mind'},
+  {t:'OGNI NOSTRA COGNIZIONE',        r:'all our knowledge begins in the senses'}
+];
+function inscriptionTex(){
+  var S=1024,c=document.createElement('canvas');
+  c.width=S;c.height=S;
+  var x=c.getContext('2d');
+  x.fillStyle='#ffffff';x.fillRect(0,0,S,S);
+  // four stacked panels, one per face
+  for(var i=0;i<4;i++){
+    var y0=i*(S/4);
+    x.save();
+    // the mirror-writing: flip horizontally about the panel centre
+    x.translate(S,y0);x.scale(-1,1);
+    x.fillStyle='#2b2a26';
+    x.textAlign='center';x.textBaseline='middle';
+    var fs=i===1?86:58;
+    x.font='300 '+fs+'px Cormorant, Georgia, serif';
+    var words=((i===3&&CARVE)?CARVE:LINES[i].t).split(' ');
+    // wrap to at most two lines so it stays legible on a wall
+    var l1=words.slice(0,Math.ceil(words.length/2)).join(' ');
+    var l2=words.slice(Math.ceil(words.length/2)).join(' ');
+    if(words.length<=2){l1=words.join(' ');l2='';}
+    x.fillText(l1,S/2,(S/4)*0.40);
+    if(l2)x.fillText(l2,S/2,(S/4)*0.66);
+    x.restore();
+  }
+  var t=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  return t;
+}
+
+/* ───────────────────────────── plumbing ───────────────────────────── */
+/* Shader logs go into the DOM as well as the console. A headless harness that
+   evaluates in an isolated world cannot see page console output, so a compile
+   failure otherwise reads as "0 console errors" and a blank fallback. */
+function report(msg){console.error(msg);}
+function sh(t,src,label){
+  var s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){
+    var log=gl.getShaderInfoLog(s)||'';
+    report('[SPECULUM] '+label+': '+log.replace(/\s+/g,' ').slice(0,900));
+    // echo the offending lines so the number in the log is actionable
+    var m=log.match(/(\d+):(\d+)/);
+    if(m){
+      var lines=src.split('\n'),n=parseInt(m[2],10);
+      report('near '+n+': '+lines.slice(Math.max(0,n-3),n+2).join(' ⏎ ').slice(0,500));
+    }
+    return null;
+  }
+  return s;
+}
+function prog(v,f,label){
+  var a=sh(gl.VERTEX_SHADER,v,label+'.vert'),b=sh(gl.FRAGMENT_SHADER,f,label+'.frag');
+  if(!a||!b)return null;
+  var p=gl.createProgram();gl.attachShader(p,a);gl.attachShader(p,b);gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)){
+    console.error('[SPECULUM] link '+label+':\n'+gl.getProgramInfoLog(p));return null;}
+  return p;
+}
+function unis(p){var o={},n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);
+  for(var i=0;i<n;i++){var u=gl.getActiveUniform(p,i);
+    o[u.name.replace('[0]','')]=gl.getUniformLocation(p,u.name);}return o;}
+
+var quad=gl.createVertexArray();
+gl.bindVertexArray(quad);
+var vb=gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER,vb);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+gl.bindVertexArray(null);
+
+var VS=['#version 300 es','layout(location=0) in vec2 aPos;','out vec2 vUv;',
+'void main(){vUv=aPos*0.5+0.5;gl_Position=vec4(aPos,0.0,1.0);}'].join('\n');
+
+function fbo(w,h){
+  var t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
+  if(floatOK)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA16F,w,h,0,gl.RGBA,gl.HALF_FLOAT,null);
+  else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  var f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  return {tex:t,fb:f,w:w,h:h};
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   the palace
+   ═══════════════════════════════════════════════════════════════════════════ */
+var SCENE_FS=[
+'#version 300 es',
+'precision highp float;',
+'in vec2 vUv;out vec4 oCol;',
+'uniform vec2 uRes;uniform vec3 uCam;uniform mat3 uBasis;',
+'uniform float uTime,uSunEl,uSunAz,uFov;',
+'uniform vec2 uJitter;',
+'uniform int uSteps;',
+'uniform sampler2D uInscr;',
+
+'const float PI=3.14159265;',
+/* material ids */
+'const float M_MARBLE=1.0,M_BRASS=2.0,M_MIRROR=3.0,M_LAWN=4.0,M_WATER=5.0,M_WRIT=6.0,M_GRAVEL=7.0;',
+
+/* ── noise ── */
+'float h21(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+'float h31(vec3 p){p=fract(p*0.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}',
+'float vn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);',
+' return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),',
+'            mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);}',
+'float fbm(vec3 p){float s=0.0,a=0.5;for(int i=0;i<5;i++){s+=a*vn(p);p*=2.02;a*=0.5;}return s;}',
+
+/* ── primitives ── */
+'float sdBox(vec3 p,vec3 b){vec3 q=abs(p)-b;return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0);}',
+'float sdCyl(vec3 p,float h,float r){vec2 d=abs(vec2(length(p.xz),p.y))-vec2(r,h);return min(max(d.x,d.y),0.0)+length(max(d,0.0));}',
+/* regular octagon in xz, four half-planes, which is exactly how you'd set out
+   the plan with a square and its 45° rotation */
+'float oct2(vec2 p,float r){p=abs(p);float k=0.70710678;',
+' float d=max(p.x,p.y);d=max(d,(p.x+p.y)*k);return d-r;}',
+'float sdOct(vec3 p,float r,float h){float d=oct2(p.xz,r);',
+' vec2 w=vec2(d,abs(p.y)-h);return min(max(w.x,w.y),0.0)+length(max(w,0.0));}',
+/* Scarpa's reveal: a chamfer read as a cut, not a bevel modifier */
+'float sdBoxCham(vec3 p,vec3 b,float c){vec3 q=abs(p)-b+c;',
+' return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0)-c;}',
+
+'vec2 minm(vec2 a,vec2 b){return a.x<b.x?a:b;}',
+
+/* ── the plan ── */
+'vec2 map(vec3 p){',
+'  vec2 res=vec2(1e9,0.0);',
+
+'  // ground: lawn, with the axis paved',
+'  float ground=p.y;',
+'  res=minm(res,vec2(ground,M_LAWN));',
+
+'  // LE NÔTRE, two long basins flanking the axis, doubling the sky',
+'  float bx=abs(p.x)-16.5;',
+'  float basin=max(max(abs(bx)-5.5,-(p.z-12.0)),(p.z-96.0));',
+'  basin=max(basin,p.y+0.18);',
+'  res=minm(res,vec2(max(basin,-(p.y+0.9)),M_WATER));',
+
+'  // the terrace the octagon stands on, with a stepped edge',
+'  float terr=sdOct(p-vec3(0.0,0.55,0.0),27.0,0.55);',
+'  float st1=sdOct(p-vec3(0.0,0.22,0.0),28.6,0.22);',
+'  res=minm(res,vec2(min(terr,st1),M_MARBLE));',
+
+'  // The octagon is nine primitives and an atan(). Bound it in a cylinder so',
+'  // rays out on the lawn never evaluate any of them. Chebyshev bounds like',
+'  // this underestimate the true distance, so the march stays safe.',
+'  float bOct=max(length(p.xz)-15.0,abs(p.y-7.0)-9.0);',
+'  if(bOct>2.0){res=minm(res,vec2(bOct,M_MARBLE));}else{',
+'  vec3 q=p;',
+'  float outerW=sdOct(q-vec3(0.0,6.6,0.0),10.4,5.5);',
+'  float innerW=sdOct(q-vec3(0.0,6.6,0.0),9.5,5.9);',
+'  float shell=max(outerW,-innerW);',
+'  // eight doorways: cut where the plan folds, so they land on the faces',
+'  float a=atan(q.z,q.x);',
+'  float fold=mod(a+PI/8.0,PI/4.0)-PI/8.0;',
+'  float radial=length(q.xz);',
+'  float door=max(abs(fold)*radial-1.9,abs(q.y-3.1)-3.1);',
+'  shell=max(shell,-door);',
+'  res=minm(res,vec2(shell,M_MARBLE));',
+
+'  // the inner faces: alternating mirror and inscribed stone.',
+'  int face=int(floor((a+PI)/(2.0*PI)*8.0));',
+'  float faceMat=(face-(face/2)*2)==0?M_MIRROR:M_WRIT;',
+'  float lining=max(sdOct(q-vec3(0.0,6.9,0.0),9.42,4.6),-door);',
+'  lining=max(lining,-sdOct(q-vec3(0.0,6.9,0.0),9.30,5.2));',
+'  res=minm(res,vec2(lining,faceMat));',
+
+'  // brass inlay ring in the terrace. Ruhlmann',
+'  float ring=abs(oct2(p.xz,13.4))-0.10;',
+'  ring=max(ring,abs(p.y-1.10)-0.03);',
+'  res=minm(res,vec2(ring,M_BRASS));}',
+
+'  float bCol=max(max(abs(abs(p.x)-19.0)-3.2,abs(p.y-6.0)-7.0),abs(p.z+27.0)-48.0);',
+'  if(bCol>2.0){res=minm(res,vec2(bCol,M_MARBLE));}else{',
+'  vec3 c=p;',
+'  c.x=abs(c.x)-19.0;',
+'  float zi=clamp(floor((c.z+3.1)/6.2),-11.0,2.0);',
+'  c.z-=zi*6.2;',
+'  float col=sdCyl(c-vec3(0.0,5.0,0.0),5.0,0.86);',
+'  // entasis: a column that is not a tube',
+'  col+=0.035*cos((p.y-5.0)*0.55);',
+'  float cap=sdBoxCham(c-vec3(0.0,10.25,0.0),vec3(1.25,0.30,1.25),0.10);',
+'  float base=sdBoxCham(c-vec3(0.0,0.28,0.0),vec3(1.30,0.28,1.30),0.08);',
+'  float colGroup=min(col,min(cap,base));',
+'  // the architrave they carry',
+'  vec3 ab=p;ab.x=abs(ab.x)-19.0;',
+'  float arch=sdBoxCham(ab-vec3(0.0,11.1,-27.0),vec3(1.5,0.62,45.0),0.14);',
+'  res=minm(res,vec2(min(colGroup,arch),M_MARBLE));}',
+
+'  // ── BOULLÉE, the palace mass, deliberately too large ──',
+'  vec3 pm=p-vec3(0.0,0.0,-132.0);',
+'  // conservative bound, underestimates the true distance, so marching stays safe',
+'  float pbound=length(pm*vec3(1.0,1.0,1.4))-108.0;',
+'  if(pbound>1.5){res=minm(res,vec2(pbound,M_MARBLE));}else{',
+'  float body=sdBoxCham(pm-vec3(0.0,15.0,0.0),vec3(66.0,15.0,13.0),1.2);',
+'  float setb=sdBoxCham(pm-vec3(0.0,32.0,0.0),vec3(30.0,7.0,11.0),1.0);',
+'  float drum=sdCyl(pm-vec3(0.0,40.0,0.0),5.0,15.0);',
+'  float dome=length((pm-vec3(0.0,45.0,0.0))*vec3(1.0,0.82,1.0))-15.4;',
+'  float wings=sdBoxCham(pm-vec3(0.0,9.0,16.0),vec3(84.0,9.0,5.0),0.8);',
+'  res=minm(res,vec2(min(min(body,setb),min(min(drum,dome),wings)),M_MARBLE));}',
+
+'  float bObe=max(max(abs(abs(p.x)-33.0)-3.0,abs(p.y-9.0)-11.0),abs(p.z-20.0)-3.0);',
+'  if(bObe>2.0){res=minm(res,vec2(bObe,M_MARBLE));}else{',
+'  vec3 ob=p;ob.x=abs(ob.x)-33.0;ob.z-=20.0;',
+'  float shaft=sdBoxCham(ob-vec3(0.0,8.0,0.0),vec3(1.05,8.0,1.05),0.06);',
+'  shaft=max(shaft,dot(normalize(vec3(0.0,1.0,0.0)),ob-vec3(0.0,18.6,0.0))+ (length(ob.xz)*0.0));',
+'  float plinth=sdBoxCham(ob-vec3(0.0,0.7,0.0),vec3(1.9,0.7,1.9),0.07);',
+'  res=minm(res,vec2(min(shaft,plinth),M_MARBLE));}',
+
+'  return res;',
+'}',
+
+/* ── marching ── */
+'vec3 nrm(vec3 p){vec2 e=vec2(0.0016,0.0);',
+' return normalize(vec3(map(p+e.xyy).x-map(p-e.xyy).x,',
+'                       map(p+e.yxy).x-map(p-e.yxy).x,',
+'                       map(p+e.yyx).x-map(p-e.yyx).x));}',
+
+'vec2 march(vec3 ro,vec3 rd,int steps,float far){',
+'  float t=0.02;float m=0.0;',
+'  for(int i=0;i<260;i++){',
+'    if(i>=steps)break;',
+'    vec3 p=ro+rd*t;',
+'    vec2 d=map(p);',
+'    if(d.x<0.0009*t){m=d.y;return vec2(t,m);}',
+'    t+=d.x*0.86;',
+'    if(t>far)break;',
+'  }',
+'  return vec2(-1.0,0.0);',
+'}',
+
+'float shadow(vec3 ro,vec3 rd){',
+'  float res=1.0,t=0.06;',
+'  for(int i=0;i<13;i++){',
+'    vec3 p=ro+rd*t;',
+'    float h=map(p).x;',
+'    res=min(res,clamp(9.0*h/t,0.0,1.0));',
+'    t+=clamp(h,0.05,1.6);',
+'    if(res<0.005||t>52.0)break;',
+'  }',
+'  return clamp(res,0.0,1.0);',
+'}',
+'float ao(vec3 p,vec3 n){',
+'  float o=0.0,s=1.0;',
+'  for(int i=0;i<3;i++){',
+'    float h=0.04+0.40*float(i)/2.0;',
+'    o+=(h-map(p+n*h).x)*s;s*=0.72;',
+'  }',
+'  return clamp(1.0-1.5*o,0.0,1.0);',
+'}',
+
+/* ── sun and sky ── */
+'vec3 sunDir(){',
+'  float el=uSunEl,az=uSunAz;',
+'  return normalize(vec3(cos(el)*sin(az),sin(el),cos(el)*cos(az)));',
+'}',
+'vec3 sunColour(){',
+/* Monet: the sun is not yellow. Low sun is orange and weak, high sun is white
+   and hard, and the transition is where all the colour in the scene comes from. */
+'  float el=clamp(uSunEl,0.0,1.5);',
+'  float k=smoothstep(0.0,0.62,el);',
+'  vec3 low =vec3(1.00,0.52,0.24);',
+'  vec3 mid =vec3(1.00,0.86,0.68);',
+'  vec3 high=vec3(1.00,0.98,0.94);',
+'  vec3 c=(k<0.5)?mix(low,mid,k/0.5):mix(mid,high,(k-0.5)/0.5);',
+'  return c*mix(0.36,0.96,k);',
+'}',
+'vec3 sky(vec3 rd){',
+'  vec3 sd=sunDir();',
+'  float el=clamp(uSunEl,-0.2,1.5);',
+'  float k=smoothstep(-0.05,0.55,el);',
+'  vec3 zen=mix(vec3(0.16,0.24,0.40),vec3(0.30,0.50,0.80),k);',
+'  vec3 hor=mix(vec3(0.86,0.60,0.42),vec3(0.80,0.87,0.95),k);',
+'  float h=clamp(rd.y*1.35+0.06,0.0,1.0);',
+'  vec3 c=mix(hor,zen,pow(h,0.72));',
+'  // Monet cloud: soft, and lit from the sun side',
+'  if(rd.y>0.002){',
+'    vec3 pp=rd/max(rd.y,0.002);',
+'    float n=fbm(vec3(pp.x*0.055,pp.z*0.055,uTime*0.006)*1.0+13.0);',
+'    float n2=fbm(vec3(pp.x*0.14,pp.z*0.14,uTime*0.010)+41.0);',
+'    float cl=smoothstep(0.50,0.86,n*0.72+n2*0.38);',
+'    cl*=smoothstep(0.0,0.20,rd.y);',
+'    float lit=pow(max(dot(rd,sd),0.0),3.0);',
+'    vec3 cc=mix(vec3(0.94,0.93,0.95),sunColour()*1.05,lit*0.7);',
+'    c=mix(c,cc,cl*0.80);',
+'  }',
+'  float sun=pow(max(dot(rd,sd),0.0),620.0);',
+'  c+=sunColour()*sun*7.0;',
+'  c+=sunColour()*pow(max(dot(rd,sd),0.0),9.0)*0.16;',
+'  return c;',
+'}',
+
+/* ── LEONARDO's law of aerial perspective ──
+   Distance does not merely dim; it desaturates toward the colour of the air and
+   collapses contrast. This single function is most of the depth in the image. */
+'vec3 aerial(vec3 col,float t,vec3 rd){',
+'  float f=1.0-exp(-pow(t*0.0049,1.58));',
+'  vec3 air=sky(normalize(vec3(rd.x,max(rd.y,0.02),rd.z)));',
+'  air=mix(air,vec3(0.72,0.79,0.90),0.34);',
+'  return mix(col,air,clamp(f,0.0,0.90));',
+'}',
+
+/* ── marble ──
+   Never one white. Warm ivory in light, violet in shadow, sky-teal on anything
+   facing up, and a gold rim exactly where the sun grazes. */
+'vec3 marble(vec3 p,vec3 n){',
+'  float v=fbm(p*0.30)*0.6+fbm(p*1.5)*0.28;',
+'  float vein=smoothstep(0.42,0.52,fbm(p*vec3(0.55,2.1,0.55)+v*1.6));',
+'  vec3 base=mix(vec3(0.815,0.800,0.771),vec3(0.734,0.721,0.703),v);',
+'  base=mix(base,vec3(0.652,0.645,0.658),vein*0.46);',
+'  return base;',
+'}',
+'vec3 shadeSurface(vec3 p,vec3 n,vec3 rd,float mat,bool lit,out float mirrorness){',
+'  mirrorness=0.0;',
+'  vec3 sd=sunDir();',
+'  vec3 alb=vec3(0.9);',
+'  float rough=1.0;',
+'  if(mat==M_MARBLE){alb=marble(p,n);}',
+'  else if(mat==M_BRASS){alb=vec3(0.62,0.48,0.20);rough=0.28;}',
+'  else if(mat==M_LAWN){',
+'    // LE NÔTRE parterre: geometry cut into grass, not painted on it',
+'    float g=fbm(p*2.2)*0.5+fbm(p*11.0)*0.22;',
+'    vec2 c=p.xz;',
+'    float par=max(abs(mod(c.x+40.0,26.0)-13.0)-11.0,abs(mod(c.y+40.0,26.0)-13.0)-11.0);',
+'    float cut=smoothstep(-0.25,0.25,par);',
+'    vec3 dark=vec3(0.108,0.170,0.088),lite=vec3(0.196,0.268,0.132);',
+'    alb=mix(dark,lite,g);',
+'    alb=mix(alb,alb*1.28,cut);',
+'    // the paved axis, blended not switched, a step() here stair-stepped',
+'    float g2=h21(floor(p.xz*24.0));',
+'    vec3 grav=mix(vec3(0.700,0.678,0.636),vec3(0.792,0.770,0.730),g2);',
+'    alb=mix(alb,grav,smoothstep(8.5,6.9,abs(p.x)));',
+'  }',
+'  else if(mat==M_GRAVEL){',
+'    float g=h21(floor(p.xz*22.0));',
+'    alb=mix(vec3(0.760,0.735,0.690),vec3(0.850,0.828,0.786),g);',
+'  }',
+'  else if(mat==M_WATER){alb=vec3(0.06,0.09,0.11);rough=0.05;mirrorness=0.82;}',
+'  else if(mat==M_MIRROR){alb=vec3(0.94,0.95,0.96);rough=0.02;mirrorness=0.94;}',
+'  else if(mat==M_WRIT){',
+'    // sample the reversed inscription on the octagon face',
+'    float a=atan(p.z,p.x);',
+'    float fu=fract((a+PI)/(2.0*PI)*8.0);',
+'    int face=int(floor((a+PI)/(2.0*PI)*8.0));',
+'    float row=float((face/2))*0.25;',
+'    float v=clamp((p.y-2.15)/4.6,0.0,1.0);',
+'    vec2 uv=vec2(fu,row+(1.0-v)*0.25);',
+'    float ink=texture(uInscr,uv).r;',
+'    vec3 st=marble(p,n);',
+'    // cut, not printed: the letter is a recess, so it darkens and self-shadows',
+'    alb=mix(st*0.30,st,smoothstep(0.35,0.72,ink));',
+'  }',
+
+'  // 22 map() calls for the shadow and 4 more for AO, skipped in reflections',
+'  float sh=lit?shadow(p+n*0.02,sd):1.0;',
+'  float o =lit?ao(p,n):0.86;',
+'  float ndl=max(dot(n,sd),0.0);',
+
+'  vec3 sunL=sunColour()*ndl*sh;',
+'  // sky as an area light, and MONET\'s violet in the shadow',
+'  vec3 skyL=sky(normalize(n*0.6+vec3(0.0,1.0,0.0)))*(0.35+0.35*n.y)*o;',
+'  vec3 violet=vec3(0.32,0.30,0.46)*(1.0-ndl*sh)*0.20*o;',
+'  // bounce from the lawn, green up into the stone, which is what sells marble',
+'  vec3 bounce=vec3(0.15,0.20,0.10)*max(-n.y,0.0)*0.5',
+'             +vec3(0.20,0.24,0.13)*clamp(0.4-n.y,0.0,0.6)*0.28;',
+
+'  vec3 col=alb*(sunL+skyL+violet+bounce);',
+
+'  // specular',
+'  vec3 h=normalize(sd-rd);',
+'  float sp=pow(max(dot(n,h),0.0),mix(18.0,900.0,1.0-rough));',
+'  col+=sunColour()*sp*sh*mix(0.05,0.55,1.0-rough);',
+
+'  // RUHLMANN: a gold rim exactly where the sun grazes the stone',
+'  if(mat==M_MARBLE||mat==M_WRIT){',
+'    float rim=pow(1.0-max(dot(n,-rd),0.0),3.4);',
+'    col+=vec3(0.85,0.66,0.34)*rim*ndl*sh*0.30;',
+'  }',
+'  return col;',
+'}',
+
+'void main(){',
+'  vec2 ndc=(vUv+uJitter/uRes)*2.0-1.0;',
+'  ndc.x*=uRes.x/uRes.y;',
+'  vec3 rd=normalize(uBasis*vec3(ndc*uFov,-1.0));',
+'  vec3 ro=uCam;',
+
+'  vec3 col;',
+'  vec2 hit=march(ro,rd,uSteps,320.0);',
+'  if(hit.x<0.0){',
+'    col=sky(rd);',
+'  }else{',
+'    vec3 p=ro+rd*hit.x;',
+'    vec3 n=nrm(p);',
+'    float mir;',
+'    vec3 base=shadeSurface(p,n,rd,hit.y,true,mir);',
+
+'    if(mir>0.01){',
+'      // water is not flat; the mirror is',
+'      vec3 rn=n;',
+'      if(hit.y==M_WATER){',
+'        float w=fbm(vec3(p.x*0.9,p.z*0.9,uTime*0.25));',
+'        float w2=fbm(vec3(p.x*3.1,p.z*3.1,uTime*0.42)+7.0);',
+'        rn=normalize(n+vec3((w-0.5)*0.10,0.0,(w2-0.5)*0.10));',
+'      }',
+'      vec3 rr=reflect(rd,rn);',
+'      vec3 rp=p+rn*0.03;',
+'      vec2 h2=march(rp,rr,uSteps*3/5,240.0);',
+'      vec3 rcol;',
+'      if(h2.x<0.0)rcol=sky(rr);',
+'      else{',
+'        vec3 p2=rp+rr*h2.x;vec3 n2=nrm(p2);float m2;',
+'        rcol=shadeSurface(p2,n2,rr,h2.y,false,m2);',
+'        // second bounce, flat: enough to read as "mirrors facing mirrors"',
+'        // mirror facing mirror. The third image is sky only: it still reads',
+'        // as a corridor of reflections, at a twelfth of the cost.',
+'        if(m2>0.5)rcol=mix(rcol,sky(reflect(rr,n2)),0.70);',
+'        rcol=aerial(rcol,h2.x,rr);',
+'      }',
+'      // Fresnel, grazing water is a mirror, water underfoot is not',
+'      float f=pow(1.0-max(dot(-rd,rn),0.0),4.0);',
+'      float amt=(hit.y==M_WATER)?mix(0.06,0.92,f):mir;',
+'      col=mix(base,rcol,amt);',
+'    }else col=base;',
+
+'    col=aerial(col,hit.x,rd);',
+'  }',
+
+'  oCol=vec4(max(col,0.0),1.0);',
+'}'
+].join('\n');
+
+/* ── composite: exposure, ACES, vignette, dither ── */
+var COMP_FS=['#version 300 es','precision highp float;',
+'in vec2 vUv;out vec4 oCol;',
+'uniform sampler2D uSrc;uniform float uExp,uTime,uFlip;uniform vec2 uRes;',
+'vec3 aces(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0);}',
+'float h21(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}',
+'void main(){',
+'  float cw=cos(uFlip*3.14159265);',
+'  float cs=abs(cw)<0.055?(cw<0.0?-0.055:0.055):cw;',
+'  vec2 uv=vec2(0.5+(vUv.x-0.5)/cs,vUv.y);',
+'  float turn=smoothstep(0.0,0.30,abs(cw));',
+'  vec3 c=texture(uSrc,uv).rgb*uExp*turn;',
+'  c=aces(c);',
+'  c=pow(c,vec3(1.0/2.2));',
+'  float d=length(vUv-0.5);',
+'  c*=1.0-smoothstep(0.62,1.08,d)*0.34;',
+'  c+=(h21(vUv*uRes+fract(uTime))-0.5)/255.0;',
+'  oCol=vec4(c,1.0);',
+'}'].join('\n');
+
+/* ── temporal accumulation: average the jittered frames, clamp the history to
+   the new frame's 3x3 neighbourhood so animated water cannot ghost ── */
+var TAA_FS=['#version 300 es','precision highp float;',
+'in vec2 vUv;out vec4 oCol;',
+'uniform sampler2D uNew,uHist;uniform vec2 uRes;uniform float uBlend;',
+'void main(){',
+'  vec2 tx=1.0/uRes;',
+'  vec3 c=texture(uNew,vUv).rgb;',
+'  vec3 lo=c,hi=c;',
+'  for(int y=-1;y<=1;y++){for(int x=-1;x<=1;x++){',
+'    vec3 s=texture(uNew,vUv+vec2(float(x),float(y))*tx).rgb;',
+'    lo=min(lo,s);hi=max(hi,s);}}',
+'  vec3 h=clamp(texture(uHist,vUv).rgb,lo,hi);',
+'  oCol=vec4(mix(c,h,uBlend),1.0);',
+'}'].join('\n');
+
+var pScene=prog(VS,SCENE_FS,'scene'),pComp=prog(VS,COMP_FS,'comp'),pTaa=prog(VS,TAA_FS,'taa');
+if(!pScene||!pComp||!pTaa){
+  var fb=document.getElementById('fallback');fb.style.display='grid';
+  fb.querySelector('div').innerHTML='<b>The palace failed to compile on this GPU.</b><br>The shader log is in the console.';
+  return;
+}
+var uS=unis(pScene),uC=unis(pComp),uT=unis(pTaa);
+var TEX=inscriptionTex();
+function recarve(){var old=TEX;TEX=inscriptionTex();gl.deleteTexture(old);}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   walking
+   ═══════════════════════════════════════════════════════════════════════════ */
+var pos={x:0,y:1.72,z:64},vel={x:0,z:0};
+/* forward = (sin y·cos p, sin p, −cos y·cos p), so yaw 0 faces −Z, which is
+   where the octagon and the palace are. π faced the empty end of the estate. */
+var yaw=0,pitch=-0.05;
+var tYaw=yaw,tPitch=pitch;
+var keys=Object.create(null),glide=false;
+var flipped=false,flipT=0;
+var carving=false,rouen=false,rouenN=0,RTW=2,RTH=2;
+
+function basis(){
+  var cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  var fx=sy*cp, fy=sp, fz=-cy*cp;
+  var rx=cy, ry=0, rz=sy;
+  var ux=ry*fz-rz*fy, uy=rz*fx-rx*fz, uz=rx*fy-ry*fx;
+  /* Columns are right, up, −forward, and the shader multiplies by
+     vec3(ndc, −1). Negating up here flipped the image vertically, so a slight
+     downward pitch rendered as a slight upward one and the frame filled with sky. */
+  return {m:[rx,ry,rz, ux,uy,uz, -fx,-fy,-fz],f:[fx,fy,fz],r:[rx,ry,rz]};
+}
+
+var drag=false,lx=0,ly=0;
+cv.addEventListener('mousedown',function(e){drag=true;lx=e.clientX;ly=e.clientY;cv.classList.add('look');cv.focus();});
+window.addEventListener('mouseup',function(){drag=false;cv.classList.remove('look');});
+window.addEventListener('mousemove',function(e){
+  if(!drag)return;
+  tYaw+=(e.clientX-lx)*0.0040;
+  tPitch=Math.max(-0.62,Math.min(0.62,tPitch-(e.clientY-ly)*0.0032));
+  lx=e.clientX;ly=e.clientY;
+});
+cv.addEventListener('wheel',function(e){e.preventDefault();walkBy(-e.deltaY*0.012);},{passive:false});
+
+var tx=0,ty=0;
+cv.addEventListener('touchstart',function(e){if(e.touches.length){tx=e.touches[0].clientX;ty=e.touches[0].clientY;}},{passive:true});
+cv.addEventListener('touchmove',function(e){
+  if(e.touches.length===1){
+    var t=e.touches[0];
+    tYaw+=(t.clientX-tx)*0.0052;
+    tPitch=Math.max(-0.62,Math.min(0.62,tPitch-(t.clientY-ty)*0.0040));
+    tx=t.clientX;ty=t.clientY;
+  }else if(e.touches.length===2){walkBy(0.42);}
+  e.preventDefault();
+},{passive:false});
+
+window.addEventListener('keydown',function(e){
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  var k=e.key.toLowerCase();
+  if(carving){
+    e.preventDefault();
+    if(k==='escape'||k==='enter'){carving=false;whisper('Cut. Backwards, obviously.');return;}
+    else if(k==='backspace')CARVE=CARVE.slice(0,-1);
+    else if(e.key.length===1&&CARVE.length<26)CARVE+=e.key.toUpperCase();
+    else return;
+    recarve();return;
+  }
+  if(k==='enter'&&Math.hypot(pos.x,pos.z)<9.2){
+    carving=true;for(var kk in keys)keys[kk]=false;
+    whisper('Chisel open. Type something.');e.preventDefault();return;
+  }
+  if('wasd'.indexOf(k)>=0||k==='arrowup'||k==='arrowdown'||k==='arrowleft'||k==='arrowright'){
+    keys[k]=true;e.preventDefault();return;
+  }
+  if(k==='m'){
+    flipped=!flipped;
+    whisper(flipped?'Now you can read.':'Back to front again.');
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup',function(e){keys[e.key.toLowerCase()]=false;});
+
+function walkBy(d){
+  var b=basis();
+  pos.x+=b.f[0]*d;pos.z+=b.f[2]*d;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   the hour. MONET's series as a control
+   ═══════════════════════════════════════════════════════════════════════════ */
+var hourEl=document.getElementById('hour'),hReadEl=document.getElementById('h-read');
+var hour=parseFloat(hourEl.value);   // late afternoon: the only hour with shadows worth the name
+function sunFromHour(h){
+  // 5.2 → 19.4 mapped to a plausible arc; azimuth swings east→west across the axis
+  var f=(h-5.2)/(19.4-5.2);
+  var el=Math.sin(f*Math.PI)*1.16-0.035;
+  var az=(-0.92+f*1.84)*Math.PI*0.52+Math.PI;
+  return {el:el,az:az};
+}
+function hourLabel(h){
+  var hh=Math.floor(h),mm=Math.round((h-hh)*60);
+  if(mm===60){hh++;mm=0;}
+  return (hh<10?'0':'')+hh+':'+(mm<10?'0':'')+mm;
+}
+hourEl.addEventListener('input',function(){hour=parseFloat(hourEl.value);});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   the reading, which inscription the mirror is currently resolving
+   The one piece of "UI" in the piece, and it is a consequence of where you
+   stand rather than something you clicked.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var readEl=document.getElementById('reading'),rText=document.getElementById('r-text'),rSrc=document.getElementById('r-src');
+var curRead=-1;
+function updateReading(){
+  var d=Math.hypot(pos.x,pos.z);
+  if(d>9.2){ if(curRead!==-1){curRead=-1;readEl.classList.remove('on');} return; }
+  // inside the octagon: which stone face are we facing?
+  var b=basis();
+  var a=Math.atan2(b.f[2],b.f[0]);
+  var face=Math.floor((a+Math.PI)/(2*Math.PI)*8)%8;
+  if(face<0)face+=8;
+  var idx=Math.floor(face/2)%4;
+  /* Defensive: a non-finite heading must not be able to take the render loop
+     down. This threw on frame one and the whole palace never drew. */
+  if(!isFinite(idx)||idx<0||idx>=LINES.length)return;
+  if(idx!==curRead){
+    curRead=idx;
+    rText.textContent='“'+LINES[idx].r+'”';
+    rSrc.textContent='cut in reverse · read in the mirror behind you';
+    readEl.classList.add('on');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   quality governor
+   ═══════════════════════════════════════════════════════════════════════════ */
+var MAXPIX=760000;   // ~1100x690 of actual marching, whatever the monitor
+var Q={scale:0.80,steps:112,auto:true,mode:'auto'};
+var QM=[{n:'auto'},{n:'high',scale:1.0,steps:190},{n:'low',scale:0.55,steps:92}],qi=0;
+var favg=16.7,settle=0;
+function governor(dt){
+  favg+=(dt-favg)*0.09;
+  if(!Q.auto)return;
+  settle-=dt;if(settle>0)return;
+  if(favg>27.0&&Q.scale>0.40){Q.scale=Math.max(0.40,Q.scale-0.07);resize();settle=450;}
+  else if(favg>27.0&&Q.steps>70){Q.steps-=12;settle=450;}
+  else if(favg<13.5&&Q.steps<200){Q.steps+=10;settle=560;}
+  else if(favg<13.5&&Q.scale<1.0){Q.scale=Math.min(1.0,Q.scale+0.05);resize();settle=560;}
+}
+
+/* ── TAA state. Halton(2,3) centred to ±0.5 of a render pixel: a low-discrepancy
+   sequence covers the pixel far more evenly than random jitter at 8 samples. ── */
+function halton(i,b){var f=1.0,r=0.0;while(i>0){f/=b;r+=f*(i%b);i=Math.floor(i/b);}return r;}
+var HJ=[];for(var _h=1;_h<=16;_h++)HJ.push([halton(_h,2)-0.5,halton(_h,3)-0.5]);
+var fbA=[null,null],accI=0,nAcc=0;
+var TAA_MAX=floatOK?8:4;   // RGBA8 history quantises; stop earlier or the sky bands
+var pCam={x:1e9,y:0,z:0,yaw:0,pitch:0,hour:-1};
+
+var DPR=1,W=2,H=2,RW=2,RH=2,fbScene=null;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=Math.max(2,Math.round(cv.clientWidth*DPR));
+  H=Math.max(2,Math.round(cv.clientHeight*DPR));
+  cv.width=W;cv.height=H;
+  /* A fraction of the display is not a budget. At 2549x1257 an 80% pass is
+     2.05 megapixels, and each pixel here runs a march, a shadow trace, an AO
+     probe and a reflection march. Cap the pass in absolute pixels so the cost
+     is bounded by the machine, not by the window. */
+  var eff=Math.min(Q.scale,Math.sqrt(MAXPIX/Math.max(1,W*H)));
+  RW=Math.max(2,Math.round(W*eff));
+  RH=Math.max(2,Math.round(H*eff));
+  if(fbScene){gl.deleteTexture(fbScene.tex);gl.deleteFramebuffer(fbScene.fb);}
+  fbScene=fbo(RW,RH);
+  /* The history must match the pass exactly. The governor changes RW/RH while
+     running, so every resize reallocates BOTH history targets, clears them, and
+     invalidates the accumulation, a stale-size history samples garbage. */
+  for(var _i=0;_i<2;_i++){
+    if(fbA[_i]){gl.deleteTexture(fbA[_i].tex);gl.deleteFramebuffer(fbA[_i].fb);}
+    fbA[_i]=fbo(RW,RH);
+    gl.bindFramebuffer(gl.FRAMEBUFFER,fbA[_i].fb);
+    gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  nAcc=0;
+}
+resize();
+window.addEventListener('resize',resize);
+
+/* ── buttons ── */
+document.getElementById('b-oct').addEventListener('click',function(){
+  pos.x=0;pos.z=26;tYaw=0;tPitch=-0.02;
+});
+document.getElementById('b-axis').addEventListener('click',function(){
+  pos.x=0;pos.z=78;tYaw=0;tPitch=0.02;
+});
+document.getElementById('b-rouen').addEventListener('click',function(){
+  rouen=!rouen;rouenN=0;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbScene.fb);
+  gl.clearColor(0.86,0.85,0.82,1.0);gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  whisper(rouen?'Hold still. Paint is wet.':'Back to one canvas.');
+});
+var bRun=document.getElementById('b-run');
+bRun.addEventListener('click',function(){
+  glide=!glide;bRun.setAttribute('aria-pressed',glide?'true':'false');
+});
+var bQ=document.getElementById('b-q');
+bQ.addEventListener('click',function(){
+  qi=(qi+1)%QM.length;var m=QM[qi];Q.mode=m.n;
+  if(m.n==='auto')Q.auto=true;
+  else{Q.auto=false;Q.steps=m.steps;Q.scale=m.scale;resize();}
+  bQ.textContent='Quality: '+m.n;
+});
+
+/* ── HUD ── */
+/* No telemetry. You are in a garden, not a cockpit, the only number worth
+   showing is the hour, because the hour is the one thing you are changing. */
+var whisperEl=document.getElementById('whisper'),whisperT=0;
+function whisper(msg){
+  whisperEl.textContent=msg;
+  whisperEl.classList.add('on');
+  whisperT=performance.now()+3400;
+}
+function hud(){
+  hReadEl.textContent=hourLabel(hour);
+  if(whisperT&&performance.now()>whisperT){whisperT=0;whisperEl.classList.remove('on');}
+}
+
+/* Lines that appear because of something you did, then leave. */
+var seen=Object.create(null),inscrAt=0;
+function once(key,msg){if(!seen[key]){seen[key]=1;whisper(msg);}}
+var idleFrom=performance.now();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   frame
+   ═══════════════════════════════════════════════════════════════════════════ */
+var veil=document.getElementById('veil'),warm=0,gone=false;
+/* Seed the clock from the first rAF timestamp, never from performance.now().
+   They are not guaranteed to share a time origin, measured -74,584 ms of skew
+   in one environment, which made k = 1-exp(-dt*0.014) evaluate to -Infinity.
+   Multiplied by an initial delta of exactly zero that is NaN, and the camera,
+   the walk and every readout went NaN on frame one. Clamped non-negative so a
+   backwards clock can never do it again. */
+var t0=-1,last=-1;
+function drawQuad(){gl.bindVertexArray(quad);gl.drawArrays(gl.TRIANGLES,0,3);}
+
+var told=false;
+function frame(now){
+  requestAnimationFrame(frame);
+  try{ frameBody(now); }
+  catch(err){
+    if(!told){told=true;report('[SPECULUM] '+(err&&err.message));}
+  }
+}
+function frameBody(now){
+  if(last<0){last=now;t0=now;}
+  var dt=Math.min(Math.max(now-last,0.5),60);last=now;
+  var t=(now-t0)/1000;
+  governor(dt);
+
+  // look easing
+  var k=1-Math.exp(-dt*0.014);
+  yaw+=(tYaw-yaw)*k;pitch+=(tPitch-pitch)*k;
+  flipT+=((flipped?1:0)-flipT)*(1-Math.exp(-dt*0.006));
+
+  // walking
+  var b=basis();
+  var sp=(glide?15.0:6.4)*(dt/1000);
+  var fwd=(keys['w']||keys['arrowup']?1:0)-(keys['s']||keys['arrowdown']?1:0);
+  var str=(keys['d']||keys['arrowright']?1:0)-(keys['a']||keys['arrowleft']?1:0);
+  vel.x+=((b.f[0]*fwd+b.r[0]*str)*sp-vel.x)*0.22;
+  vel.z+=((b.f[2]*fwd+b.r[2]*str)*sp-vel.z)*0.22;
+  pos.x+=vel.x;pos.z+=vel.z;
+  // stay on the estate, and stand on the terrace when you are on it
+  var lim=190.0;
+  pos.x=Math.max(-lim,Math.min(lim,pos.x));
+  pos.z=Math.max(-108.0,Math.min(lim,pos.z));
+  var onTerrace=Math.max(Math.abs(pos.x),Math.abs(pos.z))<26.5&&
+                (Math.abs(pos.x)+Math.abs(pos.z))<37.0;
+  var groundY=onTerrace?1.10:0.0;
+  pos.y+=((groundY+1.72)-pos.y)*0.16;
+  // a walker's gait, off under reduce-motion
+  var bob=(REDUCED||Math.hypot(vel.x,vel.z)<0.01)?0.0:Math.sin(t*9.0)*0.022;
+
+  var s=sunFromHour(hour);
+  var tile=0,gx=3,gy=2;
+  if(rouen){tile=(rouenN++)%(gx*gy);s=sunFromHour(6.2+tile*2.28);}
+
+  /* ── history validity. No motion vectors, so anything that changes what a
+     pixel sees resets the accumulation instead of being reprojected. ── */
+  var eyeY=pos.y+bob;
+  var moved=Math.abs(pos.x-pCam.x)>1e-4||Math.abs(eyeY-pCam.y)>1e-4||
+            Math.abs(pos.z-pCam.z)>1e-4||Math.abs(yaw-pCam.yaw)>2e-5||
+            Math.abs(pitch-pCam.pitch)>2e-5||Math.abs(hour-pCam.hour)>1e-4;
+  if(moved)nAcc=0;
+  pCam.x=pos.x;pCam.y=eyeY;pCam.z=pos.z;pCam.yaw=yaw;pCam.pitch=pitch;pCam.hour=hour;
+  var jit=HJ[nAcc%16];
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbScene.fb);
+  gl.viewport(0,0,RW,RH);RTW=RW;RTH=RH;
+  if(rouen){
+    var tw=Math.floor(RW/gx),th=Math.floor(RH/gy);
+    var ox=(tile%gx)*tw,oy=Math.floor(tile/gx)*th;
+    RTW=tw-2;RTH=th-2;
+    gl.viewport(ox+1,oy+1,RTW,RTH);
+    gl.enable(gl.SCISSOR_TEST);gl.scissor(ox+1,oy+1,RTW,RTH);
+  }
+  gl.useProgram(pScene);
+  gl.uniform2f(uS.uRes,RTW,RTH);
+  gl.uniform3f(uS.uCam,pos.x,pos.y+bob,pos.z);
+  gl.uniformMatrix3fv(uS.uBasis,false,b.m);
+  gl.uniform1f(uS.uFov,0.78);
+  gl.uniform2f(uS.uJitter,jit[0],jit[1]);
+  gl.uniform1f(uS.uTime,t);
+  gl.uniform1f(uS.uSunEl,s.el);
+  gl.uniform1f(uS.uSunAz,s.az);
+  gl.uniform1i(uS.uSteps,Q.steps);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,TEX);
+  gl.uniform1i(uS.uInscr,0);
+  drawQuad();
+
+  /* ── accumulate: new frame + history[prev] → history[cur]. Weight n/(n+1)
+     makes this an exact running mean of the first n jittered samples (fast,
+     unbiased convergence) rather than a lazy exponential fade. ── */
+  accI^=1;
+  var dstA=fbA[accI],srcA=fbA[accI^1];
+  gl.bindFramebuffer(gl.FRAMEBUFFER,dstA.fb);
+  gl.viewport(0,0,RW,RH);
+  gl.useProgram(pTaa);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fbScene.tex);
+  gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,srcA.tex);
+  gl.uniform1i(uT.uNew,0);gl.uniform1i(uT.uHist,1);
+  gl.uniform2f(uT.uRes,RW,RH);
+  gl.uniform1f(uT.uBlend,nAcc===0?0.0:nAcc/(nAcc+1.0));
+  drawQuad();
+  if(nAcc<TAA_MAX)nAcc++;
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  gl.disable(gl.SCISSOR_TEST);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(pComp);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,dstA.tex);
+  gl.uniform1i(uC.uSrc,0);
+  gl.uniform1f(uC.uExp,0.74);
+  gl.uniform1f(uC.uFlip,flipT);
+  gl.uniform1f(uC.uTime,t);
+  gl.uniform2f(uC.uRes,W,H);
+  drawQuad();
+
+  updateReading();
+
+  /* whispers, all consequences of where you stand or what you did */
+  var now=performance.now();
+  var dCentre=Math.hypot(pos.x,pos.z);
+  if(dCentre<9.2)once('oct','Eight walls. Four of them lie.');
+  if(dCentre<4.2&&!carving)once('chisel','Enter opens the chisel.');
+  if(CARVE)once('carved','Turn around to proofread.');
+  if(dCentre<9.2&&curRead>=0){
+    if(!inscrAt)inscrAt=now;
+    if(!flipped&&now-inscrAt>2600)once('backwards','Cut backwards. Press M.');
+  }else inscrAt=0;
+  if(dCentre<0.9)once('dead','Dead centre. Leonardo would approve.');
+  if(hour>18.9)once('dusk','The gardeners have gone home.');
+  if(hour<6.1)once('dawn','Nobody is awake but you.');
+  if(glide)once('glide','Walking is for tourists.');
+  if(pos.z<-95)once('far','You have reached the scenery.');
+  if(Math.abs(pos.x)>178)once('edge','There is nothing out here. Truly.');
+
+  if(!gone){
+    warm++;
+    var vb=document.getElementById('veilbar');
+    if(vb)vb.style.width=Math.min(100,warm*4.4)+'%';
+    if(warm>23){gone=true;veil.classList.add('gone');}
+  }
+  if((warm&3)===0||gone)hud();
+}
+requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>

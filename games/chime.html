@@ -604,7 +604,7 @@ const Tools = [
 const Levels = [
   {
     id: 1, name: 'First Note',
-    objective: 'Place pegs to bounce marbles into the glowing goal. Use the 2 fixed pegs as guides — catch 3 to pass.',
+    objective: 'Place pegs to bounce marbles into the glowing goal. Use the 2 fixed pegs as guides, catch 3 to pass.',
     budget: 5, goalCount: 3, spawnX: 0.48,
     goal: { x: 0.52, y: 0.82 },
     par: 38, perfect: 24,
@@ -1099,7 +1099,7 @@ function startJourneyLevel(index) {
   spawner.x = worldX(level.spawnX);
   selected = null; pendingLift = null;
   resetProgress();
-  setObjective('LEVEL ' + level.id + ' — ' + level.name.toUpperCase(), level.objective,
+  setObjective('LEVEL ' + level.id + ', ' + level.name.toUpperCase(), level.objective,
     '★' + level.par + 's  ★★' + level.perfect + 's');
   startSession('journey');
 }
@@ -1158,7 +1158,7 @@ function completeLevel() {
   const parText = state.elapsed <= level.perfect ? 'Under par!' : state.elapsed <= level.par ? 'On par' : 'Over par';
   const isNewBest = state.elapsed < wasBest && wasBest < 9999;
   document.getElementById('completeText').textContent =
-    'Time ' + state.elapsed.toFixed(1) + 's (' + parText + ')' + (isNewBest ? ' — NEW BEST!' : '') +
+    'Time ' + state.elapsed.toFixed(1) + 's (' + parText + ')' + (isNewBest ? '. NEW BEST!' : '') +
     '  ·  ' + placedCost() + '/' + level.budget + ' parts  ·  combo x' + state.maxCombo;
   document.getElementById('completeStars').textContent = starString(stars);
   document.getElementById('nextLevelBtn').style.display = state.levelIndex < Levels.length - 1 ? '' : 'none';
@@ -1875,7 +1875,7 @@ function updateHud() {
   if (els.bpmChip) els.bpmChip.textContent = bpm;
   els.progressLine.textContent = requirementText();
   if (isJ && level) {
-    els.objectiveTitle.textContent = '♩ LEVEL ' + level.id + ' — ' + level.name.toUpperCase();
+    els.objectiveTitle.textContent = '♩ LEVEL ' + level.id + ', ' + level.name.toUpperCase();
     els.objectiveText.textContent = level.objective;
   }
 }
@@ -2240,7 +2240,7 @@ function bindUi() {
     loopEnabled = !loopEnabled;
     document.getElementById('loopBtn').style.borderColor = loopEnabled ? 'rgba(83,218,203,0.62)' : '';
     document.getElementById('loopBtn').style.background = loopEnabled ? 'rgba(83,218,203,0.18)' : '';
-    showToast(loopEnabled ? '♻ Loop ON — marbles recycle' : 'Loop OFF');
+    showToast(loopEnabled ? '♻ Loop ON, marbles recycle' : 'Loop OFF');
   });
   var bpmParent = els.bpmChip ? els.bpmChip.parentElement : null;
   if (bpmParent) {

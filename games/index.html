@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>THE PROTOTYPE ARCADE — Jishnu Akella</title>
+<title>THE PROTOTYPE ARCADE · Jishnu Akella</title>
 <meta name="description" content="Eight playable browser game prototypes: CHIME, The Long Way Round, HOT HAND, Aqueducts, Mini Lighthouses, Storm Area 51, Costco Sample Speedrun, Gratitude Garden.">
 <meta property="og:title" content="THE PROTOTYPE ARCADE">
-<meta property="og:description" content="Eight playable browser prototypes. Step through the portal.">
+<meta property="og:description" content="Eight prototypes, one idea each. Nothing to install.">
 <meta property="og:image" content="media/chime-landscape-1920x1080.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128126;</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Grotesk:wght@300;400;500&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Space+Grotesk:wght@300;400&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Space+Grotesk:wght@300;400&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"></noscript>
 <style>
   :root{
     --bg:#04050a;
@@ -122,7 +123,7 @@
     font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.42em;
     text-transform:uppercase;color:rgba(var(--ac),.95);
     padding:5px 12px;border:1px solid rgba(var(--ac),.35);border-radius:2px;
-    background:rgba(2,3,6,.55);backdrop-filter:blur(2px);
+    background:rgba(2,3,6,.55);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
     animation:blink 2.8s ease-in-out infinite;
   }
   @keyframes blink{0%,100%{opacity:.28}50%{opacity:1}}
@@ -237,7 +238,7 @@
 
   <main>
     <div id="stagewrap">
-      <div id="portalBox" role="button" tabindex="0" aria-label="Enter the selected game">
+      <a id="portalBox" href="chime.html" aria-label="Enter the selected game">
         <div id="core">
           <canvas id="portal"></canvas>
           <video id="chimevid" src="media/chime_gameplay_landscape.mp4"
@@ -248,7 +249,7 @@
         <div id="ring"></div>
         <div id="flare"></div>
         <div id="plabel"><div class="go">▸ enter</div></div>
-      </div>
+      </a>
     </div>
 
     <div id="index"></div>
@@ -271,12 +272,12 @@
   function lerp(a,b,f){return a+(b-a)*f;}
 
   /* ══════════════════════════════════════════════════════════
-     SIGILS — one tiny hand-drawn engine per game.
+     SIGILS, one tiny hand-drawn engine per game.
      Each draws into a square of side S, in the game's own colours.
      ══════════════════════════════════════════════════════════ */
   function bgFill(g,S,c){g.fillStyle=c;g.fillRect(0,0,S,S);}
 
-  /* CHIME — marbles falling through pegs, bells ringing */
+  /* CHIME, marbles falling through pegs, bells ringing */
   function sigChime(g,t,S){
     bgFill(g,S,'#0b0a18');
     var u=S/100;
@@ -325,7 +326,7 @@
     g.globalAlpha=1;
   }
 
-  /* HOT HAND — slingshot arc into a neon rim, ON FIRE */
+  /* HOT HAND, slingshot arc into a neon rim, ON FIRE */
   function sigHot(g,t,S){
     bgFill(g,S,'#12030a');
     var u=S/100, ground=S*0.84;
@@ -386,7 +387,7 @@
     }
   }
 
-  /* AQUEDUCTS — arches carrying water downhill to a village */
+  /* AQUEDUCTS, arches carrying water downhill to a village */
   function sigAqua(g,t,S){
     bgFill(g,S,'#1b1109');
     var u=S/100;
@@ -438,7 +439,7 @@
     g.beginPath();g.ellipse(vx+12*u,vy+2*u,2.6*u,7*u,0,0,TAU);g.fill();
   }
 
-  /* MINI LIGHTHOUSES — one cone of light, ships in fog */
+  /* MINI LIGHTHOUSES, one cone of light, ships in fog */
   function sigLight(g,t,S){
     bgFill(g,S,'#050c18');
     var u=S/100, shore=S*0.86;
@@ -495,7 +496,7 @@
     g.fillStyle=lamp;g.beginPath();g.arc(lx,ly,10*u,0,TAU);g.fill();
   }
 
-  /* STORM AREA 51 — a line of idiots charging a fence */
+  /* STORM AREA 51, a line of idiots charging a fence */
   function sigA51(g,t,S){
     bgFill(g,S,'#0a0d08');
     var u=S/100, ground=S*0.80;
@@ -544,7 +545,7 @@
     }
   }
 
-  /* COSTCO SAMPLE SPEEDRUN — top-down cart routing */
+  /* COSTCO SAMPLE SPEEDRUN, top-down cart routing */
   function sigCostco(g,t,S){
     bgFill(g,S,'#171716');
     var u=S/100;
@@ -588,7 +589,7 @@
     g.fillStyle='#c94b7a';g.beginPath();g.arc(k2[0],k2[1],3.4*u,0,TAU);g.fill();
   }
 
-  /* THE LONG WAY ROUND — wet neon highway, and a car facing the wrong way */
+  /* THE LONG WAY ROUND, wet neon highway, and a car facing the wrong way */
   function sigRound(g,t,S){
     bgFill(g,S,'#05060c');
     var u=S/100;
@@ -626,7 +627,7 @@
       g.beginPath();g.moveTo(vx+sgn*5*u,hz);g.lineTo(vx+sgn*68*u,S);g.stroke();
     }
     edge(-1);edge(1);
-    // centre dashes racing AWAY from the car — it is pointed at you
+    // centre dashes racing AWAY from the car, it is pointed at you
     g.fillStyle='rgba(243,236,214,.8)';
     for(var d=0;d<7;d++){
       var q=((t*0.34+d/7)%1), z=Math.pow(q,2.3);
@@ -672,7 +673,7 @@
     g.strokeRect(S*0.845-7*u,hz+6*u,14*u,14*u);
   }
 
-  /* GRATITUDE GARDEN — seed, sprout, bud, bloom */
+  /* GRATITUDE GARDEN, seed, sprout, bud, bloom */
   function sigGarden(g,t,S){
     var u=S/100;
     var P=Math.max(1,Math.round(S/50));            // chunky pixel grid
@@ -763,15 +764,15 @@
     {id:'chime',href:'chime.html',title:'Chime',
      tag:'physics · music · sandbox',badge:'flagship',ac:[142,224,255],
      sigil:sigChime,video:true,
-     blurb:'A marble run that plays music. Build tracks; every peg, bell and drop is a note, quantised to a scale so anything you build sounds good. Journey mode gives you a melody and a parts budget — Studio mode gives you the whole workshop.'},
+     blurb:'A marble run that plays music. Build tracks; every peg, bell and drop is a note, quantised to a scale so anything you build sounds good. Journey mode gives you a melody and a parts budget. Studio mode gives you the whole workshop.'},
     {id:'longway',href:'long-way-round/index.html',title:'The Long Way Round',
      tag:'driving · 3d · anti-racing',badge:'the twist',ac:[57,210,255],
      sigil:sigRound,
-     blurb:'A racing game about not arriving. It opens as a Tutorial — 49 lessons, about 26 minutes, straight ahead, graduates all time: zero. Cross the finish exactly as instructed and it tells you that you did not graduate. WRONG WAY is a tick, not a cross. The road is the end of the road.'},
+     blurb:'A racing game about not arriving. It opens as a Tutorial: 49 lessons, about 26 minutes, straight ahead, graduates all time: zero. Cross the finish exactly as instructed and it tells you that you did not graduate. WRONG WAY is a tick, not a cross. The road is the end of the road.'},
     {id:'hothand',href:'hothand.html',title:'Hot Hand',
      tag:'arcade · one-more-go',badge:'best clip',ac:[255,150,70],
      sigil:sigHot,
-     blurb:'Neon trick-shot basketball built on a single hook: the streak. Drag, release, swish. Three in a row and you are ON FIRE — the ball ignites, the court flushes red, points double. The rim drifts while you aim and freezes the instant you let go, so every brick is yours.'},
+     blurb:'Neon trick-shot basketball built on a single hook: the streak. Drag, release, swish. Three in a row and you are ON FIRE. The ball ignites, the court flushes red, points double. The rim drifts while you aim and freezes the instant you let go, so every brick is yours.'},
     {id:'aqueducts',href:'aqueducts.html',title:'Aqueducts',
      tag:'puzzle · network builder',badge:'zen',ac:[232,168,90],
      sigil:sigAqua,
@@ -779,11 +780,11 @@
     {id:'lighthouses',href:'mini-lighthouses.html',title:'Mini Lighthouses',
      tag:'zen · one input',badge:'pretty',ac:[255,214,130],
      sigil:sigLight,
-     blurb:'You are the keeper. Ships come out of procedural fog toward ports behind you, and you have exactly one beam to steer them with. Multiple ships, divergent routes, one cone of light. Failure is melancholy rather than punishing — you watch them go down.'},
+     blurb:'You are the keeper. Ships come out of procedural fog toward ports behind you, and you have exactly one beam to steer them with. Multiple ships, divergent routes, one cone of light. Failure is melancholy rather than punishing, you watch them go down.'},
     {id:'area51',href:'area-51-raid.html',title:'Storm Area 51',
      tag:'auto-battler · meme',badge:'recap engine',ac:[150,255,140],
      sigil:sigA51,
-     blurb:'You are the Facebook event admin. Spend a budget on meme archetypes — Naruto Runner, Kyle, Karen, the Guy With A Plan™ — place them in lanes and watch the raid play out. Every run auto-generates a shaky cellphone news recap of your specific disaster.'},
+     blurb:'You are the Facebook event admin. Spend a budget on meme archetypes: Naruto Runner, Kyle, Karen, the Guy With A Plan™. Place them in lanes and watch the raid play out. Every run auto-generates a shaky cellphone news recap of your specific disaster.'},
     {id:'costco',href:'costco-sample-speedrun.html',title:'Costco Sample Speedrun',
      tag:'arcade · routing',badge:'90 seconds',ac:[255,90,95],
      sigil:sigCostco,
@@ -791,7 +792,7 @@
     {id:'garden',href:'gratitude-garden.html',title:'Gratitude Garden',
      tag:'cozy · journal · voice',badge:'cozy',ac:[244,150,180],
      sigil:sigGarden,
-     blurb:'Type or say something you are grateful for and it waters a plant: seed → sprout → bud → bloom. Tap any flower to re-read the gratitudes that grew it. Researched before it was built, so nothing ever dies and there is no streak to break — the garden wilts, rests, and springs back the day you return.'}
+     blurb:'Type or say something you are grateful for and it waters a plant: seed → sprout → bud → bloom. Tap any flower to re-read the gratitudes that grew it. Researched before it was built, so nothing ever dies and there is no streak to break. The garden wilts, rests, and springs back the day you return.'}
   ];
 
   /* ══════════════════════════════════════════════════════════
@@ -800,8 +801,8 @@
   var indexEl=document.getElementById('index');
   var rows=[],chipCtx=[];
   GAMES.forEach(function(gm,i){
-    var row=document.createElement('div');
-    row.className='row';row.setAttribute('role','button');row.tabIndex=0;
+    var row=document.createElement('a');
+    row.className='row';row.href=gm.href;
     row.innerHTML=
       '<div class="no">'+String(i+1).padStart(2,'0')+'</div>'+
       '<div class="chip"><canvas></canvas></div>'+
@@ -839,6 +840,8 @@
     rows.forEach(function(r,k){r.classList.toggle('on',k===i);});
     acT=gm.ac.slice();
     blurbEl.textContent=gm.blurb;
+    var pb=document.getElementById('portalBox');
+    if(pb)pb.setAttribute('href',gm.href);
     if(gm.video){
       vid.classList.add('on');
       if(vid.readyState===0)vid.load();

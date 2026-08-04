@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ℵ — Recovered Observation Record</title>
+<title>ℵ. Recovered Observation Record</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=JetBrains+Mono:wght@200;300;400&display=swap" rel="stylesheet">
@@ -64,7 +64,7 @@
   #log .ln i{color:var(--old);font-style:normal}
   @keyframes lnin{to{opacity:1}}
 
-  /* ---------- conceptual map (not a menu — a chart of similarity) ---------- */
+  /* ---------- conceptual map (not a menu, a chart of similarity) ---------- */
   #map{position:fixed;right:36px;bottom:34px;z-index:50;width:158px;height:118px}
   #map svg{position:absolute;inset:0;overflow:visible}
   #map .m-dot{
@@ -138,9 +138,9 @@
 <canvas id="scene"></canvas>
 
 <div class="hud" id="hud-rec">
-  <b>OBJECT ℵ</b> — WITHOUT CATEGORY<br>
+  <b>OBJECT ℵ</b>. WITHOUT CATEGORY<br>
   RECOVERED 2529 · SITE Θ · STATUS: ONGOING<br>
-  EXHIBITED 2090 — AS ANTICIPATED
+  EXHIBITED 2090 · AS ANTICIPATED
 </div>
 <div class="hud" id="hud-time">
   OBSERVATION <span id="obs-t">T+00:00:00</span><br>
@@ -160,13 +160,13 @@
 <div id="splash">
   <div class="aleph">ℵ</div>
   <div class="t1">Object Without Category</div>
-  <div class="t2">recovered observation record — scroll changes what it is</div>
+  <div class="t2">recovered observation record, scroll changes what it is</div>
 </div>
 
 <div id="veilgrain"></div>
 <div id="fallback">The record requires WebGL to stabilize.<br>The object will wait. It is good at that.</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/three.r128.min.js"></script>
 <script>
 (function(){
   'use strict';
@@ -175,7 +175,7 @@
      OBJECT ℵ
      Not a building, machine, organism, or sculpture.
      A stabilized event. 22,000 points of light used as material.
-     Scroll does not move you — it moves the object between
+     Scroll does not move you, it moves the object between
      what it is. Distance here is conceptual similarity.
      ================================================================ */
 
@@ -202,7 +202,7 @@
   function rand(a,b){return a+Math.random()*(b-a);}
 
   /* ================================================================
-     SEVEN CONFIGURATIONS — what the object is, by turns.
+     SEVEN CONFIGURATIONS, what the object is, by turns.
      The same matter. Different arguments.
      ================================================================ */
   var N=22000;
@@ -494,7 +494,7 @@
   function log(html){
     var d=document.createElement('div');
     d.className='ln';
-    d.innerHTML='<b>'+stamp()+'</b> — '+html;
+    d.innerHTML='<b>'+stamp()+'</b>, '+html;
     logEl.appendChild(d);
     while(logEl.children.length>6)logEl.removeChild(logEl.firstChild);
   }
@@ -624,7 +624,7 @@
     var dt=Math.min(clock.getDelta(),0.05);
     var t=clock.elapsedTime;
 
-    // conceptual travel — long distances take longer. similarity is distance.
+    // conceptual travel, long distances take longer. similarity is distance.
     var gap=Math.abs(cTarget-cCur);
     cCur+=(cTarget-cCur)*(1-Math.exp(-dt*(1.9+gap*0.6)));
 

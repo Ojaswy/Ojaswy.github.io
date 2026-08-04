@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HORIZON</title>
+<meta name="description" content="Null geodesics integrated per pixel in Schwarzschild geometry. The shadow is not drawn; it is where light failed to return.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2303040a'/%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23ffd9a0' stroke-width='1.1' opacity='.55'/%3E%3Ccircle cx='16' cy='16' r='7.6' fill='none' stroke='%23fff6e2' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23000'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@200;300;400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#03040a;
+    --bone:#e8e4dd;
+    --dim:#7c8390;
+    --faint:#4a505c;
+    --hot:#ffd9a0;
+    --cold:#8fb6ff;
+    --line:rgba(160,176,200,.16);
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --serif:'Instrument Serif',Georgia,serif;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--void)}
+  body{
+    color:var(--bone);font-family:var(--mono);font-weight:300;
+    -webkit-font-smoothing:antialiased;
+    -webkit-user-select:none;user-select:none;
+  }
+  canvas#gl{position:fixed;inset:0;display:block;width:100%;height:100%;cursor:grab}
+  canvas#gl.dragging{cursor:grabbing}
+  /* JS sets cv.tabIndex=0, so the canvas is a tab stop. It had no focus ring. */
+  canvas#gl:focus-visible{outline:2px solid var(--hot);outline-offset:-2px}
+  ::selection{background:rgba(255,217,160,.25)}
+
+  .hud{position:fixed;z-index:20;pointer-events:none;line-height:1.9}
+  .k{font-size:8.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--faint)}
+  .v{font-size:11px;letter-spacing:.09em;color:var(--bone);font-variant-numeric:tabular-nums}
+  .v em{font-style:normal;color:var(--dim)}
+
+  /* ── identity, upper left ── */
+  #id{top:26px;left:30px}
+  #id h1{
+    margin:0;font-family:var(--serif);font-weight:400;
+    font-size:clamp(26px,3.4vw,44px);line-height:1;letter-spacing:.01em;
+  }
+  #id h1 span{color:var(--dim)}
+  #id .sub{margin-top:9px;max-width:34ch;font-size:10px;letter-spacing:.05em;color:var(--dim);line-height:1.85}
+
+  /* ── the bottom bar ──
+     Three independently fixed blocks at the same offset will eventually collide,
+     and at 1280px they did: the disk readout ran underneath the first button.
+     One grid track each means overlap is not expressible. */
+  #bottom{
+    position:fixed;left:0;right:0;bottom:0;z-index:20;
+    /* Side tracks sized to their content, centre takes the slack. With
+       1fr/auto/1fr the hint string made the centre 824px wide and wrapped the
+       readouts onto three lines each. */
+    display:grid;grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:end;column-gap:28px;
+    padding:0 30px 26px;pointer-events:none;
+  }
+  #tel .k,#tel .v,#eng .k,#eng .v{white-space:nowrap}
+  #bottom>*{position:static;min-width:0}
+  /* source order is telemetry, integrator, controls, reorder for the grid
+     rather than move the markup, so the reading order stays sensible */
+  #tel{order:1}
+  #ctl{order:2}
+  #eng{order:3}
+
+  #tel{display:grid;grid-template-columns:auto auto;gap:2px 18px;align-items:baseline;justify-content:start}
+  #tel .k{text-align:left}
+
+  #eng{display:grid;grid-template-columns:auto auto;gap:2px 18px;align-items:baseline;justify-self:end;justify-content:end}
+  #eng .k{text-align:right}
+  #eng .v{text-align:right}
+  #eng .warn{color:var(--hot)}
+
+  /* ── the one sentence, upper right ── */
+  #claim{
+    top:30px;right:30px;max-width:31ch;text-align:right;
+    font-family:var(--serif);font-style:italic;font-size:clamp(13px,1.35vw,18px);
+    line-height:1.5;color:#b9c0cc;
+  }
+
+  /* ── controls ── */
+  #ctl{
+    justify-self:center;
+    display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center;
+    pointer-events:auto;
+  }
+  #ctl .grp{display:flex;gap:9px;align-items:center}
+  #ctl button{
+    -webkit-appearance:none;appearance:none;background:none;
+    border:1px solid var(--line);color:var(--dim);
+    font:inherit;font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;
+    padding:7px 13px;cursor:pointer;transition:color .25s,border-color .25s,background .25s;
+  }
+  #ctl button:hover{color:var(--bone);border-color:rgba(160,176,200,.42)}
+  #ctl button[aria-pressed="true"]{color:var(--void);background:var(--bone);border-color:var(--bone)}
+  #ctl button:focus-visible{outline:none;border-color:var(--hot);box-shadow:0 0 0 3px rgba(255,217,160,.22)}
+  #ctl .hint b{color:var(--bone);font-weight:400}
+  #ctl .hint{font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
+
+  /* ── arrival ── */
+  #splash{
+    position:fixed;inset:0;z-index:40;pointer-events:none;
+    display:grid;place-items:center;background:var(--void);
+    transition:opacity 2.2s ease 0.3s,visibility 2.2s ease 0.3s;
+  }
+  #splash .box{text-align:center}
+  #splash .g{font-family:var(--serif);font-size:clamp(40px,7vw,86px);line-height:1;letter-spacing:.02em}
+  #splash .t{margin-top:16px;font-size:9px;letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:var(--dim)}
+  #splash .bar{margin:22px auto 0;width:170px;height:1px;background:rgba(160,176,200,.18);position:relative;overflow:hidden}
+  #splash .bar i{position:absolute;inset:0 auto 0 0;width:0%;background:var(--bone);transition:width .3s linear}
+  #splash.gone{opacity:0;visibility:hidden}
+
+  /* ── infall: the words are not exempt from the geometry ── */
+  #splash{background:none}          /* void moves to ::before so it fades on the compositor */
+  #splash::before{content:'';position:absolute;inset:0;background:var(--void);
+    transition:opacity 1.5s ease;will-change:opacity}
+  #splash.lift::before{opacity:0}
+  #splash.lift .t,#splash.lift .bar{opacity:0;transition:opacity .7s ease}
+  .fx{display:inline-block;white-space:pre;transform-origin:50% 50%}
+  .fxb{transform-origin:50% 50%}
+  .fx,.fxb{backface-visibility:hidden}
+
+  #whisper{
+    bottom:132px;left:50%;transform:translateX(-50%);
+    font-size:8.5px;letter-spacing:.30em;text-transform:uppercase;color:var(--faint);
+    opacity:0;transition:opacity .8s ease;white-space:nowrap;
+  }
+  #whisper.on{opacity:1}
+  #grain{position:fixed;inset:0;z-index:15;pointer-events:none;opacity:.035;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='150' height='150' filter='url(%23n)'/></svg>")}
+
+  #fallback{
+    position:fixed;inset:0;z-index:60;display:none;place-items:center;
+    background:var(--void);padding:40px;text-align:center;
+  }
+  #fallback div{max-width:46ch;font-size:11px;letter-spacing:.14em;line-height:2.3;color:var(--dim)}
+  #fallback b{color:var(--bone);font-weight:400}
+
+  @media (max-width:820px){
+    #claim{display:none}
+    #eng{display:none}
+    #id{left:18px;top:18px}
+    #bottom{grid-template-columns:1fr;justify-items:center;row-gap:14px;padding:0 18px 20px}
+    #ctl{gap:12px}
+    #ctl .hint{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #splash,#splash::before,#splash.lift .t,#splash.lift .bar,
+    #splash .bar i,#whisper,#ctl button{transition:none}
+  }
+  /* Type has to survive a sky it does not control. A gradient scrim
+     keyed to the ground colour buys contrast without drawing a panel. */
+  #scrim{position:fixed;inset:0;z-index:14;pointer-events:none;
+    background:linear-gradient(to bottom,rgba(3,4,10,.72),rgba(3,4,10,0) 22%,rgba(3,4,10,0) 74%,rgba(3,4,10,.80))}
+</style>
+</head>
+<body>
+
+<canvas id="gl" aria-label="Interactive simulation of a Schwarzschild black hole. Drag to change viewing inclination, scroll to change orbital radius."></canvas>
+
+<div class="hud" id="id">
+  <h1>HORIZON<span>&thinsp;/&thinsp;01</span></h1>
+  <div class="sub">Schwarzschild geometry. Null geodesics integrated per pixel by
+  fourth-order Runge-Kutta. Nothing here is a texture of a black hole.</div>
+</div>
+
+<div class="hud" id="claim">
+  The shadow is not drawn. It is the set of directions in which light was sent and did not come back.
+</div>
+
+<div id="bottom">
+
+<div class="hud" id="tel">
+  <div class="k">Observer</div><div class="v" id="t-r">-</div>
+  <div class="k">Inclination</div><div class="v" id="t-inc">-</div>
+  <div class="k">Shadow</div><div class="v" id="t-sh">-</div>
+  <div class="k">ISCO shift</div><div class="v" id="t-z">-</div>
+  <div class="k">Disk</div><div class="v" id="t-disk">-</div>
+  <div class="k">Dilation</div><div class="v" id="t-dil">-</div>
+  <div class="k">Clocks</div><div class="v" id="t-clk">-</div>
+</div>
+
+<div class="hud" id="eng">
+  <div class="k">Integrator</div><div class="v">RK4 · <em>u″=3Mu²−u</em></div>
+  <div class="k">Steps / ray</div><div class="v" id="e-steps">-</div>
+  <div class="k">Render scale</div><div class="v" id="e-scale">-</div>
+  <div class="k">Frame</div><div class="v" id="e-fps">-</div>
+  <div class="k">Precision</div><div class="v" id="e-prec">-</div>
+</div>
+
+<div class="hud" id="ctl">
+  <div class="grp">
+    <button id="b-edge" type="button">Edge on</button>
+    <button id="b-face" type="button">Face on</button>
+    <button id="b-ring" type="button">Photon ring</button>
+  </div>
+  <span class="hint">drag · scroll · <b>G</b> for the film&rsquo;s framing</span>
+  <div class="grp">
+    <button id="b-motion" type="button" aria-pressed="false">Motion</button>
+    <button id="b-quality" type="button">Quality: auto</button>
+  </div>
+</div>
+
+</div><!-- /#bottom -->
+
+<div id="splash"><div class="box">
+  <div class="g">HORIZON</div>
+  <div class="t">compiling geodesic integrator</div>
+  <div class="bar"><i id="sp-bar"></i></div>
+</div></div>
+
+<div class="hud" id="whisper"></div>
+<div id="scrim" aria-hidden="true"></div>
+<div id="grain"></div>
+<div id="fallback"><div>
+  <b>This requires WebGL2.</b><br>
+  The integrator runs one ray per pixel and needs floating-point render targets.<br>
+  Nothing is precomputed, so there is no fallback image to show you.
+</div></div>
+
+<script>window.addEventListener("error",function(e){document.documentElement.setAttribute("data-boot",e.message+" @"+e.lineno+":"+e.colno);});</script>
+<script>
+(function(){
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HORIZON, a Schwarzschild black hole, integrated per pixel.
+
+   Geometric units, G = c = 1, M = 1. Therefore:
+     event horizon        r  = 2M            (Schwarzschild radius)
+     photon sphere        r  = 3M
+     shadow edge          b  = 3√3 M ≈ 5.196 (critical impact parameter)
+     innermost orbit      r  = 6M            (ISCO, the disk's inner edge)
+
+   Every ray is a null geodesic. The shadow is not geometry and not a texture:
+   it is the set of directions whose rays crossed the horizon and never came
+   back. The disk appears above and below it because the integrator keeps going
+   after the first equatorial crossing and picks up the second and third images
+  , which is the whole reason Gargantua looks like an eye rather than a smear.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var cv=document.getElementById('gl');
+var gl=cv.getContext('webgl2',{antialias:false,alpha:false,depth:false,
+                               powerPreference:'high-performance',
+                               preserveDrawingBuffer:false});
+if(!gl){document.getElementById('fallback').style.display='grid';return;}
+
+var floatOK=!!gl.getExtension('EXT_color_buffer_float');
+gl.getExtension('OES_texture_float_linear');
+
+var REDUCED=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ───────────────────────────── plumbing ───────────────────────────── */
+function sh(type,src,label){
+  var s=gl.createShader(type);
+  gl.shaderSource(s,src);gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){
+    console.error('[HORIZON] '+label+' failed to compile:\n'+gl.getShaderInfoLog(s));
+    return null;
+  }
+  return s;
+}
+function prog(vsrc,fsrc,label){
+  var v=sh(gl.VERTEX_SHADER,vsrc,label+'.vert');
+  var f=sh(gl.FRAGMENT_SHADER,fsrc,label+'.frag');
+  if(!v||!f)return null;
+  var p=gl.createProgram();
+  gl.attachShader(p,v);gl.attachShader(p,f);gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)){
+    console.error('[HORIZON] '+label+' failed to link:\n'+gl.getProgramInfoLog(p));
+    return null;
+  }
+  gl.deleteShader(v);gl.deleteShader(f);
+  return p;
+}
+function uniforms(p){
+  var out={},n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);
+  for(var i=0;i<n;i++){var info=gl.getActiveUniform(p,i);
+    out[info.name.replace('[0]','')]=gl.getUniformLocation(p,info.name);}
+  return out;
+}
+
+/* one full-screen triangle strip, shared by every pass */
+var quad=null,vb=null;
+function buildQuad(){
+  quad=gl.createVertexArray();gl.bindVertexArray(quad);
+  vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  gl.bindVertexArray(null);
+}
+buildQuad();
+
+var VS=[
+'#version 300 es',
+'layout(location=0) in vec2 aPos;',
+'out vec2 vUv;',
+'void main(){vUv=aPos*0.5+0.5;gl_Position=vec4(aPos,0.0,1.0);}'
+].join('\n');
+
+function makeFBO(w,h,fmt){
+  var t=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texImage2D(gl.TEXTURE_2D,0,fmt.internal,w,h,0,fmt.format,fmt.type,null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  var f=gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER,f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  return {tex:t,fb:f,w:w,h:h};
+}
+var FMT=floatOK?{internal:gl.RGBA16F,format:gl.RGBA,type:gl.HALF_FLOAT}
+               :{internal:gl.RGBA8,  format:gl.RGBA,type:gl.UNSIGNED_BYTE};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PASS 1, the geodesic integrator
+   ═══════════════════════════════════════════════════════════════════════════ */
+var LENS_FS=[
+'#version 300 es',
+'precision highp float;',
+'in vec2 vUv;',
+'out vec4 oCol;',
+
+'uniform vec2  uRes;',
+'uniform vec3  uCam;',
+'uniform mat3  uBasis;',   // camera basis: right, up, forward',
+'uniform float uFov;',
+'uniform float uTime;',
+'uniform float uDiskT;',   // separate clock so motion can freeze without freezing shimmer',
+'uniform int   uSteps;',
+'uniform float uRingBoost;',
+'uniform float uBeam;',
+
+'const float M   = 1.0;',
+'const float RH  = 2.0;',     // horizon',
+'const float RIN = 6.0;',     // ISCO, the disk cannot extend inside this',
+'const float ROUT= 19.0;',
+'const float RESC= 60.0;',
+
+/* ── hashes and noise ── */
+'float h11(float p){p=fract(p*0.1031);p*=p+33.33;p*=p+p;return fract(p);}',
+/* interleaved gradient noise, spatially decorrelated, temporally frozen, so a
+   still frame gets a fixed sub-pixel dither rather than visible grain */
+'float ign(vec2 p){return fract(52.9829189*fract(0.06711056*p.x+0.00583715*p.y));}',
+'float h31(vec3 p){p=fract(p*0.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}',
+'float vnoise(vec3 x){',
+'  vec3 i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);',
+'  float n=mix(mix(mix(h31(i+vec3(0,0,0)),h31(i+vec3(1,0,0)),f.x),',
+'                  mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),',
+'              mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),',
+'                  mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);',
+'  return n;',
+'}',
+'float fbm(vec3 p){',
+'  float s=0.0,a=0.5;',
+'  for(int i=0;i<5;i++){s+=a*vnoise(p);p*=2.03;a*=0.5;}',
+'  return s;',
+'}',
+
+/* ── blackbody-ish ramp, normalised so 1.0 is white-hot ── */
+'vec3 temp2rgb(float t){',
+'  t=clamp(t,0.0,1.0);',
+'  vec3 cool=vec3(0.55,0.72,1.00);',
+'  vec3 mid =vec3(1.00,0.93,0.80);',
+'  vec3 warm=vec3(1.00,0.55,0.18);',
+'  vec3 deep=vec3(0.72,0.16,0.05);',
+'  if(t>0.72)return mix(mid,cool,(t-0.72)/0.28);',
+'  if(t>0.42)return mix(warm,mid,(t-0.42)/0.30);',
+'  return mix(deep,warm,t/0.42);',
+'}',
+
+/* ── the sky the lens is bending ──
+   Stars at three densities plus a nebula field. It matters that this is real
+   structure and not a flat gradient: the lensing is only legible because you
+   can watch specific features smear around the shadow. */
+'vec3 starLayer(vec3 d,float cells,float thresh,float gain){',
+'  vec3 p=d*cells;',
+'  vec3 i=floor(p),f=fract(p);',
+'  vec3 acc=vec3(0.0);',
+'  for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++)for(int z=-1;z<=1;z++){',
+'    vec3 o=vec3(float(x),float(y),float(z));',
+'    vec3 c=i+o;',
+'    float r=h31(c);',
+'    if(r<thresh)continue;',
+'    vec3 jit=vec3(h31(c+11.3),h31(c+27.7),h31(c+41.1));',
+'    float dist=length(f-o-jit);',
+'    float mag=pow(h31(c+7.77),3.0);',
+'    float tw=0.82+0.18*sin(uTime*1.7+r*90.0);',
+'    float b=gain*mag*tw/(1.0+320.0*dist*dist*cells*0.02);',
+'    float ct=h31(c+3.21);',
+'    vec3 col=mix(vec3(0.62,0.74,1.0),vec3(1.0,0.83,0.62),ct);',
+'    acc+=col*b;',
+'  }',
+'  return acc;',
+'}',
+/* Very fine star dust. Near the critical impact parameter each winding order is
+   radially compressed by ~e^(2pi), so the sky needs structure far below the
+   120-cell layers or the repeated images have nothing to repeat. Single hash
+   cell, support radius ~0.32 cell so it never clips the boundary. */
+'float dust(vec3 d,float cells){',
+'  vec3 p=d*cells,i=floor(p),f=fract(p)-0.5;',
+'  if(h31(i)<0.972)return 0.0;',
+'  return exp(-dot(f,f)*24.0)*pow(h31(i+5.5),2.0);',
+'}',
+'vec3 sky(vec3 d){',
+'  d=normalize(d);',
+'  vec3 col=vec3(0.0);',
+'  col+=starLayer(d,22.0,0.80,1.70);',
+'  col+=starLayer(d,58.0,0.855,0.72);',
+'  col+=starLayer(d,150.0,0.90,0.30);',
+'  col+=starLayer(d,340.0,0.935,0.15);',
+'  col+=vec3(0.86,0.90,1.00)*(dust(d,780.0)*0.30+dust(d,1950.0)*0.17);',
+'  // nebula: two tinted fbm fields plus a galactic band',
+'  float drift=uTime*0.013;',
+'  float n1=fbm(d*3.4+vec3(drift,0.0,-drift));',
+'  float n2=fbm(d*9.0+vec3(11.0,-drift*1.6,3.0));',
+'  float band=exp(-pow(abs(dot(d,normalize(vec3(0.32,0.86,-0.38))))*3.1,2.0));',
+/* Space is black. The first pass had a bright enough nebula floor that the
+   lensed background read as daylight cloud and drowned both the disk and the
+   photon ring, and because the nebula was low-frequency, the repeated sky
+   images near the critical impact parameter turned into obvious concentric
+   banding. Steep exponents keep the gas as sparse filament instead of haze. */
+'  vec3 neb=vec3(0.0);',
+'  neb+=vec3(0.10,0.21,0.52)*pow(max(n1-0.44,0.0),1.75)*2.35;',
+'  neb+=vec3(0.42,0.10,0.38)*pow(max(n2-0.50,0.0),1.95)*1.70;',
+'  // a third front, warm, so the field is not two colours pretending to be many',
+'  float n3=fbm(d*18.0+vec3(-drift*2.2,7.0,19.0));',
+'  neb+=vec3(0.44,0.30,0.12)*pow(max(n3-0.56,0.0),2.1)*1.15;',
+'  // and it breathes, very slowly, but it is never the same sky twice',
+'  neb*=(0.86+0.20*sin(uTime*0.09+n1*5.0))*(0.42+1.05*vnoise(d*46.0));',
+/* The galactic band is smooth and broad, so its repeated images near the
+   critical impact parameter stack into concentric grey arcs that read as
+   banding. Keep it faint and let the star layers carry the lensing instead -
+   repeated starfields are legible as spacetime; repeated grey gradients are not. */
+'  neb+=vec3(0.13,0.18,0.28)*band*0.22*(0.30+1.30*vnoise(d*118.0));',
+'  neb+=vec3(0.010,0.013,0.026);',   // a floor, but barely',
+'  return col+neb;',
+'}',
+
+/* ── the accretion disk ──
+   Optically thin, so every equatorial crossing adds light. Keplerian shear
+   (Ω ∝ r^-3/2) means the inner disk winds faster than the outer, which is what
+   makes it read as one fluid object rather than a spinning picture. The radial
+   drift term is matter actually falling in. */
+'vec3 diskAt(vec3 p,vec3 viewDir){',
+'  float r=length(p);',
+'  if(r<RIN||r>ROUT)return vec3(0.0);',
+'  float ang=atan(p.z,p.x);',
+'  float omega=pow(r,-1.5)*1.55;',                 // Keplerian',
+'  float infall=uDiskT*0.030;',
+'  float ac=ang-uDiskT*omega;',
+'  float lr=log(r)-infall;',
+'  // filaments: stretched along the orbit, sheared across radius',
+/* Anisotropic on purpose. Keeping the azimuthal scale small and the radial
+   scale large stretches every feature along its own orbit, which is what
+   differential rotation actually does to plasma: the inner edge laps the outer
+   edge, so structure survives as fine concentric streaks and shear lanes.
+   The previous 1.8:1 ratio made near-round blobs, cotton wool, and a literal
+   two-armed sin() term on top made it read as a spiral galaxy, which is the
+   wrong object by ten orders of magnitude. Ratio is ~10:1 now, no arms. */
+'  vec3 q=vec3(cos(ac),sin(ac),0.0)*1.55+vec3(0.0,0.0,lr*16.5);',
+'  float dens=fbm(q*1.62);',
+'  dens+=0.46*fbm(q*4.3+vec3(5.0));',
+'  dens+=0.20*fbm(q*11.0+vec3(19.0));',
+'  // broad, aperiodic density variation, patchy supply, not a density wave',
+'  float macro=fbm(vec3(cos(ac),sin(ac),0.0)*0.78+vec3(0.0,0.0,lr*1.3));',
+'  dens*=mix(0.58,1.34,smoothstep(0.30,0.72,macro));',
+/* Orbiting hot spots. Real disks flare; this is what gives the eye something
+   moving to hold onto now that the fake arms are gone. */
+'  float spot=fbm(vec3(cos(ac*1.0),sin(ac*1.0),0.0)*2.4+vec3(0.0,0.0,lr*3.1+uDiskT*0.07));',
+'  dens*=1.0+2.1*pow(max(spot-0.68,0.0),1.5)*6.0;',
+'  // thin, and thinner at the inner edge',
+'  float edgeIn =smoothstep(RIN,RIN+1.6,r);',
+/* A longer, steeper outer taper. The old one held near-full density out to
+   13.5M and then dropped, so the outer third read as a sprawling dust cloud
+   rather than a disk thinning into nothing. */
+'  float edgeOut=pow(1.0-smoothstep(ROUT-9.0,ROUT,r),1.5);',
+/* Higher threshold then a gamma above 1: turns soft cloud into discrete
+   filaments with dark lanes between them, which is what a sheared plasma
+   actually looks like and what stops the disk reading as smoke. */
+'  dens=max(dens-0.53,0.0);',
+'  dens=pow(dens*2.35,1.55);',
+'  dens*=edgeIn*edgeOut;',
+'  if(dens<=0.0)return vec3(0.0);',
+
+'  // thin-disk temperature: T ∝ r^-3/4, hot enough at ISCO to go blue-white',
+'  float t=pow(RIN/r,0.75);',
+'  // gravitational redshift out of the well',
+'  float grav=sqrt(max(1.0-RH/r,1e-4));',
+'  // orbital velocity, and relativistic beaming toward/away from the observer',
+'  vec3 vdir=normalize(cross(vec3(0.0,1.0,0.0),p));',
+'  float beta=sqrt(M/r);',
+'  beta=min(beta,0.95);',
+'  float gamma=1.0/sqrt(max(1.0-beta*beta,1e-4));',
+'  float mu=dot(vdir,-normalize(viewDir));',
+'  float dopp=1.0/max(gamma*(1.0-beta*mu*uBeam),1e-3);',
+'  float shift=dopp*grav;',
+'  // I_ν/ν³ is invariant → observed brightness scales as shift³',
+'  float bright=pow(shift,3.0);',
+'  float tShift=clamp(t*mix(1.0,shift,0.55),0.0,1.0);',
+'  vec3 col=temp2rgb(tShift);',
+'  float lum=dens*22.0*pow(RIN/r,2.1)*bright;',
+'  return col*lum;',
+'}',
+
+/* ── RK4 on the null orbit equation ── */
+'void rk4(inout float u,inout float v,float h){',
+'  float a1=3.0*M*u*u-u;',
+'  float u2=u+0.5*h*v,      v2=v+0.5*h*a1;',
+'  float a2=3.0*M*u2*u2-u2;',
+'  float u3=u+0.5*h*v2,     v3=v+0.5*h*a2;',
+'  float a3=3.0*M*u3*u3-u3;',
+'  float u4=u+h*v3,         v4=v+h*a3;',
+'  float a4=3.0*M*u4*u4-u4;',
+'  u+=h/6.0*(v+2.0*v2+2.0*v3+v4);',
+'  v+=h/6.0*(a1+2.0*a2+2.0*a3+a4);',
+'}',
+
+'void main(){',
+/* Two frozen per-pixel jitters. j0/j1 offset the sample inside the pixel, which
+   antialiases the winding-order boundary (a geometric locus in image space).
+   hJit rescales every step by +/-10%, decorrelating the integrator's step phase
+   and the budget-exhaustion radius between neighbours so neither quantises into
+   a ring. Neither uses uTime, so a still frame is dithered, not noisy, and
+   ringGlow is an h-weighted sum of dphi, so hJit adds no brightness variance. */
+'  vec2 px=vUv*uRes;',
+'  float j0=ign(px),j1=ign(px+vec2(37.0,17.0)),j2=ign(px+vec2(11.0,71.0));',
+'  float hJit=0.90+0.20*j2;',
+'  vec2 ndc=((px+(vec2(j0,j1)-0.5)*0.85)/uRes)*2.0-1.0;',
+'  ndc.x*=uRes.x/uRes.y;',
+'  vec3 dir=normalize(uBasis*vec3(ndc*uFov,-1.0));',
+
+'  float r0=length(uCam);',
+'  vec3 e1=uCam/r0;',
+'  vec3 tang=dir-dot(dir,e1)*e1;',
+'  float tl=length(tang);',
+
+'  vec3 acc=vec3(0.0);',
+'  float ringGlow=0.0;',
+
+'  if(tl<1e-5){',
+'    // exactly radial: no orbital plane to define. Straight in, straight out.',
+'    if(dot(dir,e1)<0.0){oCol=vec4(0.0,0.0,0.0,1.0);return;}',
+'    oCol=vec4(sky(dir),1.0);return;',
+'  }',
+
+'  vec3 e2=tang/tl;',
+'  float u=1.0/r0;',
+'  float v=-dot(dir,e1)/(r0*tl);',   // du/dφ at the camera',
+'  float phi=0.0;',
+'  vec3  pos=uCam;',
+'  float prevY=uCam.y;',
+'  bool  captured=false, escaped=false;',
+'  int   crossings=0;',
+
+'  for(int i=0;i<560;i++){',
+'    if(i>=uSteps)break;',
+'    float r=1.0/max(u,1e-6);',
+'    // Step keyed to distance from the photon sphere, not to r. Near r=3M the',
+'    // geodesic is exponentially unstable, so error amplifies as e^(lambda*phi)',
+'    // and 0.084 rad smears razor-thin images into fat bands. hPS is ~0.0075 rad',
+'    // there and relaxes linearly; min() against the flat-space stride keeps far',
+'    // space cheap. bud stretches h as the budget drains, so a ray still pinned',
+'    // to r=3M at the end gets pushed off the saddle (it is already committed to',
+'    // one side) rather than stalling and hitting the dark fallback branch.',
+'    float dps=abs(r-3.0*M);',
+'    float bud=float(i)/float(max(uSteps,1));',
+'    float hPS=(0.0075+0.115*dps)*(1.0+3.0*bud*bud);',
+'    float h=min(hPS,0.030*r)*hJit;',
+'    h=clamp(h,0.0030,0.58);',
+'    vec3 prevPos=pos;',
+'    rk4(u,v,h);',
+'    phi+=h;',
+'    if(u<=0.0){escaped=true;break;}',
+'    r=1.0/u;',
+'    if(r<=RH){captured=true;break;}',
+'    pos=r*(cos(phi)*e1+sin(phi)*e2);',
+
+'    // equatorial crossing → a disk image. Keep going for the next one.',
+'    if(prevY*pos.y<0.0){',
+'      float f=prevY/(prevY-pos.y);',
+'      vec3 cp=mix(prevPos,pos,f);',
+'      float rc=length(cp);',
+'      if(rc>RIN&&rc<ROUT){',
+'        vec3 vd=normalize(pos-prevPos);',
+'        vec3 d=diskAt(cp,vd);',
+'        // I_nu/nu^3 is invariant along the geodesic, so the nth image of a disk',
+'        // patch has the SAME surface brightness as the first, up to its own local',
+'        // Doppler and gravitational shift, which diskAt already computes at this',
+'        // crossing. Higher images look faint only because their solid angle is',
+'        // tiny. Attenuating by order double-counted that and smeared thin arcs',
+'        // into grey ramps. Optically thin, so crossings simply add.',
+'        acc+=d;',
+'        crossings++;',
+'      }',
+'    }',
+'    prevY=pos.y;',
+
+'    // rays that linger near the photon sphere are the photon ring',
+'    float drp=r-3.0*M;',
+'    ringGlow+=h*0.62/(1.0+18.0*drp*drp);',
+
+'    if(r>RESC&&v<0.0){escaped=true;break;}',
+'  }',
+
+'  if(!captured){',
+'    if(escaped){',
+'      float drdphi=-v/max(u*u,1e-9);',
+'      vec3 dP=drdphi*(cos(phi)*e1+sin(phi)*e2)',
+'             +(1.0/max(u,1e-6))*(-sin(phi)*e1+cos(phi)*e2);',
+'      acc+=sky(normalize(dP));',
+'    }else{',
+/* Ran out of steps. A flat 0.55×sky here put a hard brightness discontinuity
+   exactly along the locus of rays that need the most integration, a crisp
+   concentric ring that read as an artifact rather than as physics. Rays still
+   close to the photon sphere when the budget ran out are the ones spiralling,
+   and they are either captured or so redshifted they contribute nothing, so
+   weight by radius and the seam becomes a gradient. */
+'      float rEnd=1.0/max(u,1e-6);',
+'      float drdphi=-v/max(u*u,1e-9);',
+'      vec3 dP=drdphi*(cos(phi)*e1+sin(phi)*e2)',
+'             +(1.0/max(u,1e-6))*(-sin(phi)*e1+cos(phi)*e2);',
+'      acc+=sky(normalize(dP))*smoothstep(3.0,14.0,rEnd);',
+'    }',
+'  }',
+
+'  acc+=vec3(1.0,0.92,0.80)*ringGlow*ringGlow*0.030*uRingBoost;',
+'  oCol=vec4(max(acc,0.0),1.0);',
+'}'
+].join('\n');
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PASSES 2-4, bright extract, separable blur, composite
+   ═══════════════════════════════════════════════════════════════════════════ */
+var BRIGHT_FS=[
+'#version 300 es','precision highp float;',
+'in vec2 vUv;out vec4 oCol;',
+'uniform sampler2D uSrc;uniform float uThresh;',
+'void main(){',
+'  vec3 c=texture(uSrc,vUv).rgb;',
+'  float l=dot(c,vec3(0.2126,0.7152,0.0722));',
+'  float k=max(l-uThresh,0.0)/max(l,1e-4);',
+'  oCol=vec4(c*k,1.0);',
+'}'].join('\n');
+
+var BLUR_FS=[
+'#version 300 es','precision highp float;',
+'in vec2 vUv;out vec4 oCol;',
+'uniform sampler2D uSrc;uniform vec2 uDir;',
+/* 9-tap Gaussian, linear-sampled so it costs 5 fetches */
+'void main(){',
+'  vec3 s=texture(uSrc,vUv).rgb*0.227027;',
+'  s+=texture(uSrc,vUv+uDir*1.3846).rgb*0.316216;',
+'  s+=texture(uSrc,vUv-uDir*1.3846).rgb*0.316216;',
+'  s+=texture(uSrc,vUv+uDir*3.2308).rgb*0.070270;',
+'  s+=texture(uSrc,vUv-uDir*3.2308).rgb*0.070270;',
+'  oCol=vec4(s,1.0);',
+'}'].join('\n');
+
+var COMP_FS=[
+'#version 300 es','precision highp float;',
+'in vec2 vUv;out vec4 oCol;',
+'uniform sampler2D uScene;uniform sampler2D uBloom;',
+'uniform float uExposure,uBloomAmt,uTime;',
+'uniform vec2 uRes;',
+'vec3 aces(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0);}',
+'float h21(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}',
+'void main(){',
+'  vec3 c=texture(uScene,vUv).rgb;',
+'  c+=texture(uBloom,vUv).rgb*uBloomAmt;',
+'  c*=uExposure;',
+'  c=aces(c);',
+'  c=pow(c,vec3(1.0/2.2));',
+'  float d=length(vUv-0.5);',
+'  c*=1.0-smoothstep(0.52,1.02,d)*0.62;',
+/* ordered-ish dither: 16-bit banding is very visible on a near-black field */
+'  c+=(h21(vUv*uRes+fract(uTime))-0.5)/255.0;',
+'  oCol=vec4(c,1.0);',
+'}'].join('\n');
+
+var pLens,pBright,pBlur,pComp,uLens,uBright,uBlur,uComp;
+function buildPrograms(){
+  pLens=prog(VS,LENS_FS,'lens');pBright=prog(VS,BRIGHT_FS,'bright');
+  pBlur=prog(VS,BLUR_FS,'blur');pComp=prog(VS,COMP_FS,'composite');
+  if(!pLens||!pBright||!pBlur||!pComp)return false;
+  uLens=uniforms(pLens);uBright=uniforms(pBright);
+  uBlur=uniforms(pBlur);uComp=uniforms(pComp);
+  return true;
+}
+function glDead(msg){
+  var f=document.getElementById('fallback');
+  f.style.display='grid';f.querySelector('div').innerHTML=msg;
+}
+if(!buildPrograms()){
+  glDead('<b>The integrator failed to compile on this GPU.</b><br>'+
+    'The console holds the shader log. Nothing is precomputed, so there is no fallback image.');
+  return;
+}
+var ctxLost=false;
+cv.addEventListener('webglcontextlost',function(e){
+  e.preventDefault();ctxLost=true;
+  fbScene=null;fbA=null;fbB=null;
+  whisper('GPU context lost. Rebuilding from source.');
+},false);
+cv.addEventListener('webglcontextrestored',function(){
+  floatOK=!!gl.getExtension('EXT_color_buffer_float');
+  gl.getExtension('OES_texture_float_linear');
+  FMT=floatOK?{internal:gl.RGBA16F,format:gl.RGBA,type:gl.HALF_FLOAT}
+             :{internal:gl.RGBA8,format:gl.RGBA,type:gl.UNSIGNED_BYTE};
+  el.prec.textContent=(floatOK?'RGBA16F':'RGBA8 (no float)')+' · rebuilt';
+  buildQuad();
+  if(!buildPrograms()){glDead('<b>The integrator did not survive a GPU context loss.</b><br>Reload.');return;}
+  frameAvg=16.7;settle=0;resize();ctxLost=false;
+  whisper('Context restored. Nothing was cached; it recompiled.');
+},false);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   camera, spherical, always looking at the singularity
+   ═══════════════════════════════════════════════════════════════════════════ */
+/* The observer does not arrive politely. Roughly six revolutions in the first
+   seconds, shed exponentially, and the moment it holds still the page starts
+   eating its own title. Interaction damps it hard, because agency beats
+   choreography, and reduce-motion never spins at all. */
+var spinV=REDUCED?0:15.5, spinDone=false;
+var cam={r:38.0,theta:1.4137,phi:0.6},        // theta 81°, near edge-on, the iconic view
+    tgt={r:26.0,theta:1.4137,phi:0.6};
+var MINR=7.5,MAXR=70.0;
+
+/* basis() returned {pos:[],m:[]}: three fresh objects a frame, and a plain Array
+   forces uniformMatrix3fv to allocate and copy a Float32Array on every call.
+   Four allocations a frame, 240 a second at 60 fps, for values overwritten next
+   frame. Write into two preallocated typed arrays instead. */
+var bPos=new Float32Array(3),bMat=new Float32Array(9);
+(function(){
+  var q={},m=location.hash.slice(1).split('&'),i,kv;
+  for(i=0;i<m.length;i++){kv=m[i].split('=');if(kv.length===2)q[kv[0]]=parseFloat(kv[1]);}
+  if(!isFinite(q.r)||!isFinite(q.i)||!isFinite(q.p))return;
+  tgt.r=cam.r=Math.max(MINR,Math.min(MAXR,q.r));
+  tgt.theta=cam.theta=Math.max(0.06,Math.min(Math.PI-0.06,q.i));
+  tgt.phi=cam.phi=q.p;
+  spinV=0;spinDone=true;
+})();
+var hashT=0,hashS='',hashOK=true;
+function permalink(now){
+  if(!hashOK||now<hashT)return;hashT=now+700;
+  var p=cam.phi%6.283185307;if(p<0)p+=6.283185307;
+  var s='#r='+cam.r.toFixed(2)+'&i='+cam.theta.toFixed(3)+'&p='+p.toFixed(3);
+  if(s===hashS)return;hashS=s;
+  try{history.replaceState(null,'',s);}catch(e){hashOK=false;}
+}
+
+function basis(){
+  var st=Math.sin(cam.theta),ct=Math.cos(cam.theta);
+  var sp=Math.sin(cam.phi),cp=Math.cos(cam.phi);
+  var px=cam.r*st*cp, py=cam.r*ct, pz=cam.r*st*sp;
+  var fx=-px,fy=-py,fz=-pz;
+  var fl=Math.hypot(fx,fy,fz);fx/=fl;fy/=fl;fz/=fl;
+  // world up, orthogonalised against forward
+  var ux=0,uy=1,uz=0;
+  var d=ux*fx+uy*fy+uz*fz;
+  ux-=fx*d;uy-=fy*d;uz-=fz*d;
+  var ul=Math.hypot(ux,uy,uz);
+  if(ul<1e-4){ux=1;uy=0;uz=0;d=ux*fx+uy*fy+uz*fz;ux-=fx*d;uy-=fy*d;uz-=fz*d;ul=Math.hypot(ux,uy,uz);}
+  ux/=ul;uy/=ul;uz/=ul;
+  // right = forward × up
+  var rx=fy*uz-fz*uy, ry=fz*ux-fx*uz, rz=fx*uy-fy*ux;
+  bPos[0]=px;bPos[1]=py;bPos[2]=pz;
+  bMat[0]=rx;bMat[1]=ry;bMat[2]=rz;
+  bMat[3]=ux;bMat[4]=uy;bMat[5]=uz;
+  bMat[6]=-fx;bMat[7]=-fy;bMat[8]=-fz;   // column-major: right, up, -forward
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   adaptive quality, the frame-time governor
+   The integrator's cost is steps × pixels, and both are knobs. Rather than
+   guess a safe default for every GPU, measure and settle. Coarse hysteresis so
+   it does not oscillate visibly.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var Q={scale:0.85,steps:240,auto:true,mode:'auto'};
+var QMODES=[{n:'auto'},{n:'high',scale:1.0,steps:384},{n:'low',scale:0.55,steps:130}];
+var qi=0;
+var frameAvg=16.7,settle=0;
+
+function governor(dt){
+  frameAvg+=(dt-frameAvg)*0.09;
+  if(!Q.auto)return;
+  settle-=dt;
+  if(settle>0)return;
+  if(frameAvg>26.0&&Q.scale>0.5){Q.scale=Math.max(0.5,Q.scale-0.08);resize();settle=420;}
+  else if(frameAvg>26.0&&Q.steps>110){Q.steps-=24;settle=420;}
+  else if(frameAvg<13.0&&Q.steps<384){Q.steps+=18;settle=520;}
+  else if(frameAvg<13.0&&Q.scale<1.0){Q.scale=Math.min(1.0,Q.scale+0.06);resize();settle=520;}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   targets
+   ═══════════════════════════════════════════════════════════════════════════ */
+var DPR=1,W=1,H=1,RW=1,RH_=1;
+var fbScene=null,fbA=null,fbB=null;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=Math.max(2,Math.round(cv.clientWidth*DPR));
+  H=Math.max(2,Math.round(cv.clientHeight*DPR));
+  cv.width=W;cv.height=H;
+  RW=Math.max(2,Math.round(W*Q.scale));
+  RH_=Math.max(2,Math.round(H*Q.scale));
+  [fbScene,fbA,fbB].forEach(function(f){
+    if(f){gl.deleteTexture(f.tex);gl.deleteFramebuffer(f.fb);}
+  });
+  fbScene=makeFBO(RW,RH_,FMT);
+  var bw=Math.max(2,RW>>2),bh=Math.max(2,RH_>>2);
+  fbA=makeFBO(bw,bh,FMT);
+  fbB=makeFBO(bw,bh,FMT);
+}
+resize();
+window.addEventListener('resize',function(){resize();});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   input
+   ═══════════════════════════════════════════════════════════════════════════ */
+var drag=false,lx=0,ly=0,touched=false;
+function onDown(x,y){drag=true;lx=x;ly=y;cv.classList.add('dragging');touched=true;}
+function onUp(){drag=false;cv.classList.remove('dragging');}
+function onMove(x,y){
+  if(!drag)return;
+  tgt.phi-=(x-lx)*0.0052;
+  tgt.theta=Math.max(0.06,Math.min(Math.PI-0.06,tgt.theta+(y-ly)*0.0042));
+  lx=x;ly=y;
+}
+cv.addEventListener('mousedown',function(e){onDown(e.clientX,e.clientY);});
+window.addEventListener('mouseup',onUp);
+window.addEventListener('mousemove',function(e){onMove(e.clientX,e.clientY);});
+cv.addEventListener('wheel',function(e){
+  e.preventDefault();
+  tgt.r=Math.max(MINR,Math.min(MAXR,tgt.r*Math.exp(e.deltaY*0.00085)));
+  touched=true;
+},{passive:false});
+cv.addEventListener('touchstart',function(e){
+  if(e.touches.length===1)onDown(e.touches[0].clientX,e.touches[0].clientY);
+},{passive:true});
+cv.addEventListener('touchend',onUp,{passive:true});
+cv.addEventListener('touchmove',function(e){
+  if(e.touches.length===1){onMove(e.touches[0].clientX,e.touches[0].clientY);}
+  else if(e.touches.length===2){
+    var a=e.touches[0],b=e.touches[1];
+    var d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    if(pinch>0)tgt.r=Math.max(MINR,Math.min(MAXR,tgt.r*(pinch/d)));
+    pinch=d;
+  }
+  e.preventDefault();
+},{passive:false});
+var pinch=0;
+cv.addEventListener('touchend',function(){pinch=0;},{passive:true});
+
+cv.tabIndex=0;
+window.addEventListener('keydown',function(e){
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  var k=e.key,step=0.09;
+  if(k==='ArrowLeft'){tgt.phi-=step;touched=true;}
+  else if(k==='ArrowRight'){tgt.phi+=step;touched=true;}
+  else if(k==='ArrowUp'){tgt.theta=Math.max(0.06,tgt.theta-step*0.6);touched=true;}
+  else if(k==='ArrowDown'){tgt.theta=Math.min(Math.PI-0.06,tgt.theta+step*0.6);touched=true;}
+  else if(k==='+'||k==='='){tgt.r=Math.max(MINR,tgt.r*0.9);touched=true;}
+  else if(k==='-'||k==='_'){tgt.r=Math.min(MAXR,tgt.r*1.1);touched=true;}
+  else if(k==='g'||k==='G'){   // the framing Double Negative used for Gargantua
+    tgt.theta=1.4260;tgt.r=23.5;touched=true;
+    whisper('Thorne would allow it. Barely.');
+  }
+  else return;
+  e.preventDefault();
+});
+
+/* ── buttons ── */
+function fly(theta,r){tgt.theta=theta;if(r)tgt.r=r;touched=true;}
+document.getElementById('b-edge').addEventListener('click',function(){fly(1.5533,26.0);});
+document.getElementById('b-face').addEventListener('click',function(){fly(0.42,30.0);});
+document.getElementById('b-ring').addEventListener('click',function(){fly(1.5533,9.2);});
+
+var motionOn=!REDUCED;
+var bMotion=document.getElementById('b-motion');
+bMotion.setAttribute('aria-pressed',motionOn?'true':'false');
+bMotion.addEventListener('click',function(){
+  motionOn=!motionOn;
+  bMotion.setAttribute('aria-pressed',motionOn?'true':'false');
+});
+
+var bQ=document.getElementById('b-quality');
+bQ.addEventListener('click',function(){
+  qi=(qi+1)%QMODES.length;
+  var m=QMODES[qi];
+  Q.mode=m.n;
+  if(m.n==='auto'){Q.auto=true;}
+  else{Q.auto=false;Q.steps=m.steps;Q.scale=m.scale;resize();}
+  bQ.textContent='Quality: '+m.n;
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HUD
+   ═══════════════════════════════════════════════════════════════════════════ */
+var el={r:document.getElementById('t-r'),inc:document.getElementById('t-inc'),
+        sh:document.getElementById('t-sh'),z:document.getElementById('t-z'),
+        disk:document.getElementById('t-disk'),
+        dil:document.getElementById('t-dil'),clk:document.getElementById('t-clk'),
+        steps:document.getElementById('e-steps'),scale:document.getElementById('e-scale'),
+        fps:document.getElementById('e-fps'),prec:document.getElementById('e-prec')};
+el.prec.textContent=floatOK?'RGBA16F':'RGBA8 (no float)';
+el.sh.textContent='b = 3√3 M = 5.196';
+el.disk.textContent='6 M → 19 M · Keplerian';
+
+function hud(){
+  el.r.textContent=(cam.r/2).toFixed(2)+' rₛ  '+cam.r.toFixed(1)+' M';
+  el.inc.textContent=(cam.theta*180/Math.PI).toFixed(1)+'°';
+  // gravitational shift for a static emitter at the ISCO
+  var z=1/Math.sqrt(1-2/6);
+  el.z.textContent='×'+z.toFixed(3)+'  (z = '+(z-1).toFixed(3)+')';
+  el.dil.textContent='dtau/dt = '+dilNow.toFixed(4)+' · orbit '+Math.sqrt(Math.max(1.0-3.0/cam.r,0.0)).toFixed(4);
+  el.clk.textContent='tau '+ptime.toFixed(1)+' s · t '+ctime.toFixed(1)+' s · lag '+(ctime-ptime).toFixed(2)+' s';
+  el.steps.textContent=Q.steps+' max';
+  el.scale.textContent=(Q.scale*100).toFixed(0)+'% · '+RW+'×'+RH_;
+  el.fps.textContent=frameAvg.toFixed(1)+' ms · '+(1000/frameAvg).toFixed(0)+' fps';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   arrival, the splash lifts once the first real frames have landed
+   ═══════════════════════════════════════════════════════════════════════════ */
+var whisperEl=document.getElementById('whisper'),whisperT=0,seen=Object.create(null);
+function whisper(m){whisperEl.textContent=m;whisperEl.classList.add('on');whisperT=performance.now()+3600;}
+function once(k,m){if(!seen[k]){seen[k]=1;whisper(m);}}
+var splash=document.getElementById('splash'),spBar=document.getElementById('sp-bar');
+var warm=0,gone=false;
+
+/* ═══ INFALL - the type falls in too ═══════════════════════════════════════
+   Split once. After that only transform and opacity are ever written. */
+var LEPS=0.014,LNE=-Math.log(LEPS),TURNS=2.2*Math.PI*2,STR=9.0,IDLE=24000;
+var fxS=null,fxH=null,lastAct=performance.now();
+var run={f:null,p:0,dir:0,dur:2800};
+
+function split(root,mode,out){
+  var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false),ns=[],n;
+  while((n=w.nextNode()))ns.push(n);
+  for(var j=0;j<ns.length;j++){
+    var v=ns[j].nodeValue;if(!/\S/.test(v))continue;
+    var ps=mode==='char'?v.split(''):v.split(/(\s+)/),f=document.createDocumentFragment();
+    for(var i=0;i<ps.length;i++){
+      var p=ps[i];if(!p)continue;
+      if(/^\s+$/.test(p)){f.appendChild(document.createTextNode(p));continue;}
+      var s=document.createElement('span');s.className='fx';s.textContent=p;
+      f.appendChild(s);out.push(s);
+    }
+    ns[j].parentNode.replaceChild(f,ns[j]);
+  }
+}
+function Flock(nodes){this.n=nodes;this.m=null;}
+Flock.prototype.reset=function(){for(var i=0;i<this.n.length;i++){var s=this.n[i].style;s.transform='';s.opacity='';}};
+Flock.prototype.arm=function(on){var v=on?'transform,opacity':'';for(var i=0;i<this.n.length;i++)this.n[i].style.willChange=v;};
+Flock.prototype.measure=function(){
+  this.reset();                                  // clear, then read: one layout, at trigger only
+  var cx=cv.clientWidth*0.5,cy=cv.clientHeight*0.5,m=[],rM=1,i,b,dx,dy,r;
+  for(i=0;i<this.n.length;i++){
+    b=this.n[i].getBoundingClientRect();
+    dx=(b.left+b.right)*0.5-cx;dy=(b.top+b.bottom)*0.5-cy;
+    r=Math.hypot(dx,dy)||1;if(r>rM)rM=r;
+    m.push({e:this.n[i],r:r,a:Math.atan2(dy,dx),d:0,t0:0,on:0});
+  }
+  for(i=0;i<m.length;i++){
+    m[i].d=0.50*Math.pow(m[i].r/rM,0.9)+0.05*((i*0.6180339887)%1); // near the hole leaves first
+    var t=m[i].a+1.5707963;t=Math.atan2(Math.sin(t),Math.cos(t));  // tangent, wrapped to ±90°
+    if(t>1.5708)t-=Math.PI;else if(t<-1.5708)t+=Math.PI;m[i].t0=t;
+  }
+  this.m=m;return m;
+};
+Flock.prototype.apply=function(P){
+  var m=this.m;if(!m)return;var g=P*1.55,i;
+  for(i=0;i<m.length;i++){
+    var u=m[i],st=u.e.style,s=g-u.d;
+    if(s<=0){if(u.on){st.transform='';st.opacity='';u.on=0;}continue;}
+    if(s>1)s=1;u.on=1;
+    if(REDUCED){st.opacity=(1-s).toFixed(3);continue;}
+    var e=s*s*(3-2*s),k=Math.pow(1-e,1.35),rad=u.r*k,f=1-k,
+        wind=TURNS*(-Math.log(Math.max(1-e,LEPS))/LNE),ang=u.a+wind;
+    st.transform='translate3d('+(rad*Math.cos(ang)-u.r*Math.cos(u.a)).toFixed(2)+'px,'
+      +(rad*Math.sin(ang)-u.r*Math.sin(u.a)).toFixed(2)+'px,0) '
+      +'rotate('+(u.t0*e+wind).toFixed(3)+'rad) '
+      +'scale('+(1+STR*f*f).toFixed(3)+','+Math.max(0.12,1-0.88*Math.pow(f,1.6)).toFixed(3)+')';
+    var o=s<0.55?1:1-(s-0.55)/0.43;st.opacity=(o<0?0:o).toFixed(3);
+  }
+};
+function fxGo(fl,dur,dir){
+  if(!fl)return;
+  if(run.f&&run.f!==fl){run.f.reset();run.f.arm(false);run.p=dir>0?0:1;}
+  run.f=fl;run.dur=dur;run.dir=dir;
+  if(dir>0){if(run.p<=0)fl.measure();fl.arm(true);}
+}
+function fxFrame(now,dt){
+  if(gone&&run.dir===0&&run.p===0&&run.f!==fxS&&now-lastAct>IDLE){fxGo(fxH,3600,1);whisper('It takes the words too.');}
+  if(!run.f||run.dir===0)return;
+  run.p+=run.dir*dt/run.dur;
+  if(run.p>=1){run.p=1;run.dir=0;run.f.apply(1);run.f.arm(false);return;}
+  if(run.p<=0){run.p=0;run.dir=0;run.f.reset();run.f.arm(false);return;}
+  run.f.apply(run.p);
+}
+(function(){
+  var a=[];split(document.querySelector('#splash .g'),'char',a);fxS=new Flock(a);
+  var b=[];
+  split(document.querySelector('#id h1'),'char',b);
+  split(document.querySelector('#id .sub'),'word',b);
+  split(document.getElementById('claim'),'word',b);
+  ['tel','eng'].forEach(function(id){                 // grid cells fall as units, so hud() keeps working
+    var kids=document.getElementById(id).children;
+    for(var i=0;i<kids.length;i++){kids[i].classList.add('fxb');b.push(kids[i]);}
+  });
+  fxH=new Flock(b.slice(0,120));                      // hard budget
+})();
+function fxAct(e){
+  var key=e&&e.type==='keydown'&&(e.key==='f'||e.key==='F');
+  if(!key)lastAct=performance.now();
+  var falling=run.f===fxH&&(run.p>0||run.dir>0);
+  if(falling)fxGo(fxH,1500,-1);                        // anything you do pulls them back out
+  else if(key)fxGo(fxH,3600,1);
+}
+['pointerdown','pointermove','wheel','keydown','touchstart'].forEach(function(n){
+  window.addEventListener(n,fxAct,{passive:true,capture:true});
+});
+window.addEventListener('resize',function(){
+  if(run.f){run.f.reset();run.f.arm(false);}run.p=0;run.dir=0;lastAct=performance.now();
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   frame
+   ═══════════════════════════════════════════════════════════════════════════ */
+/* Same skew hazard as SPECULUM: rAF's timestamp and performance.now() need
+   not share a time origin, and a negative dt sends 1-exp(-dt*k) to -Infinity.
+   Here tgt == cam on frame one, so the 0 * -Infinity would have gone NaN too -
+   and every frame-time figure the HUD reported was derived from it. */
+var t0=-1,last=-1,diskT=0;
+var ctime=0,ptime=0,dilNow=1;
+
+function drawQuad(){gl.bindVertexArray(quad);gl.drawArrays(gl.TRIANGLES,0,3);}
+
+function endSpin(){
+  if(spinDone)return; spinDone=true;
+  /* Stillness is the cue. The words have had their moment. */
+  /* `startSwallow` was never defined anywhere in this file, so the documented
+     "the moment it holds still the page starts eating its own title" never once
+     fired. Drive the infall directly, and only if the viewer has not taken over. */
+  setTimeout(function(){
+    if(!touched&&gone&&run.dir===0&&run.p===0){fxGo(fxH,3600,1);whisper('It takes the words too.');}
+  },900);
+  whisper('It is done accelerating.');
+}
+function frame(now){
+  requestAnimationFrame(frame);
+  if(ctxLost){last=now;return;}
+  if(last<0){last=now;t0=now;}
+  var dt=Math.min(Math.max(now-last,0.5),60);last=now;
+  var t=(now-t0)/1000;
+  governor(dt);
+  if(motionOn)diskT+=dt/1000;
+
+  // ease the camera; idle drift only until the viewer takes over
+  if(spinV>0.05){
+    cam.phi+=spinV*dt/1000;
+    tgt.phi=cam.phi;
+    spinV*=Math.exp(-dt/1000*(touched?3.4:0.74));
+    if(spinV<=0.05){spinV=0;endSpin();}
+  } else if(!REDUCED)tgt.phi+=dt*(touched?0.000045:0.00021);   // it never quite stops
+  var k=1-Math.exp(-dt*0.0075);
+  cam.r+=(tgt.r-cam.r)*k;
+  cam.theta+=(tgt.theta-cam.theta)*k;
+  cam.phi+=(tgt.phi-cam.phi)*k;
+
+  dilNow=Math.sqrt(Math.max(1.0-2.0/cam.r,0.0));
+  ctime+=dt/1000;ptime+=dilNow*dt/1000;
+
+  basis();
+
+  /* pass 1, geodesics */
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbScene.fb);
+  gl.viewport(0,0,RW,RH_);
+  gl.useProgram(pLens);
+  gl.uniform2f(uLens.uRes,RW,RH_);
+  gl.uniform3f(uLens.uCam,bPos[0],bPos[1],bPos[2]);
+  gl.uniformMatrix3fv(uLens.uBasis,false,bMat);
+  gl.uniform1f(uLens.uFov,0.62);
+  gl.uniform1f(uLens.uTime,t);
+  gl.uniform1f(uLens.uDiskT,diskT);
+  gl.uniform1i(uLens.uSteps,Q.steps);
+  gl.uniform1f(uLens.uRingBoost,1.0);
+  gl.uniform1f(uLens.uBeam,0.72);
+  drawQuad();
+
+  /* pass 2, bright extract at quarter res */
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbA.fb);
+  gl.viewport(0,0,fbA.w,fbA.h);
+  gl.useProgram(pBright);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fbScene.tex);
+  gl.uniform1i(uBright.uSrc,0);
+  gl.uniform1f(uBright.uThresh,0.95);
+  drawQuad();
+
+  /* passes 3+4, separable blur */
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbB.fb);
+  gl.useProgram(pBlur);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fbA.tex);
+  gl.uniform1i(uBlur.uSrc,0);
+  gl.uniform2f(uBlur.uDir,1.0/fbA.w,0.0);
+  drawQuad();
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbA.fb);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fbB.tex);
+  gl.uniform2f(uBlur.uDir,0.0,1.0/fbA.h);
+  drawQuad();
+
+  /* pass 5, composite */
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(pComp);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fbScene.tex);
+  gl.uniform1i(uComp.uScene,0);
+  gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,fbA.tex);
+  gl.uniform1i(uComp.uBloom,1);
+  gl.uniform1f(uComp.uExposure,1.05);
+  gl.uniform1f(uComp.uBloomAmt,0.44);
+  gl.uniform1f(uComp.uTime,t);
+  gl.uniform2f(uComp.uRes,W,H);
+  drawQuad();
+
+  if(!gone){
+    warm++;
+    spBar.style.width=Math.min(100,warm*7)+'%';
+    if(warm>14){gone=true;splash.classList.add('lift');fxGo(fxS,2000,1);
+      setTimeout(function(){splash.classList.add('gone');fxS.reset();
+        if(run.f===fxS){run.f=null;run.p=0;run.dir=0;}
+        lastAct=performance.now();},2100);}
+  }
+  fxFrame(now,dt);
+  if(((warm&3)===0||gone)&&run.p<0.02)hud();
+  if(gone)permalink(now);
+  if(whisperT&&now>whisperT){whisperT=0;whisperEl.classList.remove('on');}
+  if(cam.r<10.5)once('close','Closer than anything should be.');
+  if(cam.r>62.0)once('far','It is still the biggest thing here.');
+  if(cam.theta<0.45)once('face','From above it is only a ring.');
+  if(t>52&&!touched)once('idle','Nothing here needs you.');
+  if(touched&&t>14)once('gkey','Press G. Trust me.');
+}
+requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
